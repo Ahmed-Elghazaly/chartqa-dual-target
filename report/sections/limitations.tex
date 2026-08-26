@@ -2,4 +2,61 @@
 \section{Limitations}
 \label{sec:limitations}
 
-\TODO{not written yet}
+Stated plainly, and before the results rather than after them.
+
+\paragraph{The headline grounding comparison rests on 500 items.}
+RefChartQA's published reference figure is on the human subset, which contains \result{500} test
+questions. A 95\% bootstrap interval on a score in the low thirties spans roughly $\pm4$ points at
+that sample size. A two-point improvement is therefore not a result, and no amount of seed averaging
+changes that, because every seed scores the same 500 items. The machine (\result{1{,}032}) and
+program-of-thought (\result{10{,}158}) subsets carry far more power, but they cannot be compared to
+the published figure --- only to our own matched baseline.
+
+\paragraph{Plan supervision is predominantly synthetic, by design.}
+Only about $5.7\%$ of real ChartQA training questions yield a unique typed plan under the uniqueness
+rule. Whether behaviour learned from exact synthetic charts transfers to real ones is a hypothesis
+under test (Section~\ref{sec:analysis}), not an assumption. Answer and evidence supervision on real
+charts does not depend on it.
+
+\paragraph{Some grounding targets have several valid regions.}
+RefChartQA's authors report 93.45\% agreement between two annotators and warn that some human
+questions admit multiple equally valid regions. A correct alternative box scores zero. We use the
+official metric rather than adjudicating this, which means our grounding numbers are, in an unknown
+fraction of cases, penalising correct answers.
+
+\paragraph{Gold tables are corrupt in the subset we mine.}
+Human-sourced ChartQA tables contain confirmed failures including plotted values replaced by zero,
+invented rows, corrupted headers, and adjacent axis labels concatenated into a single number. The
+uniqueness rule rejects most of these automatically, and yield is logged by source so the protection
+is visible --- but the mined plan set is shaped by which tables happened to be clean.
+
+\paragraph{Structured output has a real accuracy cost.}
+Published measurements on comparable models put the cost of emitting chain-of-thought or bounding
+boxes alongside an answer at 4.0 to 8.9 points. This system asks a \emph{smaller} model for more
+than either measurement: answerability, evidence boxes, values, units, a focus region, a typed plan
+and an answer, in one record. We report that cost as a named result rather than absorbing it into
+the headline.
+
+\paragraph{Single training run per configuration.}
+Training is run once per configuration because it is expensive; evaluation is run across three
+seeds with bootstrap intervals. Single-run results are labelled as such. We cannot separate
+run-to-run training variance from the effect of a configuration change, and do not claim to.
+
+\paragraph{Not a reproduction of any published training recipe.}
+Of the five claims that must never be conflated --- official training reproduced, official
+checkpoint evaluated, matched student baseline trained, before/after improvement achieved, published
+baseline exceeded --- this work makes the third and fourth. Section~\ref{sec:results} states each
+separately.
+
+\paragraph{Determinism is partial.}
+Seeds are recorded and set for Python, NumPy and PyTorch, but several CUDA kernels accumulate
+non-deterministically and floating-point addition is not associative, so identical seeds can produce
+slightly different weights on different hardware. We report variance rather than claiming
+bit-reproducibility.
+
+\paragraph{An evaluator defect we report around rather than fix.}
+The ChartQAPro evaluator computes an \texttt{always\_use\_exact\_match} flag for two question types
+and then never passes it to the scoring function, in both the official repository and the
+recommended third-party copy. Where that benchmark is used we report the pinned tool output as
+primary and a separately named corrected diagnostic alongside it, with the per-question disagreement
+count. The two are never averaged or interchanged.

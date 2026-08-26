@@ -1,5 +1,146 @@
 % section: setup
-\section{Setup}
+\section{Experimental setup}
 \label{sec:setup}
 
-\TODO{not written yet}
+Every number in this section was verified against a primary source or measured directly; the
+provenance of each is recorded in \texttt{verification/phase0.md} in the accompanying repository.
+Where a figure differs from the one in our original design document, the measured value is given and
+the discrepancy is stated explicitly rather than silently corrected.
+
+\subsection{Model}
+\label{sec:setup:model}
+
+The backbone is \texttt{Qwen/Qwen3-VL-2B-Instruct} (Apache-2.0, ungated). Two properties make it
+suited to this task rather than merely small enough to train on free hardware. First, its published
+ChartQA test score of \result{79.1} gives a known, matched starting point
+(Qwen3-VL technical report, Table~4: \result{86.6} Thinking / \result{79.1} Instruct). Second, and
+more importantly for the grounding half of this work, Qwen3-VL emits bounding boxes in a
+\emph{normalised $0$--$1000$ coordinate system}, changed from the absolute pixel coordinates of
+Qwen2.5-VL. RefChartQA's evaluator quantises to $0$--$999$, so almost no conversion is required and
+correspondingly few places exist for a coordinate bug to hide.
+
+\paragraph{Visual tokenisation.}
+Qwen3-VL uses \texttt{patch\_size} $=16$ and \texttt{spatial\_merge\_size} $=2$, so one visual token
+covers a $32\times32$ pixel region. This corrects a figure we had inherited: the widely quoted
+$28\times28$ token is the Qwen2-VL/Qwen2.5-VL geometry (patch $14\times$ merge $2$). The correction
+is not cosmetic. A \emph{larger} minimum visual unit means \emph{more} grounding targets fall below
+it, which strengthens rather than weakens the central premise of this work
+(Section~\ref{sec:setup:subtoken}).
+
+We derive the factor and the pixel bounds from the loaded processor at runtime rather than
+hard-coding them, and cross-check our \texttt{smart\_resize} port against
+\texttt{transformers.models.qwen2\_vl.image\_processing\_qwen2\_vl.smart\_resize} across ten image
+shapes at both factors.
+
+\subsection{The sub-token problem}
+\label{sec:setup:subtoken}
+
+A model cannot reliably localise a region smaller than its own smallest visual unit. Chart evidence
+regions frequently are smaller. Measured over \result{800} RefChartQA validation images
+(\result{1{,}045} boxes; the test split is sealed until Section~\ref{sec:results}):
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+Input budget & Median visual tokens & Targets sub-token \\
+\midrule
+$448^2$        & \result{176} & \result{60.5\%} \\
+$512^2$        & \result{247} & \result{53.2\%} \\
+$640^2$        & \result{368} & \result{43.1\%} \\
+$768^2$ (native) & \result{425} & \result{41.3\%} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+``Sub-token'' here means the target is narrower than one visual token on at least one axis. Two
+observations follow. At the $512$-pixel budget originally planned, \emph{more than half} of all
+grounding targets are unresolvable in principle. And because these charts are only about $800$
+pixels wide, any budget at or above $768^2$ is already native: moving from $512^2$ to native costs
+$1.7\times$ the tokens, not the $4\times$ a naive analysis predicts, and recovers roughly twelve
+percentage points of targets. Input resolution is therefore treated as a measured variable rather
+than a constant (Section~\ref{sec:setup:compute}).
+
+\subsection{Datasets}
+\label{sec:setup:data}
+
+\begin{center}
+\begin{tabular}{llrl}
+\toprule
+Dataset & Split & Rows & Licence \\
+\midrule
+ChartQA     & train / val / test & \result{28{,}299} / \result{1{,}920} / \result{2{,}500} & GPL-3.0 \\
+RefChartQA  & train / val / test & \result{55{,}789} / \result{6{,}223} / \result{11{,}690} & AGPL-3.0 \\
+ChartQAPro  & test only          & \result{1{,}948} & MIT \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+RefChartQA's test split partitions by question source into \result{500} human, \result{1{,}032}
+machine and \result{10{,}158} program-of-thought items. This matters more than it appears: the
+official evaluator produces \emph{three separate scores} and no aggregate, and the published
+reference figure of \result{32.83} AP@0.5 that this work targets is the \emph{human} subset alone.
+Comparing a whole-test-set average against it would not be a comparison. All grounding results in
+this report are therefore given as a per-subset triple, and the comparison against the published
+figure is stated as being on RefChartQA-H only.
+
+The consequence is a hard limit on resolution: with $n=500$, a 95\% bootstrap interval on a score in
+the low thirties spans roughly $\pm4$ points, so differences smaller than that are not
+distinguishable from sampling noise. We state this before reporting any result.
+
+ChartQA's gold data tables, required for plan mining, are \emph{not} present in the parquet
+distribution; they live in a separate \result{875{,}370{,}872}-byte archive in the same repository.
+
+\subsection{Metrics, and the implementations that define them}
+\label{sec:setup:metrics}
+
+A benchmark is a procedure, not a dataset: a score is a property of the model \emph{together with}
+the prompt, the decoding settings, the output format, the parsing code, the metric implementation
+and the data version. We therefore fix the implementations explicitly.
+
+\paragraph{Answer accuracy.}
+The ChartQA repository contains no answer evaluator. The implementation every published ChartQA
+number was produced with is \texttt{relaxed\_correctness} from pix2struct, which RefChartQA vendors
+verbatim; we verified the two agree on all \result{216} pairs of a $12\times18$ target/prediction
+grid. One function therefore scores both of our protocols.
+
+That function has a quirk worth naming, because it is canonical rather than incidental: the guard
+reads \texttt{if prediction\_float is not None and target\_float}, a \emph{truthiness} test, so a
+gold answer parsing to $0.0$ is falsy and the comparison silently falls through to case-insensitive
+string equality. A prediction of \texttt{"0.0"} against a gold \texttt{"0"} is therefore scored
+incorrect. Every published ChartQA number carries this behaviour, so we adopt it unchanged rather
+than ``fixing'' it into incomparability, and normalise our answers to bare \texttt{"0"}.
+
+\paragraph{Grounding.}
+AP@0.5 and P@F1 come from RefChartQA's released evaluator, vendored byte-identically and pinned by
+hash. Characterising it by execution rather than by reading revealed two properties that materially
+constrain how a system should emit boxes:
+
+\begin{enumerate}
+  \item Every predicted box is assigned $\mathrm{score}=1.0$, so there is no confidence ranking and
+        AP degenerates to $1/(\text{rank of the first correct box})$. A single false positive placed
+        ahead of a true one halves AP and sends P@F1 to zero.
+  \item \texttt{compute\_AP\_50} pools every prediction across the dataset into a single
+        precision--recall curve. Extra boxes are consequently \emph{free} on a single image and
+        ruinous in aggregate: over twenty images, appending three false positives to an otherwise
+        perfect prediction set moves AP from \result{1.0000} to \result{0.3243}.
+\end{enumerate}
+
+The system therefore emits few boxes, ordered best-first, and the evidence list is filtered before
+scoring under a rule frozen on validation data.
+
+A further trap: the evaluator accepts a box only when all four coordinates lie in $[0, 999]$, and
+\emph{silently discards the entire box otherwise}. Qwen3-VL's native range is $[0,1000]$ inclusive,
+and boxes touching a chart's right or bottom edge are common, so all emitted coordinates are clamped.
+
+\subsection{Compute}
+\label{sec:setup:compute}
+
+All training and evaluation runs on free-tier hardware: a single NVIDIA T4 (about $15$\,GiB) on
+Kaggle, with Colab as a secondary host. No paid compute is used. Runs are resumable and push
+checkpoints to a private repository on every save, because free sessions are terminated without
+warning.
+
+\TODO{fill from smoke\_results.json once Phase 2 completes: peak reserved memory and seconds per
+optimizer step for each backend and input budget, and the resulting backbone and resolution choice}
+
+\input{tables/tab_compute}

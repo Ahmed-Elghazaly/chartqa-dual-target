@@ -2,4 +2,105 @@
 \section{Method}
 \label{sec:method}
 
-\TODO{not written yet}
+\subsection{Overview}
+
+Given a chart image and a question, one vision-language model emits a single strict JSON record
+containing: whether the question is answerable; a list of evidence items, each with a label, a
+value, a unit and a bounding box; an optional focus region; a typed expression tree; and the model's
+own direct answer. A small deterministic CPU interpreter then validates that record and
+\emph{recomputes} the answer from the expression tree.
+
+\input{figures/fig_architecture}
+
+The separation matters for what it lets us measure. If the model emits the plan
+$\mathrm{difference}(\mathrm{lookup}(\text{2019}), \mathrm{lookup}(\text{2018}))$ over evidence
+$245$ and $210$, the interpreter returns $35$ whether or not the model's own answer field said
+$34$. Reading the chart correctly and doing arithmetic correctly become separately observable, and
+Section~\ref{sec:analysis} exploits that.
+
+\subsection{The executor}
+\label{sec:method:executor}
+
+The interpreter accepts a fixed whitelist of operations and nothing else. It never evaluates
+generated code, so arbitrary execution is impossible by construction rather than by sandboxing, and
+an entire class of timeout, parsing and safety failures does not arise. Plans are limited to depth
+four, computed from the tree rather than trusted from the model.
+
+One semantic decision is worth recording because the obvious alternative fails silently. A bare
+string argument \emph{always} denotes an evidence label, in every operation, and a numeric literal
+must be a JSON number. The alternative --- treating bare strings as labels in some operations and as
+numeric literals in others --- means that
+$\mathrm{mean}([\text{"2019"}, \text{"2018"}])$ returns $2018.5$ rather than the mean of the values
+those labels name. That is a plausible number, no error is raised, and it is the most natural way a
+model would express ``the average of 2019 and 2018''. Worse, the failure is loud for non-numeric
+labels and silent for numeric-looking ones --- which is precisely what chart categories usually are.
+
+Records that fail schema or semantic validation receive exactly one format-only retry and are then
+counted as invalid plans. They are never quietly replaced with the direct answer and reported as
+clean.
+
+\subsection{Output policy for grounding}
+\label{sec:method:boxes}
+
+The evidence list serves two masters. The typed plan needs enough entries to name its operands; the
+grounding metric punishes every entry that is not a true positive
+(Section~\ref{sec:setup:metrics}). These are reconciled by keeping the full evidence list in the
+record --- it is what the plan references --- and submitting a filtered, confidence-ordered subset
+to the grounding evaluator. The filter is fitted on validation data and frozen before any test split
+is opened.
+
+Ordering is not a detail. Because the evaluator assigns every box an identical score, the ranking it
+uses is the order we emit, and a wrong box placed first halves the score for that image.
+
+\subsection{Training}
+\label{sec:method:training}
+
+Two stages share one adapter. Stage~1 teaches the model only to \emph{point}: given a question,
+produce the correct region. Stage~2 continues from that adapter and teaches pointing, planning and
+answering jointly, at a lower learning rate, with synthetic replay examples mixed in to limit
+forgetting of the grounding skill. Teaching the easier skill first is a curriculum: it gives the
+harder joint task a better starting point than learning everything at once.
+
+The base weights are held in 4-bit and LoRA adapters of rank 16 are attached to \emph{both} the
+vision tower and the language model.
+
+\paragraph{Verifying that LoRA reached both sides.}
+This is asserted rather than assumed, and the run fails if it is false. The Qwen3-VL trainer has two
+open issues in which component-tuning flags are silently ignored because the model is frozen before
+adapters are applied. When that happens training proceeds normally --- loss falls, checkpoints save,
+evaluation produces believable numbers --- and the only difference is that the visual half of the
+model learned nothing. Nothing warns you.
+
+The check is stricter than counting non-zero parameters on each side, because a subtler version of
+the same failure passes that test. The vision tower and the language model use different module
+names: Qwen's vision blocks use a fused \texttt{qkv} projection and an MLP named
+\texttt{linear\_fc1}/\texttt{linear\_fc2}, while the language model uses
+\texttt{q\_proj}/\texttt{k\_proj}/\texttt{v\_proj} and \texttt{gate\_proj}/\texttt{up\_proj}/%
+\texttt{down\_proj}. Naming a module that does not exist attaches nothing, without error. We
+therefore verify that every declared target matches at least one real module in the loaded
+architecture, and report trainable parameter counts split by side.
+
+\paragraph{Quantisation.}
+The visual encoder is deliberately excluded from 4-bit quantisation, since quantising it degrades
+exactly the capability the grounding result measures. This too is verified on the loaded model
+rather than trusted from configuration: the skip list is matched with a start-anchored regular
+expression, so a bare module name such as \texttt{"visual"} does \emph{not} match
+\texttt{model.visual.blocks.0.attn.qkv} and has no effect at all.
+
+\subsection{Data}
+\label{sec:method:data}
+
+Typed-plan supervision is drawn primarily from synthetic charts, by design rather than as a
+fallback. Plans are mined from real ChartQA questions only where exactly one whitelisted expression
+tree reproduces the recorded answer from the gold table; measured, that uniqueness rule admits about
+$5.7\%$ of the training split. Questions without a unique plan are retained as answer and evidence
+supervision and are never given an invented plan.
+
+The uniqueness rule has a useful secondary effect. ChartQA's human-sourced gold tables are corrupt
+in a measurable fraction of cases, and a corrupted table generally fails to produce \emph{any}
+unique plan --- an all-zero table, for instance, matches nine different operations at once and is
+rejected as ambiguous. Plan yield is therefore logged separately by chart source, where a sharply
+lower human-sourced yield is the expected signature of that corruption rather than a bug in the
+search.
+
+\input{tables/tab_plan_yield}

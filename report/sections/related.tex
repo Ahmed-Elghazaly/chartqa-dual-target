@@ -1,5 +1,44 @@
 % section: related
-\section{Related}
+\section{Related work}
 \label{sec:related}
 
-\TODO{not written yet}
+\paragraph{Chart question answering is close to saturated; chart grounding is not.}
+This asymmetry is the premise of the present work. A current 2B model scores \result{79.1} on
+ChartQA with no task-specific training at all, and the best published improvement over a comparable
+prompted 3B model is $+3.8$ points, obtained on four H100s. Chart \emph{grounding} sits far lower:
+the strongest published RefChartQA human-subset AP@0.5 is \result{32.83}, produced by a 3B model
+trained for a single epoch with boxes emitted as plain text. Independent evidence points the same
+way, with a current model scoring roughly 8--15\% on multi-target chart grounding.
+
+We therefore report both targets, and design so that the defensible measured improvement does not
+depend on the saturated one.
+
+\paragraph{RefChartQA} supplies the grounding benchmark, its evaluator, and the reference figure this
+work targets. It also supplies a directly relevant measurement: adding box output cost a 3B model
+$88.80 \rightarrow 84.80$ in answer accuracy, one of two published estimates of the price of
+structured output.
+
+\paragraph{Chart-RVR} supplies the other estimate --- chain-of-thought cost $82.0 \rightarrow 73.1$
+on a 3B model --- and establishes both that ChartQA improvements are small and expensive, and that
+structured output is not free.
+
+\paragraph{START} demonstrates that chart-element spatial supervision improves chart understanding
+across four benchmarks. It validates the training signal used here while leaving the grounding
+target uncontested, since it does not report RefChartQA AP@0.5.
+
+\paragraph{CURV} contributes a deterministic chart generator and, more usefully for this work, a
+negative result: explicit multi-turn grounding at inference time can \emph{lower} accuracy through
+cumulative box error and reasoning--grounding mismatch. That finding is the reason the crop stage in
+this system is demoted to a reported ablation rather than placed on the critical path.
+
+\paragraph{ChartPoint} supports both the use of box supervision and the coordinate format, finding
+that integer $0$--$999$ coordinates outperform decimal ones. Its recipe cost roughly 262 A100-hours
+and is not adopted.
+
+\paragraph{Chart-FR1} reports 91.0 on ChartQA at 7B using eight H100s and a GPT-5 teacher. Its
+repository contains only a README and a licence, so it is context and explicitly not a reproducible
+baseline.
+
+\paragraph{ChartQAPro} shows how brittle chart models are outside their training distribution, with
+a strong commercial model falling from 90.5 on ChartQA to 55.81. It is used here, if at all, as a
+sealed stress test.
