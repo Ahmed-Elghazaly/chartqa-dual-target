@@ -872,3 +872,37 @@ numbers are valid:
 | model load | 36.4 s | — |
 
 The re-run is needed for the resume verification and the native arm, not to re-establish these.
+
+---
+
+## 0022 — 2026-08-26 — The artifact Hub path is verified before Phase 6 depends on it
+
+**Context.** Every long run is supposed to survive a killed session by pushing checkpoints to a
+private Hugging Face repository on every save. That mechanism had been *written* in Phase 1 and
+never *executed*. Phase 6 is a six-to-ten hour run against a rationed weekly quota; discovering the
+push path broken at the first checkpoint would cost the session and the quota with it.
+
+**Options.** (a) Trust the code and find out during Phase 6. (b) Exercise the full cycle now with a
+checkpoint-shaped artifact.
+
+**Decision.** (b). The complete cycle was run against the real Hub:
+
+| step | result |
+|---|---|
+| create the repo | `NanoPhotonic/chartqa-dt-artifacts` |
+| **private?** | `private=True` — non-negotiable rule 8 satisfied |
+| push a checkpoint-shaped folder | adapter config + 4 KB safetensors + metrics.jsonl |
+| list | all three files present under `smoke/checkpoint-1/` |
+| pull and compare | JSON and binary round-trip byte-exact |
+| rule 7 guard | a folder containing a `.png` was **refused** with `HubError` |
+
+`configs/base.yaml` now carries the repo id, so it is a recorded setting rather than something typed
+at run time.
+
+**Consequences.** Removes a silent single point of failure from the most expensive phase. It also
+confirms two things that were only asserted before: the repository really is created private, and
+the rule-7 upload guard really does fire against a real push rather than only in unit tests.
+
+Worth noting as a pattern, since it is the same one as 0021: **code that has been written but never
+run is not evidence of anything.** The Hub helper had unit tests, and unit tests with a fake API
+verify the shape of a call, not that the service accepts it.

@@ -15,7 +15,11 @@ data:
   box_field: bbox                # decision 0006 — measured vs bbox_2d in Phase 5.1
 
 hub:
-  repo_id: null                  # set once the private HF repo exists
+  # Private model repo holding adapters, optimizer state and metrics. Verified
+  # end to end on 2026-08-26: create, push, list, pull, content round-trip, and
+  # the rule-7 guard refusing dataset content. Free sessions are killed without
+  # warning, so anything not pushed does not exist.
+  repo_id: NanoPhotonic/chartqa-dt-artifacts
   private: true                  # non-negotiable rule 8
   enabled: true
 
