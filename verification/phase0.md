@@ -411,3 +411,68 @@ that is not what it does: trailing false positives leave it at 1.0000, and only 
 **Consequence:** the output schema's `maxItems: 8` on `evidence` is a hazard, not a generous
 allowance. A model that helpfully lists eight plausible regions would score near zero on the headline
 grounding metric while appearing thorough. See decision 0014.
+
+---
+
+## 8. Audit of the code `PLAN.md` supplies verbatim
+
+Added 2026-08-26. `PLAN.md`'s code policy is: *"Where a subtle mistake would silently corrupt
+results, this document gives you the exact code — copy it."* Since Appendix C turned out to contain
+a serious error (F11), the other three code appendices were audited the same way — by executing
+them — before the phases that depend on them begin.
+
+| Appendix | What it supplies | Verdict |
+|---|---|---|
+| **B** — executor | typed-tree interpreter | **Bug found.** A bare string argument means "evidence label" in `argmin`/`argmax`/`check_units` and "numeric literal" in `sum`/`mean`/`difference`/`ratio`. See `DECISIONS.md` 0016. |
+| **C** — coordinates | `smart_resize`, box maths | **Bug found** (F11): factor 28 is Qwen2.5-VL's, not Qwen3-VL's. See `DECISIONS.md` 0008. |
+| **D** — metrics | relaxed accuracy, IoU, AP, P@F1, bootstrap | **Sound.** AP tracks the official evaluator to within 0.007 across six scenarios — the expected gap between COCO 101-point and all-point interpolation. Fit for stratified analysis, as the plan intends. |
+| **E** — plan mining | uniqueness rule | **Sound.** Verified below. |
+
+### Appendix B — measured
+
+Evidence `2019=245, 2018=210`:
+
+| plan | result |
+|---|---:|
+| `argmax(["2019","2018"])` | `"2019"` (strings treated as **labels**) |
+| `mean(["2019","2018"])` | **2018.5** (strings treated as **numbers**) |
+| `mean(lookup("2019"), lookup("2018"))` | 227.5 (the intended answer) |
+
+The failure profile is the dangerous one: a *non-numeric* label raises loudly
+(`sum(["a","b"])` → `ExecutorError`), while a *numeric-looking* label — years, counts, quantities,
+i.e. what chart categories overwhelmingly are — silently returns a plausible wrong number.
+
+Depth accounting was checked at the same time and is correct: depth 4 executes, depth 5 raises.
+
+### Appendix D — measured
+
+AP@0.5 over 20 synthetic images, Appendix D versus the official evaluator:
+
+| scenario | official | Appendix D | delta |
+|---|---:|---:|---:|
+| all correct, one box each | 1.0000 | 1.0000 | 0.0000 |
+| all correct + 3 extras each | 0.3243 | 0.3176 | −0.0067 |
+| all correct, one wrong first | 0.5000 | 0.5000 | 0.0000 |
+| 60% correct only | 0.5941 | 0.6000 | +0.0059 |
+| 60% correct + extras | 0.2179 | 0.2127 | −0.0051 |
+| all wrong | 0.0000 | 0.0000 | 0.0000 |
+
+Maximum divergence 0.0067. Small, structural, and in both directions — so stratified figures from
+Appendix D and headline figures from the official evaluator will not be exactly consistent, and the
+report says so rather than presenting them as one number.
+
+### Appendix E — measured
+
+| case | result |
+|---|---|
+| `IDEA.md` §4 worked example (2018=10, 2019=20, answer 10) | ops `{difference, lookup, min}` → **ambiguous, rejected** ✓ |
+| clean case (2018=210, 2019=245, answer 35) | ops `{difference}` → **unique** ✓ |
+| all-zero corrupt table, answer 0 | 9 ops match → **ambiguous, rejected** ✓ |
+
+The last row is the important one: it confirms `IDEA.md` §5.3's claim that *"the uniqueness filter
+already absorbs most of this: a corrupted table simply fails to produce any plan"*. Measured, not
+assumed.
+
+Minor note: `IDEA.md` §4 illustrates the ambiguity with `{difference, lookup, ratio, mean}`. The
+actual enumeration yields `{difference, lookup, min}` — `ratio` and `mean` would need operands the
+table does not contain. The illustration is loose; its conclusion is right.

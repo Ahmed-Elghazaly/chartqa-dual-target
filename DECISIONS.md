@@ -573,3 +573,59 @@ model that answers `"0.0"` or `"0.00"` is marked wrong. The answer normaliser mu
 and that normaliser must be frozen in `PREREGISTRATION.md`. ChartQA gold tables contain many zeros —
 `IDEA.md` 5.3 measured 18.8% of human-sourced tables as containing one — so this is not a rare edge
 case.
+
+---
+
+## 0016 — 2026-08-26 — Executor semantics: a bare string argument **always** means an evidence label
+
+**Context.** `PLAN.md` Appendix B supplies the executor verbatim, on the grounds that "a subtle
+mistake would silently corrupt the results". Auditing it before Phase 3 depends on it found exactly
+such a mistake in the supplied code: **a bare string argument means two different things depending
+on the operation.**
+
+**Evidence.** Executed Appendix B unchanged, with evidence `2019=245, 2018=210, 2020=232`:
+
+| plan | result | interpretation |
+|---|---:|---|
+| `argmax(["2019", "2018"])` | `"2019"` | strings are **labels** — looks up 245 vs 210 |
+| `mean(["2019", "2018"])` | **2018.5** | strings are **numeric literals** — averages 2019 and 2018 |
+| `mean(lookup("2019"), lookup("2018"))` | 227.5 | the intended answer |
+
+`sum` gives 4037.0, `difference` gives 1.0, `ratio` gives 1.0005 — all computed from the label text
+rather than the values it names.
+
+A third inconsistency compounds it: `check_units([a for a in args if isinstance(a, str)])` treats
+string arguments as **labels** for unit checking, while `nums()` in the same call treats them as
+**literals** for arithmetic. The same argument is a label and a number within one operation.
+
+**The failure profile is the dangerous one.** With a *non-numeric* label the executor raises
+(`sum(["a","b"])` → `ExecutorError: not numeric: 'a'`). With a *numeric-looking* label — years,
+counts, quantities, which is what chart categories overwhelmingly are — it silently returns a
+plausible wrong number. It fails loudly exactly where it does not matter and silently exactly where
+it does.
+
+And `{"op": "mean", "args": ["2019", "2018"]}` is the most natural way for a model to express
+"the average of 2019 and 2018". This would have happened constantly.
+
+**Options.** (a) Keep Appendix B verbatim as instructed. (b) Bare strings always mean evidence
+labels; numeric literals must be JSON numbers. (c) Require every operand to be an explicit
+`lookup` node and forbid bare strings entirely.
+
+**Decision.** (b). A bare string argument is **always** resolved through the evidence list, in every
+operation. A numeric literal must be a JSON number, which is what JSON gives you anyway. An
+unresolvable label raises `ExecutorError` and is counted as an invalid plan (rule 4).
+
+This makes `mean(["2019","2018"])` return 227.5, agrees with what `argmin`/`argmax`/`check_units`
+already do, agrees with how a model naturally writes a plan, and makes unit checking coherent for
+the first time. (c) is rejected as needlessly verbose — it triples plan size for no added safety
+once (b) removes the ambiguity, and longer plans are more tokens for a 2B model to get right.
+
+**Consequences.** A deliberate, documented deviation from `PLAN.md` Appendix B, recorded here rather
+than made quietly. `lookup` keeps working unchanged, so the worked example in `IDEA.md` §1 still
+evaluates to 35. Appendix E plan mining must emit the corrected form, and the executor's regression
+tests must include the exact case above — numeric-looking labels resolving to values, not to
+themselves — since that is the one that fails silently.
+
+Depth accounting in Appendix B was checked at the same time and is **correct**: depth 4 executes,
+depth 5 raises. `count(args)` counts arguments rather than evidence matches, which is unusual but
+consistent and is left as specified.
