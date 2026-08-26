@@ -246,3 +246,35 @@ exactly, which corroborates that the reconstruction is faithful and the factor i
   Phase 2's remit, since its declared fallback ladder already treats image size as a tunable lever.
 
 **Supersedes.** Nothing. This is the first correction to a stated fact in `IDEA.md`.
+
+---
+
+## 0009 — 2026-08-26 — Vendored evaluators are hash-pinned and excluded from every automated rewrite
+
+**Context.** Within minutes of the first commit, git silently corrupted the vendored official
+RefChartQA evaluator. `.gitattributes` carried the conventional `* text=auto eol=lf`; upstream's
+`evaluate.py` uses CRLF line endings; git normalised them on commit. The working copy hashed to
+`d0c9f87d…` (matching upstream) while the blob git actually stored hashed to `5ab767f5…`.
+
+**Options.** (a) Accept it — it is only whitespace. (b) Mark vendored paths `-text` so git never
+touches them. (c) (b) plus a recorded hash and a test that fails on any drift.
+
+**Decision.** (c). Vendor directories are marked `-text` in `.gitattributes`, every vendored file's
+SHA-256 and byte count are recorded in a `PROVENANCE.json` alongside it, and
+`tests/test_vendored_integrity.py` fails the build if any byte changes. Vendored paths are also
+excluded from `ruff` (the official evaluator has 66 lint violations; fixing them is precisely the
+wrong thing to do).
+
+**Evidence.** Working copy `sha256 d0c9f87d68d999da7963ea655935a7140fc35f245ad2c26c53e28e4f651c0dd8`,
+matching a fresh download from
+`https://raw.githubusercontent.com/moured/RefChartQA/main/evaluation/evaluate.py`. Committed blob
+before the fix: `5ab767f5fbd493b98c6e3229fba80db4bfd8d3f4dca004f71e5aabdd859ede0f`. 374 CRLF line
+endings in the file. After the fix the committed blob hashes to `d0c9f87d…` again.
+
+**Consequences.** Decision 0003 makes the official evaluator the scorer of record — "we ran the
+official evaluator" is only a true statement if the bytes are the official ones, and a
+whitespace-only diff is still a diff that would have to be defended in a report. Option (a) was
+tempting and wrong for exactly the reason this project keeps running into: the corruption was
+silent, automatic, and produced no error. Generalises to a standing rule — **anything vendored is
+excluded from every automated rewrite (line endings, formatters, linters, import sorters) and
+pinned by hash.**
