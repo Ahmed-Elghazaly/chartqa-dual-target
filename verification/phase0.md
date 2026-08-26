@@ -363,3 +363,51 @@ rules out coincidence.
    `transformers.models.qwen2_vl.image_processing_qwen2_vl.smart_resize` across 10 image shapes at
    both factors, and matches on every one (`tests/test_coords.py::test_our_smart_resize_matches_transformers`,
    marked `official`, runs in CI).
+
+
+---
+
+## 7. Phase 0.4 completed properly — the evaluator was executed, not just located
+
+Added 2026-08-26. The original 0.4 check confirmed `evaluate.py` exists and read it. That is not the
+same as confirming it runs, and reading it is how `DECISIONS.md` 0003 reached a conclusion whose
+*reasoning* later proved wrong (see 0014). The evaluator has now been executed against synthetic
+predictions whose correct answers are known by construction.
+
+Reproduce with `python scripts/characterise_official_evaluator.py`; pinned by
+`tests/test_official_evaluator_contract.py` (25 tests, `official` marker, runs in CI).
+
+**Confirmed by execution:**
+
+| Behaviour | Result |
+|---|---|
+| A coordinate of exactly 1000 | discards the **whole box**, silently — decision 0004 validated |
+| Ground-truth boxes | also capped at 999, so clamping matches the GT convention exactly |
+| `relaxed_accuracy("0.0", "0")` | **False** — the predicted divergence from Appendix D, now measured |
+| `relaxed_accuracy("1234", "1,234")` | **False** — official does not strip commas |
+| `relaxed_accuracy("0.5", "50%")` | **True** — percent divided by 100 on both sides |
+| `relaxed_accuracy("Yes.", "Yes")` | **False** — no punctuation normalisation |
+| Answer template | requires **exactly one** `<grounding-sep>`; anything else scores 0 |
+
+**The finding that was not predictable from reading (decision 0014):**
+
+AP@0.5 equals `1 / (rank of the first correct box)` — so a single wrong box placed ahead of a correct
+one halves the score, and P@F1 goes to zero. And extra boxes behave in opposite directions at the two
+scales:
+
+| | one image | twenty images |
+|---|---:|---:|
+| correct box only | 1.0000 | 1.0000 |
+| correct box + 3 extras | 1.0000 | **0.3243** |
+
+`compute_AP_50` calls `metric.update()` per item and `metric.compute()` once, so all predictions
+land in a single precision–recall curve; because every score is tied at 1.0, extras cannot be ranked
+away and simply depress precision globally.
+
+`PLAN.md` describes P@F1 as requiring "the **full** predicted grounding set to be correct". Measured,
+that is not what it does: trailing false positives leave it at 1.0000, and only a false positive
+*before* a true one breaks it.
+
+**Consequence:** the output schema's `maxItems: 8` on `evidence` is a hazard, not a generous
+allowance. A model that helpfully lists eight plausible regions would score near zero on the headline
+grounding metric while appearing thorough. See decision 0014.

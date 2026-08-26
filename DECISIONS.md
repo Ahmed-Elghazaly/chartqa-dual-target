@@ -450,3 +450,74 @@ forbids for published baselines, applied internally. What *is* comparable within
 Also worth stating plainly: the `hf_peft` path costs a 4.2 GB download per cold session rather than
 2.4 GB. On a free tier that is minutes, not money, and it buys control over the one quantisation
 decision that touches the headline grounding metric.
+
+---
+
+## 0014 — 2026-08-26 — Grounding output is emitted **minimally and best-first**; the evidence list is filtered before scoring
+
+**Supersedes** the closing paragraph of entry 0003, which reasoned from first principles that
+"because all prediction scores are constant, emitting extra speculative boxes can only reduce
+precision". The conclusion was right; the reasoning was not, and the reasoning would have led us
+astray — the per-image behaviour appears to say the opposite.
+
+**Context.** The official evaluator assigns **every** predicted box `score = 1.0`
+(`torch.ones(len(bboxes))`), so there is no confidence ranking. Before Phase 4 depends on it, the
+evaluator was executed directly against synthetic predictions to characterise what it rewards.
+
+**Options.** (a) Emit every evidence box the model produces, up to the schema's `maxItems: 8`.
+(b) Emit boxes minimally, ordered best-first, and filter the evidence list before submitting it to
+the grounding evaluator. (c) Emit one box only.
+
+**Decision.** (b). Concretely: the `evidence` array in the JSON record may carry several items —
+the typed plan's `lookup` operands need them — but **what is submitted to the grounding evaluator is
+a filtered, confidence-ordered subset**, not the whole list. The exact filter is a pre-registered
+parameter fitted on validation only. (c) is rejected because questions with genuinely multiple
+grounding regions would lose all recall.
+
+**Evidence.** Measured by running the official `compute_AP_50` and `compute_P_at_FI`.
+
+*Single image, one ground-truth box — AP equals `1 / (rank of the first correct box)`:*
+
+| prediction | AP@0.5 | P@F1 |
+|---|---:|---:|
+| `[correct]` | 1.0000 | 1.0000 |
+| `[correct, bad, bad, bad]` | 1.0000 | 1.0000 |
+| `[bad, correct]` | 0.5000 | 0.0000 |
+| `[bad, bad, correct]` | 0.3333 | 0.0000 |
+| `[bad, bad, bad, correct]` | 0.2500 | 0.0000 |
+
+*Dataset of 20 images — the same extras that were free per-image are devastating:*
+
+| strategy | AP@0.5 | P@F1 |
+|---|---:|---:|
+| all correct, one box each | **1.0000** | 1.0000 |
+| all correct **+ 3 extra wrong each** | **0.3243** | 1.0000 |
+| all correct, one wrong box **first** | 0.5000 | 0.0000 |
+| 60% correct only, 40% nothing | 0.5941 | 0.6000 |
+| 60% correct **+ extras**, 40% nothing | **0.2179** | 0.6000 |
+
+**Three rules follow, all measured rather than argued:**
+
+1. **Every extra box is a global false positive.** `compute_AP_50` calls `metric.update()` per item
+   and `metric.compute()` once, so torchmetrics pools all predictions into a single
+   precision–recall curve. With scores tied at 1.0, the extra boxes from every other image
+   interleave with true positives and depress precision everywhere. Three extras per image took a
+   perfect 1.0000 down to 0.3243 — a 68% relative loss for boxes that looked free in isolation.
+2. **Order is decisive.** One wrong box ahead of a correct one halves AP and zeroes P@F1 for that
+   image. The evidence list must be emitted best-first.
+3. **The two metrics disagree about extras**, and the report must not present them as measuring the
+   same thing. P@F1 is computed per image and is completely insensitive to boxes appended after a
+   correct one (1.0000 either way); dataset AP is ruined by them. `PLAN.md` describes P@F1 as
+   requiring "the **full** predicted grounding set to be correct" — measurement shows that is not
+   what it does: trailing false positives do not break it, only a false positive *before* a true
+   one does.
+
+**Consequences.** The schema's `maxItems: 8` on `evidence` is a live hazard rather than a generous
+allowance: a model that helpfully lists eight plausible regions would score close to zero on the
+headline grounding metric while looking thorough. Prompt design (Phase 5.1) must therefore push
+toward few, ordered boxes, and the submission filter must be frozen in `PREREGISTRATION.md` before
+any test split is opened. This also removes any temptation to "improve recall" by padding — under
+this evaluator that is strictly self-harm.
+
+Found by executing the evaluator on synthetic inputs rather than by reading it, which is the only
+reason the per-image/aggregate divergence surfaced at all.
