@@ -52,10 +52,17 @@ def test_script_fails_loudly_when_the_dataset_is_missing():
     assert 'os.listdir("/kaggle/input")' in script, "print the directory before failing"
 
 
-def test_script_expects_exactly_one_known_archive():
-    """The kernel must not have to guess how Kaggle expanded the upload."""
+def test_script_handles_both_upload_layouts():
+    """Kaggle sometimes auto-extracts an uploaded archive and sometimes does not.
+
+    Run 3 uploaded one code.zip and the kernel found ['configs', 'pyproject.toml',
+    'README.md', 'src'] instead - already expanded. Betting on either behaviour
+    costs a session; handling both costs four lines.
+    """
     script = kaggle_run.render_kernel_script("ds", ["x"])
-    assert "code.zip" in script
+    assert "code.zip" in script, "must handle the archive arriving intact"
+    assert "pyproject.toml" in script, "must handle it arriving already expanded"
+    assert "no code.zip and no pyproject.toml" in script, "and must fail loudly otherwise"
 
 
 def test_username_is_lowercased(monkeypatch, tmp_path):
