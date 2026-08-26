@@ -330,6 +330,8 @@ def main() -> int:
     p.add_argument("--resolutions", type=str, default="512,native")
     p.add_argument("--backend", type=str, default=None)
     p.add_argument("--no-gpu", action="store_true")
+    p.add_argument("--no-resume-test", action="store_true",
+                   help="skip the kill-and-resume check (halves the number of model loads)")
     p.add_argument("--dry-run", action="store_true", help="stage everything, push nothing")
     p.add_argument("--status", action="store_true", help="poll the existing kernel and exit")
     p.add_argument("--logs", action="store_true", help="fetch output of the existing kernel and exit")
@@ -357,6 +359,8 @@ def main() -> int:
     ]
     if args.backend:
         command += ["--backend", args.backend]
+    if args.no_resume_test:
+        command += ["--no-resume-test"]
 
     staging = REPO_ROOT / ".kaggle_dataset"
     if staging.exists():
