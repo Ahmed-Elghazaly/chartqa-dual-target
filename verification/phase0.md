@@ -423,6 +423,7 @@ them — before the phases that depend on them begin.
 
 | Appendix | What it supplies | Verdict |
 |---|---|---|
+| **A** — output schema | strict JSON Schema for the record | **Sound.** Valid Draft 2020-12; `IDEA.md` §1's worked example validates against it; what it accepts matches its own documented "validation rules beyond the schema" exactly. |
 | **B** — executor | typed-tree interpreter | **Bug found.** A bare string argument means "evidence label" in `argmin`/`argmax`/`check_units` and "numeric literal" in `sum`/`mean`/`difference`/`ratio`. See `DECISIONS.md` 0016. |
 | **C** — coordinates | `smart_resize`, box maths | **Bug found** (F11): factor 28 is Qwen2.5-VL's, not Qwen3-VL's. See `DECISIONS.md` 0008. |
 | **D** — metrics | relaxed accuracy, IoU, AP, P@F1, bootstrap | **Sound.** AP tracks the official evaluator to within 0.007 across six scenarios — the expected gap between COCO 101-point and all-point interpolation. Fit for stratified analysis, as the plan intends. |
@@ -476,3 +477,26 @@ assumed.
 Minor note: `IDEA.md` §4 illustrates the ambiguity with `{difference, lookup, ratio, mean}`. The
 actual enumeration yields `{difference, lookup, min}` — `ratio` and `mean` would need operands the
 table does not contain. The illustration is loose; its conclusion is right.
+
+
+### Appendix A — measured
+
+The schema parses as valid JSON Schema Draft 2020-12, and the worked example in `IDEA.md` §1
+validates against it unchanged.
+
+What it **rejects** on its own: a coordinate above 1000, a ninth evidence item, an unknown operation,
+any extra top-level key (`additionalProperties: false`), a missing required field.
+
+What it **accepts**, which the "validation rules beyond the schema" must therefore catch:
+
+| accepted by schema | must be caught by |
+|---|---|
+| inverted box (`x2 < x1`) | explicit rule: `x1 < x2` and `y1 < y2` |
+| zero-area box | explicit rule: positive area |
+| a coordinate of exactly 1000 | clamp to 999 before scoring (`DECISIONS.md` 0004) |
+| plan depth 6 | computed depth ≤ 4 — "compute it; do not trust the model" |
+| `lookup` of a label absent from `evidence` | the executor, which raises and is counted (rule 4) |
+| **8 evidence items** | **`DECISIONS.md` 0014** — filter before scoring; at dataset scale this is close to a zero |
+
+That list is exactly the plan's own stated extra rules, plus the two hazards found by measurement in
+this project. So Appendix A is internally consistent; it simply delegates more than it looks.
