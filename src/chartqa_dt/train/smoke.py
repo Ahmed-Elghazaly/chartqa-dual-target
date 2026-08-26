@@ -369,6 +369,9 @@ def run_smoke(
         result.loss_last_10 = sum(losses[-k:]) / k
         result.loss_decreased = result.loss_last_10 < result.loss_first_10
 
+        # Peak memory is already recorded above; the resume test resets the
+        # counter so that its own second model load cannot inflate the figure
+        # the 13.5 GiB gate is judged on.
         if test_resume and out_dir is not None:
             result.resume_verified, result.resume_loss_delta = _verify_resume(
                 backend, loaded, model_cfg, cfg, out_dir / f"ckpt_{label}", optimizer, image_px
@@ -417,6 +420,16 @@ def _verify_resume(
         lr=cfg.train.lr, max_len=model_cfg.max_seq_len, image_px=image_px,
         seed=seed, optimizer=optimizer,
     )
+
+    # Free the live model BEFORE loading the fresh one. Holding two copies of a
+    # 2B model plus two optimizer states on a 15 GiB card is a needless way to
+    # OOM during a test whose whole purpose is to prove the run survives.
+    del optimizer
+    loaded.model = None
+    import gc
+
+    gc.collect()
+    reset_peak_memory()
 
     from peft import PeftModel
 
