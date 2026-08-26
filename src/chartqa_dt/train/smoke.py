@@ -33,6 +33,7 @@ from __future__ import annotations
 import json
 import math
 import random
+import statistics
 import time
 from dataclasses import asdict, dataclass, field
 from dataclasses import fields as dataclasses_fields
@@ -185,6 +186,11 @@ class SmokeResult:
     dtype_resolved: str = ""
     lora: dict[str, Any] = field(default_factory=dict)
     losses: list[float] = field(default_factory=list)
+    grad_norms: list[float] = field(default_factory=list)
+    grad_norm_median: float = 0.0
+    zero_grad_steps: int = 0
+    nonfinite_grad_steps: int = 0
+    trainable_dtypes: list[str] = field(default_factory=list)
     loss_first_10: float = 0.0
     loss_last_10: float = 0.0
     loss_decreased: bool = False
@@ -215,6 +221,10 @@ class SmokeResult:
             and self.passes_time_gate
             and not self.any_nan
             and self.loss_decreased
+            # fp16 without a gradient scaler can underflow gradients to exactly
+            # zero. Loss then sits flat while nothing errors.
+            and self.zero_grad_steps == 0
+            and self.nonfinite_grad_steps == 0
             and self.lora.get("vision_params", 0) > 0
             and self.lora.get("language_params", 0) > 0
         )
@@ -274,6 +284,8 @@ def _train_steps(
 
     rng = random.Random(seed)
     losses: list[float] = []
+    grad_norms: list[float] = []
+    trainable = [p for p in model.parameters() if p.requires_grad]
     for step in range(steps):
         optimizer.zero_grad(set_to_none=True)
         total = 0.0
@@ -285,12 +297,19 @@ def _train_steps(
             loss = out.loss / grad_accum
             loss.backward()
             total += float(loss.detach())
-        torch.nn.utils.clip_grad_norm_([p for p in model.parameters() if p.requires_grad], 1.0)
+        # clip_grad_norm_ returns the PRE-clip total norm. Recording it is the
+        # cheapest available check that training is numerically alive: on a T4 the
+        # compute dtype is float16 (decision 0017), and fp16 without a gradient
+        # scaler can underflow gradients to exactly zero. Loss would then sit
+        # flat while everything else looked healthy, so a norm of 0.0 or a
+        # non-finite norm is the signal to look for -- not just NaN loss.
+        norm = torch.nn.utils.clip_grad_norm_(trainable, 1.0)
+        grad_norms.append(float(norm))
         optimizer.step()
         losses.append(total)
         if on_step is not None:
             on_step(step, total)
-    return losses, optimizer
+    return losses, optimizer, grad_norms
 
 
 def run_smoke(
@@ -352,7 +371,7 @@ def run_smoke(
 
         image_px = int(math.sqrt(image_max_pixels))
         t0 = time.time()
-        losses, optimizer = _train_steps(
+        losses, optimizer, grad_norms = _train_steps(
             loaded,
             steps=steps,
             batch_size=cfg.train.per_device_batch,
@@ -371,6 +390,15 @@ def run_smoke(
         result.projected_full_run_hours = result.seconds_per_step * PLANNED_OPTIMIZER_STEPS / 3600.0
         result.peak_reserved_gb = peak_reserved_gb()
         result.any_nan = any(not math.isfinite(v) for v in losses)
+        result.grad_norms = [round(v, 6) for v in grad_norms]
+        finite_norms = [v for v in grad_norms if math.isfinite(v)]
+        result.grad_norm_median = statistics.median(finite_norms) if finite_norms else 0.0
+        result.zero_grad_steps = sum(1 for v in grad_norms if v == 0.0)
+        result.nonfinite_grad_steps = sum(1 for v in grad_norms if not math.isfinite(v))
+        result.trainable_dtypes = sorted({
+            str(p.dtype).replace("torch.", "")
+            for p in loaded.model.parameters() if p.requires_grad
+        })
         k = max(1, min(10, steps // 5))
         result.loss_first_10 = sum(losses[:k]) / k
         result.loss_last_10 = sum(losses[-k:]) / k
@@ -422,7 +450,7 @@ def _verify_resume(
     torch.save(optimizer.state_dict(), ckpt_dir / "optimizer.pt")
 
     seed = cfg.seed + 12345
-    live_losses, _ = _train_steps(
+    live_losses, _, _ = _train_steps(
         loaded, steps=3, batch_size=cfg.train.per_device_batch, grad_accum=1,
         lr=cfg.train.lr, max_len=model_cfg.max_seq_len, image_px=image_px,
         seed=seed, optimizer=optimizer,
@@ -447,7 +475,7 @@ def _verify_resume(
     opt2 = torch.optim.AdamW(params, lr=cfg.train.lr)
     opt2.load_state_dict(torch.load(ckpt_dir / "optimizer.pt", map_location="cpu"))
 
-    resumed_losses, _ = _train_steps(
+    resumed_losses, _, _ = _train_steps(
         fresh, steps=3, batch_size=cfg.train.per_device_batch, grad_accum=1,
         lr=cfg.train.lr, max_len=model_cfg.max_seq_len, image_px=image_px,
         seed=seed, optimizer=opt2,

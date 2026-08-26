@@ -190,3 +190,44 @@ def test_write_report_also_emits_the_markdown_table(tmp_path):
     write_report([_result(label="a")], tmp_path)
     md = (tmp_path / "smoke_results.md").read_text()
     assert md.startswith("| configuration") and "**PASS**" in md
+
+
+# ------------------------------------- numerical health (fp16 without a scaler)
+
+
+def test_dead_gradients_fail_the_gates():
+    """On a T4 the compute dtype is float16 (decision 0017).
+
+    fp16 without a gradient scaler can underflow gradients to exactly zero. The
+    loss then sits flat, nothing raises, no NaN appears, and every other gate
+    passes. A gradient norm of 0.0 is the only cheap signal.
+    """
+    assert _result().passes_all_gates
+    assert not _result(zero_grad_steps=1).passes_all_gates
+
+
+def test_nonfinite_gradients_fail_the_gates():
+    assert not _result(nonfinite_grad_steps=1).passes_all_gates
+
+
+def test_gradient_diagnostics_are_recorded(tmp_path):
+    from chartqa_dt.train.smoke import load_report, write_report
+
+    r = _result(grad_norms=[0.9, 1.2, 0.7], grad_norm_median=0.9,
+                trainable_dtypes=["float32"])
+    back = load_report(write_report([r], tmp_path))[0]
+    assert back.grad_norms == [0.9, 1.2, 0.7]
+    assert back.grad_norm_median == 0.9
+    assert back.trainable_dtypes == ["float32"]
+
+
+def test_a_run_can_look_perfect_and_still_be_dead():
+    """The exact failure profile this gate exists for."""
+    looks_fine = _result(
+        peak_reserved_gb=1.5, projected_full_run_hours=8.0,
+        any_nan=False, loss_decreased=True, zero_grad_steps=100,
+    )
+    assert not looks_fine.any_nan
+    assert looks_fine.loss_decreased
+    assert looks_fine.passes_memory_gate and looks_fine.passes_time_gate
+    assert not looks_fine.passes_all_gates, "every other signal is green; only the norm is not"
