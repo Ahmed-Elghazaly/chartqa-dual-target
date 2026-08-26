@@ -46,28 +46,48 @@ def from_kaggle_api() -> tuple[float, float] | None:
     return None
 
 
-def from_runs_md() -> float:
-    """Sum the recorded wall times in RUNS.md. Understates nothing if kept honest."""
+def parse_duration(cell: str) -> float | None:
+    """Hours from a cell like '25 min', '~0.5 min', '3 min', '1.2 h'. None otherwise."""
+    cell = cell.strip().lstrip("~").strip()
+    m = re.fullmatch(r"(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours|min|mins|m|s|sec|secs)", cell, re.I)
+    if not m:
+        return None
+    value, unit = float(m.group(1)), m.group(2).lower()
+    if unit.startswith("h"):
+        return value
+    if unit in ("m", "min", "mins"):
+        return value / 60.0
+    return value / 3600.0
+
+
+def from_runs_md() -> tuple[float, int]:
+    """(hours, n_sessions) summed from the RUN TABLE only.
+
+    Deliberately strict about which rows and which column. A looser parser
+    summed the gate table and the budget table as well and reported 47.9 hours
+    against a 30-hour quota — a tracker that cannot be trusted is worse than none,
+    because it invites ignoring a real warning later.
+
+    A run row starts with an integer session number; the wall time is column 5.
+    """
     if not RUNS_MD.is_file():
-        return 0.0
-    total = 0.0
+        return 0.0, 0
+    total, n = 0.0, 0
     for line in RUNS_MD.read_text(encoding="utf-8").splitlines():
         if not line.startswith("|"):
             continue
-        for cell in line.split("|"):
-            cell = cell.strip().lstrip("~")
-            if m := re.fullmatch(r"(\d+(?:\.\d+)?)\s*h", cell):
-                total += float(m.group(1))
-            elif m := re.fullmatch(r"(\d+(?:\.\d+)?)\s*min", cell):
-                total += float(m.group(1)) / 60.0
-            elif m := re.fullmatch(r"(\d+(?:\.\d+)?)\s*s", cell):
-                total += float(m.group(1)) / 3600.0
-    return total
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 6 or not cells[0].isdigit():
+            continue
+        n += 1
+        if (hours := parse_duration(cells[4])) is not None:
+            total += hours
+    return total, n
 
 
 def main() -> int:
     api = from_kaggle_api()
-    logged = from_runs_md()
+    logged, sessions = from_runs_md()
 
     print("Kaggle GPU budget")
     print("-" * 56)
@@ -79,7 +99,7 @@ def main() -> int:
         print("  reported by Kaggle : (quota endpoint unavailable)")
         used, quota = logged, WEEKLY_QUOTA_HOURS
         remaining = quota - used
-    print(f"  logged in RUNS.md  : {logged:6.2f} h")
+    print(f"  logged in RUNS.md  : {logged:6.2f} h across {sessions} session(s)")
     print(f"  remaining (est.)   : {remaining:6.2f} h of {quota:.0f} h weekly")
     print()
     print("  committed ahead:")
