@@ -1,0 +1,22 @@
+# Stage 2 - joint box + plan + answer (PLAN 6.2).
+# CONTINUES THE SAME ADAPTER from stage 1. Lower LR. Shuffled mixture with
+# ~2000 exact synthetic replay examples to limit grounding forgetting.
+_base_: model_qwen3vl2b.yaml
+run_name: stage2_joint
+
+train:
+  stage: stage2
+  lr: 5.0e-5                 # fallback if unstable: 2e-5 before anything else
+  epochs: 1.0
+  per_device_batch: 2
+  grad_accum: 4
+  optim: adamw_8bit
+  lr_scheduler: cosine
+  warmup_ratio: 0.03
+  save_every_steps: 100
+  eval_every_steps: 250
+  resume_from: null          # set to the stage-1 adapter
+
+data:
+  stage2_cap: 12000
+  synthetic_replay: 2000

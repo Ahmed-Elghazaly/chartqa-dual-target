@@ -1,0 +1,15 @@
+# RefChartQA grounding, official released evaluator.
+# Scored per source subset: human / machine / pot. There is no aggregate in the
+# official evaluator, and the published 32.83 is the HUMAN subset only
+# (decision 0002). Compare human-to-human, never aggregate-to-32.83.
+_base_: model_qwen3vl2b.yaml
+run_name: eval_refchartqa
+
+eval:
+  dataset: refchartqa
+  split: val
+  seeds: [0, 1, 2]
+  bootstrap_resamples: 10000
+  max_new_tokens: 512
+  temperature: 0.0
+  structured_output: true

@@ -1,0 +1,248 @@
+# Decision log
+
+Append-only. One entry per decision, in the format of `PLAN.md` Appendix H. Entries are never edited after
+they are written — if a decision changes, a new entry is added that names the entry it supersedes.
+
+---
+
+## 0001 — 2026-08-26 — Phase 0 re-verification: all ten claims confirmed, proceed to Phase 1
+
+**Context.** `PLAN.md` Phase 0 requires independent re-verification of the ten load-bearing facts in `IDEA.md`
+before any code is written, because four weeks of work must not rest on a number that moved. `IDEA.md` was
+written 2026-08-24/25/26; this check ran 2026-08-26.
+
+**Options.** (a) Trust `IDEA.md` and start building. (b) Re-verify everything against primary sources.
+(c) Re-verify only the hard blocker 0.3.
+
+**Decision.** (b). Full re-verification against structured APIs (HF Hub API, HF datasets-server, GitHub API)
+and raw source files rather than rendered cards, plus direct extraction from the Qwen3-VL PDF.
+
+**Evidence.** All ten claims confirmed — see `verification/phase0.md` for the per-claim table. Exact matches
+included ChartQA `28299/1920/2500`, RefChartQA `55789/6223/11690`, Qwen3-VL-2B ChartQA `86.6` thinking /
+`79.1` instruct (technical report Table 4), base BF16 checkpoint `4,255,140,312` bytes, Unsloth 4-bit
+`2,406,693,586` bytes, ChartQAPro `1,948` rows / `193,053,989` bytes. Ten new findings (F1–F10) recorded that
+were not in `IDEA.md`.
+
+**Consequences.** Phase 1 entry gate is met. No claim in `IDEA.md` needs retracting. Five of the ten new
+findings change what gets built and are recorded as separate entries below.
+
+---
+
+## 0002 — 2026-08-26 — The 32.83 grounding target is the RefChartQA **human subset**; all grounding results will be reported per-subset
+
+**Context.** `IDEA.md` treats "32.83 AP@0.5" as *the* published RefChartQA target without stating which
+partition of the test set it refers to. Reading the official evaluator and the paper's Table 2 shows the
+benchmark has no aggregate number at all.
+
+**Options.** (a) Report one aggregate AP@0.5 over the full 11,690-row test set and compare it to 32.83.
+(b) Report the three subsets separately, as the official evaluator does, and compare only human-to-human.
+(c) Report both an aggregate and the subsets.
+
+**Decision.** (b), with (c) as a labelled convenience: the primary reported figures are the H / M / PoT triple
+produced by the official evaluator, and the comparison against 32.83 is stated explicitly as being on
+**RefChartQA-H only**. Any aggregate we compute is a separately-named diagnostic and is never compared to 32.83.
+
+**Evidence.** `evaluate.py::load_datasets_by_source` partitions on the `type` column into `human`/`machine`/`pot`
+and `evaluate_all_datasets` scores each independently; there is no combined path. Paper Table 2, Qwen2.5-VL
+(3B, native resolution): AP@0.5 = **32.83 (H) / 59.28 (M) / 39.32 (PoT)**. `IDEA.md`'s stated competitor range
+"18.30–27.81" is precisely the human column (UniChart 18.30 … TinyChart 27.81), confirming the human subset was
+the intended referent all along.
+
+**Consequences.** Makes the headline comparison genuinely matched, which non-negotiable rule 6 requires.
+Costs statistical power: the released prediction file contains only **508** human test rows, so bootstrap CIs
+on the headline grounding comparison will be wide and must be reported as such rather than quietly omitted.
+Also means the project has three grounding results to move, not one — the machine and PoT subsets are extra
+evidence at no extra inference cost, since the evaluator computes them in the same pass.
+
+---
+
+## 0003 — 2026-08-26 — The official evaluators are vendored verbatim as the scorers of record; `PLAN.md` Appendix D becomes a labelled diagnostic
+
+**Context.** Reading `evaluate.py` in full revealed that the official metric implementations differ from the
+reference implementations given in `PLAN.md` Appendix D in ways that change scores, not just rounding.
+
+**Options.** (a) Use Appendix D as primary because it is cleaner and its zero-guard is more defensible.
+(b) Use the official implementation as primary and keep Appendix D as a diagnostic. (c) Average them.
+
+**Decision.** (b). (c) is forbidden outright by non-negotiable rule 5. Appendix D is retained for stratified
+analysis (AP by box area), exactly as `PLAN.md` already scopes it, and every divergence is reported as a
+per-question disagreement count rather than smoothed over.
+
+**Evidence.** Three concrete divergences in `relaxed_accuracy`:
+1. official does **not** strip commas — `_to_float("1,234")` returns `None` and falls back to string equality;
+2. official does **not** strip whitespace;
+3. official tests `if prediction_float is not None and target_float:` — a **truthiness** test, so a target of
+   `0.0` is falsy and the numeric branch is skipped entirely. Official and Appendix D therefore disagree on
+   `(target="0", pred="0.0")`: official says incorrect, Appendix D says correct.
+
+And one structural divergence in AP@0.5: the official `compute_AP_50` uses
+`torchmetrics.MeanAveragePrecision(iou_thresholds=[0.5])` with **every predicted box assigned `score = 1.0`**,
+so there is no confidence ranking and torchmetrics applies COCO 101-point interpolation; Appendix D sorts by
+score and uses all-point interpolation. These cannot agree in general.
+
+**Consequences.** Phase 4.2's cross-check will show disagreements — that is now expected and pre-declared,
+not a bug to be chased. `PLAN.md` Phase 4.2 already says "the official one wins", so this is compliance, not
+deviation. Second-order consequence worth acting on: because all prediction scores are constant, emitting
+extra speculative boxes can only reduce precision, so the model should emit the evidence it believes rather
+than a ranked candidate list.
+
+---
+
+## 0004 — 2026-08-26 — Everything emitted for official grounding scoring is clamped to integer `[0, 999]`
+
+**Context.** Qwen3-VL natively emits normalised coordinates in `[0, 1000]` **inclusive**. The official
+evaluator accepts a box only when every coordinate satisfies `0 <= v <= 999`.
+
+**Options.** (a) Emit the model's raw range and accept the loss. (b) Clamp to `[0, 999]` in the serialisation
+layer that feeds the official evaluator. (c) Change the model's target range during training to `[0, 999]`.
+
+**Decision.** (b) now, unconditionally, as a property of the scoring adapter — with a unit test asserting that
+a coordinate of `1000` survives the round trip as `999`. (c) is deferred: training targets will be authored in
+`[0, 999]` too, so training and scoring share one convention, but the clamp stays in place regardless as a
+defensive guard.
+
+**Evidence.** `extract_bounding_boxes()` in `evaluate.py`:
+`if all(0 <= elem <= bins - 1 for elem in bbox_floats): bboxes.append(bbox_floats)` with `bins=1000`.
+There is no `else` — a box containing a `1000` is **silently discarded**, with no error and no warning. The
+ground-truth path independently applies `min(int(value * bins), bins - 1)`, so GT is already capped at 999.
+
+**Consequences.** Removes an entire class of silent AP loss that would have been extremely hard to diagnose
+after the fact — a right-edge or bottom-edge box is exactly the case that produces a 1000, and edge-touching
+boxes are common in charts. Costs at most one unit of coordinate resolution out of a thousand.
+
+---
+
+## 0005 — 2026-08-26 — ChartQA gold tables come from `ChartQA Dataset.zip`, not the HF parquet
+
+**Context.** Appendix E plan mining requires the gold data tables. The obvious `load_dataset("ahmed-masry/ChartQA")`
+path does not expose them.
+
+**Options.** (a) `load_dataset()` and reconstruct tables some other way. (b) Download the archive file that
+contains them. (c) Use the `vis-nlp/ChartQA` GitHub repository.
+
+**Decision.** (b) — `hf_hub_download(repo_id="ahmed-masry/ChartQA", filename="ChartQA Dataset.zip", repo_type="dataset")`.
+
+**Evidence.** The parquet/viewer schema is only `imgname, query, label, type, image` — no tables, no
+annotations. The same HF repo contains `ChartQA Dataset.zip` at **875,370,872 bytes**, which is exactly the
+"~875 MB full archive" figure `IDEA.md` §6.1 quotes; the repo README documents that this archive carries the
+tables and the (noisy) chart-element annotations. Using the HF repo rather than GitHub keeps every download on
+one host with one auth path and one hash manifest.
+
+**Consequences.** Phase 3.1 fetches one 875 MB file plus the RefChartQA parquet, rather than mixing
+`load_dataset()` and file downloads. Plan mining becomes possible at all — without this it would silently have
+had no tables to mine.
+
+---
+
+## 0006 — 2026-08-26 — OPEN: `bbox` vs `bbox_2d` in the output schema, to be settled on validation evidence in Phase 5.1
+
+**Context.** `PLAN.md` Appendix A specifies the evidence-box field as `bbox`. Qwen3-VL was pretrained to emit
+`bbox_2d`. The zero-shot number produced under our prompt is the "before" baseline the entire project is
+measured against, so a gratuitous mismatch with pretraining could understate it.
+
+**Options.** (a) Keep `bbox` as specified. (b) Switch the schema to `bbox_2d` to match pretraining.
+(c) Measure both on validation during Phase 5.1 prompt design and commit to the better one before
+pre-registration.
+
+**Decision.** (c). Not settled now — recorded here so the question cannot be quietly forgotten, and so that
+whichever way it goes it is a measured choice rather than an accident. Whatever wins is frozen in
+`PREREGISTRATION.md` before any test split is opened.
+
+**Evidence.** Qwen3-VL technical report §3: *"Different from Qwen2.5-VL, we adopt a normalized coordinate
+system scaled to the range [0, 1000]"*. Official 2D-grounding cookbook emits
+`{"bbox_2d": [x1, y1, x2, y2], "label": "..."}` and rescales with `coord / 1000 * width`. No measurement of
+the two field names against each other exists yet.
+
+**Consequences.** Deferring is safe because nothing before Phase 5 depends on the field name, and the
+generator/dataset builders will be written to take the key as a single configurable constant so switching it
+is a one-line change rather than a rewrite.
+
+---
+
+## 0007 — 2026-08-26 — The headline grounding comparison has n=500, and that is pre-declared as the project's tightest statistical constraint
+
+**Context.** Entry 0002 fixed the headline grounding comparison to the RefChartQA **human** subset. That entry
+cited 508 rows, taken from the released prediction file. The live test split was then measured directly to get
+the real figure.
+
+**Options.** (a) Report the human-subset point estimate and move on. (b) Pre-declare the sample size and the
+resulting resolution limit now, before any result exists, so the size of a "win" cannot be rationalised after
+the fact. (c) Broaden the headline to the full test set to gain power.
+
+**Decision.** (b). (c) is ruled out by entry 0002 — a broader set is not comparable to 32.83. The
+pre-registration will state the sample size and the minimum gap that is distinguishable from noise, and the
+report will carry bootstrap CIs on the point estimate rather than the point estimate alone.
+
+**Evidence.** Measured against the live dataset via the HF datasets-server filter endpoint, RefChartQA test
+composition by `type` is **human = 500**, **machine = 1,032**, **pot = 10,158** (sum 11,690 ✓). The released
+prediction file holds 508 / 1,032 / 10,158 = 11,698, so its 8-row surplus is entirely in the human subset and
+is discarded by the evaluator's left join. At n=500 the 95% bootstrap CI on a score in the low 30s is on the
+order of ±4 points.
+
+**Consequences.** Sets an honest expectation: a 2-point improvement on RefChartQA-H is not a result, it is
+noise, and no amount of seed averaging changes that because the seeds share the same 500 items. Three
+mitigations follow, all cheap and all pre-declared here rather than discovered later:
+1. The machine (1,032) and PoT (10,158) subsets are reported alongside and have far more power — they cannot
+   be compared to 32.83, but they can be compared to our own matched zero-shot baseline, which is the
+   mandatory result anyway.
+2. Area-stratified AP within the human subset splits 500 rows further and will be reported with explicit
+   per-bucket counts, because a bucket of 40 items carries essentially no information and must not be
+   presented as if it does.
+3. The validation split (6,223 rows) carries the tuning decisions, so no test-set power is spent on choices.
+
+---
+
+## 0008 — 2026-08-26 — CORRECTION: the visual-token factor is 32, not 28; all token geometry is read from the processor config
+
+**Context.** `IDEA.md` §5.2 and §17, and `PLAN.md` Appendix C, all state that one Qwen visual token covers
+28×28 pixels (patch 14 × spatial merge 2), and Appendix C hard-codes `FACTOR = 28`. Reading
+`Qwen/Qwen3-VL-2B-Instruct`'s own `config.json` while writing `pyproject.toml` shows `patch_size: 16`,
+`spatial_merge_size: 2`. 28 is the Qwen2-VL / Qwen2.5-VL value, carried over to a model that changed it.
+
+**Options.** (a) Keep `FACTOR = 28` as written. (b) Hard-code `FACTOR = 32`. (c) Derive the factor and the
+pixel bounds from the loaded processor config at runtime, hard-coding nothing, and port `smart_resize` from
+`transformers` rather than from Appendix C.
+
+**Decision.** (c). `FACTOR = patch_size * merge_size` and `min_pixels`/`max_pixels` = the processor's
+`size.shortest_edge`/`size.longest_edge`, all read from the model that is actually loaded, with a unit test
+asserting our port matches `transformers.models.qwen2_vl.image_processing_qwen2_vl.smart_resize` across a grid
+of shapes. (b) is rejected for the same reason (a) failed: a hard-coded constant is exactly what breaks
+silently when the backbone changes, and this project has a live fallback ladder that may change the backbone
+in Phase 2.
+
+**Evidence.**
+- `config.json` → `vision_config: {patch_size: 16, spatial_merge_size: 2}`.
+- `preprocessor_config.json` → `{patch_size: 16, merge_size: 2, size: {longest_edge: 16777216, shortest_edge: 65536}}`.
+- `transformers` `image_processing_qwen2_vl.py`: `factor=patch_size * merge_size` (line 226);
+  `min_pixels=size.shortest_edge`, `max_pixels=size.longest_edge`; `grid_h = resized_height // patch_size`
+  then merged 2×2. So factor = 16 × 2 = **32**, and one visual token = 32×32 px.
+- Appendix C's pixel bounds (`3,136` / `12,845,056`) are also wrong for this model (`65,536` / `16,777,216`),
+  and it places the `max(factor, …)` guard on the initial rounding rather than in the downscale branch.
+
+Measured on 800 RefChartQA **validation** images / 1,045 boxes (`scripts/measure_subtoken.py`):
+
+| Configuration | med. tokens | sub-token (axis) | sub-token (area) |
+|---|---:|---:|---:|
+| Appendix C assumption (f=28) | **580** | 35.1% | 18.9% |
+| Real Qwen3-VL-2B (f=32), native | 425 | 41.3% | 20.6% |
+| Real (f=32) at the planned **512-px** budget | 247 | **53.2%** | 24.7% |
+
+The factor-28 configuration reproduces `IDEA.md`'s independently-quoted "median visual tokens ≈ **580**"
+exactly, which corroborates that the reconstruction is faithful and the factor is the substantive difference.
+
+**Consequences.**
+- The sub-token headline gets *worse*, not better: at the planned 512-px setting, **53.2%** of validation
+  targets are smaller than one visual token on at least one axis, against `IDEA.md`'s 23.9%. This strengthens
+  the project's central mechanistic claim while making its stated number wrong; the report must carry the
+  measured figure with its definition, not the inherited one.
+- Every "one visual token" boundary moves from 28 to 32 — including the Phase 4.5 stratification bucket, which
+  is the axis the grounding story is told along.
+- `IDEA.md`'s fear that raising resolution quadruples the token budget (580 → 2,280) does not hold for these
+  images: RefChartQA charts are ~800 px wide, so a `max_pixels` cap of 768² or more is already native. Moving
+  from the planned 512 to native costs **247 → 425** median tokens (1.7×) and cuts sub-token targets
+  53.2% → 41.3%.
+- Follows that input resolution should be a *measured* variable in the Phase 2 smoke test rather than a
+  constant inherited from the plan. Proposed to Ahmed rather than applied unilaterally; it stays within
+  Phase 2's remit, since its declared fallback ladder already treats image size as a tunable lever.
+
+**Supersedes.** Nothing. This is the first correction to a stated fact in `IDEA.md`.

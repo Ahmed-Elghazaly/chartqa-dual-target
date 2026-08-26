@@ -1,0 +1,16 @@
+# ChartQAPro - SEALED real-world stress test, extension only (PLAN 8.4).
+# Requires explicit approval at the Phase 8.4 gate. Test-only: it must never
+# touch prompts, thresholds, crops or training mixtures.
+# The evaluator has a confirmed defect (verification/phase0.md 0.8): it computes
+# always_use_exact_match for Fact Checking / Multi Choice and never passes it.
+# Report the pinned tool output as PRIMARY and a separately named corrected
+# diagnostic alongside, with the per-question disagreement count. Never average.
+_base_: model_qwen3vl2b.yaml
+run_name: eval_chartqapro
+
+eval:
+  dataset: chartqapro
+  split: test
+  seeds: [0, 1, 2]
+  bootstrap_resamples: 10000
+  structured_output: true

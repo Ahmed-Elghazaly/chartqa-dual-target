@@ -1,0 +1,26 @@
+# Base configuration. Every other config inherits from this via `_base_`.
+# Any field here can be overridden on the command line: --train.lr 5e-5
+run_name: base
+seed: 0
+output_dir: null          # null => resolved from chartqa_dt.env
+
+data:
+  dev: false
+  dev_size: 200
+  refchartqa_train_cap: 4000     # IDEA.md 6.3 — raised only on audit evidence
+  stage1_cap: 12000
+  stage2_cap: 12000
+  synthetic_replay: 2000
+  num_workers: 2
+  box_field: bbox                # decision 0006 — measured vs bbox_2d in Phase 5.1
+
+hub:
+  repo_id: null                  # set once the private HF repo exists
+  private: true                  # non-negotiable rule 8
+  enabled: true
+
+wandb:
+  enabled: true
+  project: chartqa-dual-target
+  entity: null
+  tags: []

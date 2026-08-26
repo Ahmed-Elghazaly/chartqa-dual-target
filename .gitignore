@@ -1,0 +1,63 @@
+# ---------------------------------------------------------------------------
+# NON-NEGOTIABLE RULE 7: never commit chart images or dataset content.
+# ChartQA is GPL-3.0, RefChartQA is AGPL-3.0. Scripts, IDs, hashes, adapters
+# and derived statistics only.
+# ---------------------------------------------------------------------------
+data/
+!data/MANIFEST.json
+!data/*.json
+!data/refchartqa_audit.jsonl
+*.png
+*.jpg
+*.jpeg
+*.zip
+*.parquet
+*.arrow
+*.tar
+*.tar.gz
+!report/figures/*.png
+!demo/examples/*.png
+
+# model weights / adapters (pushed to the private HF Hub instead)
+*.safetensors
+*.bin
+*.pt
+*.pth
+outputs/
+checkpoints/
+runs/
+wandb/
+
+# credentials
+.env
+*.key
+kaggle.json
+.hf_token
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
+
+# latex
+report/**/*.aux
+report/**/*.log
+report/**/*.out
+report/**/*.toc
+report/**/*.bbl
+report/**/*.blg
+report/**/*.synctex.gz

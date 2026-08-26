@@ -1,0 +1,24 @@
+# Fallback backbone (IDEA.md 7, rank 2). This is the exact family that produced
+# the published 32.83, so the comparison becomes same-architecture and is
+# arguably scientifically cleaner than the primary choice.
+# Caveat: Qwen2.5-VL emits ABSOLUTE pixel box coordinates, not 0-1000, and its
+# patch_size is 14 (factor 28). Both are handled by reading the processor
+# config rather than assuming — see decision 0008.
+_base_: base.yaml
+
+model:
+  hf_id: Qwen/Qwen2.5-VL-3B-Instruct
+  hf_id_4bit: unsloth/Qwen2.5-VL-3B-Instruct-unsloth-bnb-4bit
+  backend: hf_peft
+  load_in_4bit: true
+  attn_implementation: sdpa
+  dtype: bfloat16
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  lora_target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+  lora_on_vision: true
+  lora_on_language: true
+  max_seq_len: 1024
+  image_max_pixels: 262144
+  gradient_checkpointing: true

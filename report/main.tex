@@ -1,0 +1,57 @@
+% Dual-Target Grounded-Execute ChartQA — technical report (15–25 pages).
+% Skeleton created in Phase 1 and filled continuously. Every table and figure is
+% pre-named here so that results drop into place rather than being written up at
+% the end (PLAN 10.1).
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\hypersetup{colorlinks=true, linkcolor=blue!50!black, citecolor=blue!50!black, urlcolor=blue!50!black}
+
+% \TODO{...} marks anything not yet measured. A build with TODOs left in is not
+% a finished report; grep for them before submitting.
+\newcommand{\TODO}[1]{\textcolor{red}{\textbf{[TODO: #1]}}}
+% \result{...} marks a number that must come from a recorded results file, never
+% from memory and never typed by hand.
+\newcommand{\result}[1]{#1}
+
+\title{Dual-Target Grounded-Execute ChartQA:\\
+       Grounded Evidence, Typed Plans and Deterministic Execution\\
+       for Chart Question Answering}
+\author{Ahmed}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\input{sections/abstract}
+\input{sections/intro}
+\input{sections/related}
+\input{sections/method}
+\input{sections/setup}
+\input{sections/results}
+\input{sections/ablations}
+\input{sections/analysis}
+\input{sections/limitations}
+\input{sections/conclusion}
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\appendix
+\input{appendix/prereg}
+\input{appendix/full_results}
+\input{appendix/prompts}
+\input{appendix/decisions}
+
+\end{document}

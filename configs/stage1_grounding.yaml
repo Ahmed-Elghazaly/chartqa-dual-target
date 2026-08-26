@@ -1,0 +1,22 @@
+# Stage 1 - grounding curriculum (PLAN 6.1).
+# Teaches the model only to POINT: given a question, output the right box.
+# Ordered easy->hard: exact synthetic L1..L4, then audited real boxes.
+_base_: model_qwen3vl2b.yaml
+run_name: stage1_grounding
+
+train:
+  stage: stage1
+  lr: 1.0e-4
+  epochs: 1.0
+  per_device_batch: 2
+  grad_accum: 4              # effective batch 8
+  optim: adamw_8bit
+  lr_scheduler: cosine
+  warmup_ratio: 0.03
+  max_grad_norm: 1.0
+  save_every_steps: 100      # resumable; pushed to the Hub on every save
+  eval_every_steps: 250
+  push_to_hub_every_save: true
+
+data:
+  stage1_cap: 12000

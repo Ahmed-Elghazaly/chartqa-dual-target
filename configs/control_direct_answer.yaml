@@ -1,0 +1,17 @@
+# Required trained control (PLAN 6.4, IDEA.md 9 ladder #3).
+# Same backbone, same data, trained to emit ONLY the answer. This is what
+# separates ordinary domain adaptation from the contribution of grounding,
+# typed plans and execution. Not optional.
+_base_: model_qwen3vl2b.yaml
+run_name: control_direct_answer
+
+train:
+  stage: control
+  lr: 5.0e-5
+  epochs: 1.0
+  per_device_batch: 2
+  grad_accum: 4
+  save_every_steps: 100
+
+eval:
+  structured_output: false

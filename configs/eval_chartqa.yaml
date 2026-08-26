@@ -1,0 +1,14 @@
+# ChartQA answer accuracy, official evaluator (relaxed accuracy, 5% tolerance).
+# Reported separately for human and machine questions; the machine subset is
+# much easier and an aggregate hides that.
+_base_: model_qwen3vl2b.yaml
+run_name: eval_chartqa
+
+eval:
+  dataset: chartqa
+  split: val                 # test is sealed until Phase 7 (rule 1)
+  seeds: [0, 1, 2]
+  bootstrap_resamples: 10000
+  max_new_tokens: 512
+  temperature: 0.0
+  structured_output: true

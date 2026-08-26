@@ -1,0 +1,93 @@
+name: CI
+
+# No GPU in CI (PLAN 1.8). Everything here is CPU-only and fast: the executor,
+# the metrics regression suite, coordinate maths, plan mining, dedup, and the
+# assertion that no validation or test record ever reaches a training mixture.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: pip install -e ".[dev]"
+      - name: ruff
+        run: ruff check src tests scripts
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - name: install (core + dev)
+        run: pip install -e ".[dev]"
+      - name: fast CPU tests
+        run: pytest -q -m "not slow and not gpu and not network and not official"
+
+  test-official-evaluators:
+    # The official ChartQA/RefChartQA evaluators need torch + torchmetrics +
+    # datasets. Heavier, so it is a separate job and only on 3.11.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - name: install CPU torch first (avoids pulling CUDA wheels)
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -e ".[dev,eval]"
+      - name: evaluator cross-check and regression suite
+        run: pytest -q -m "official and not network"
+
+  guardrails:
+    # Cheap, high-value checks for the non-negotiable rules.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: rule 7 - no dataset content anywhere in git history
+        run: |
+          set -euo pipefail
+          bad=$(git log --all --pretty=format: --name-only --diff-filter=A \
+                | sort -u \
+                | grep -Ei '\.(png|jpg|jpeg|gif|bmp|webp|tiff|zip|parquet|arrow)$' \
+                | grep -Ev '^(report/figures/|demo/examples/)' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::dataset content found in git history (non-negotiable rule 7):"
+            echo "$bad"
+            exit 1
+          fi
+          echo "clean: no dataset content in history"
+      - name: no credentials in history
+        run: |
+          set -euo pipefail
+          bad=$(git log --all --pretty=format: --name-only --diff-filter=A \
+                | sort -u | grep -Ei '(^|/)(\.env|kaggle\.json|.*\.pem|.*\.key)$' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::credential file found in git history:"; echo "$bad"; exit 1
+          fi
+          echo "clean: no credential files in history"
