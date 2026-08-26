@@ -1,0 +1,28 @@
+{
+  "purpose": "Official RefChartQA evaluator, vendored verbatim. DECISIONS.md 0003 makes this the scorer of record; it must be byte-identical to upstream or the comparison against the published 32.83 is not a comparison.",
+  "source_repo": "https://github.com/moured/RefChartQA",
+  "source_path": "evaluation/",
+  "downloaded": "2026-08-26",
+  "repo_license": "GPL-3.0",
+  "dataset_license": "AGPL-3.0",
+  "note": "Upstream uses CRLF line endings. .gitattributes marks this directory -text so git never normalises them.",
+  "files": {
+    "evaluate.py": {
+      "sha256": "d0c9f87d68d999da7963ea655935a7140fc35f245ad2c26c53e28e4f651c0dd8",
+      "bytes": 12589,
+      "url": "https://raw.githubusercontent.com/moured/RefChartQA/main/evaluation/evaluate.py"
+    },
+    "filtered_results.jsonl": {
+      "sha256": "a6fccdf986c58fcb362839017aede79c067886ac8a98031d35761bc07045edbb",
+      "bytes": 1535009,
+      "url": "https://raw.githubusercontent.com/moured/RefChartQA/main/evaluation/filtered_results.jsonl",
+      "rows": 11698,
+      "composition": {"human": 508, "machine": 1032, "pot": 10158}
+    },
+    "requirements.txt": {
+      "sha256": "859bf6c05bb33c585d65e25695afa2cd21e816a54541fd1a3d93222f30cfd71a",
+      "bytes": 56,
+      "url": "https://raw.githubusercontent.com/moured/RefChartQA/main/evaluation/requirements.txt"
+    }
+  }
+}

@@ -1,2 +1,9 @@
 * text=auto eol=lf
 *.ipynb text
+
+# Vendored third-party evaluators must be byte-identical to upstream
+# (DECISIONS.md 0003). Git's eol=lf normalisation silently rewrites CRLF files,
+# which changes their hash and therefore what "we ran the official evaluator"
+# means. These paths are marked binary so git never touches a byte.
+verification/refchartqa_eval/**   -text
+src/chartqa_dt/eval/official/vendor/**   -text
