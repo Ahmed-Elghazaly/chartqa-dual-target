@@ -1,5 +1,75 @@
 % section: intro
-\section{Intro}
+\section{Introduction}
 \label{sec:intro}
 
-\TODO{not written yet}
+\subsection{The problem with picking a benchmark you are already good at}
+
+A student project that fine-tunes a model has to show that the training did something. That sounds
+trivial and is not. If you choose a task where a modern off-the-shelf model already performs well,
+you can spend a month training and finish with a result that is flat, or worse than where you
+started, and nothing to report.
+
+Chart question answering is such a task. A current 2-billion-parameter vision-language model scores
+\result{79.1} on ChartQA with no task-specific training at all, and the best published improvement
+over a comparable prompted model is $+3.8$ points, obtained on four H100 GPUs. That is a poor place
+to stake a project's only claim.
+
+Chart \emph{grounding} --- pointing at the region of the image the answer came from --- is not
+saturated. The strongest published result on RefChartQA's human subset is \result{32.83} AP@0.5,
+produced by a \emph{larger} model trained for a single epoch with boxes emitted as plain text, an
+objective carrying no spatial signal at all.
+
+This work therefore reports both, measured against the same untrained model, and is arranged so
+that the defensible measured improvement does not depend on the saturated one.
+
+\subsection{Why chart grounding is hard, mechanically}
+
+There is a concrete reason grounding scores are low, and it is not a matter of insufficient training.
+
+A vision-language model does not see pixels. It divides the image into a grid and represents each
+cell as one visual token. For the model used here that cell is $32 \times 32$ pixels. A target
+narrower than one cell cannot be represented as a distinct thing --- it is blended with whatever
+shares its cell.
+
+Measured on RefChartQA validation data at the input resolution this system uses, \result{53.2\%} of
+grounding targets are narrower than one visual token on at least one axis. The model is being asked
+to point precisely at things smaller than the smallest unit it can perceive. Aggregate grounding
+scores hide this completely, which is why every grounding result here is stratified by target size.
+
+\subsection{What this system does}
+
+Given a chart and a question, one model emits a single strict JSON record: whether the question is
+answerable, the evidence regions with their labels and values, a typed expression tree, and a direct
+answer. A small deterministic interpreter then validates the record and \emph{recomputes} the answer
+from the expression tree.
+
+The point of the separation is measurement, not accuracy. When the arithmetic is performed by an
+interpreter rather than by the model, ``did it read the chart correctly'' and ``can it do
+arithmetic'' become separately observable. Section~\ref{sec:analysis} uses that to attribute error
+to seeing, to reasoning, or to execution.
+
+\subsection{Contributions}
+
+\begin{enumerate}
+  \item A dual-target evaluation of one small vision-language model on ChartQA answer accuracy and
+        RefChartQA grounding, each against a matched untrained baseline, using the official
+        evaluators unmodified.
+  \item \textbf{The first published zero-shot RefChartQA grounding measurement for this model.} No
+        such number exists in the literature; producing it is a deliverable in its own right,
+        whatever its value turns out to be.
+  \item A measurement of what structured output costs --- the same weights evaluated with the JSON
+        record required and not required --- on a model smaller than the two published estimates,
+        asked for more than either.
+  \item An error decomposition separating visual, reasoning and execution failure, made possible by
+        the model/interpreter split.
+  \item A set of negative and methodological findings, reported because they were expensive to
+        obtain and are invisible from the published record: what the official grounding evaluator
+        actually rewards (Section~\ref{sec:setup:metrics}), and the sub-token analysis above.
+\end{enumerate}
+
+\subsection{What this work does not claim}
+
+Five statements are routinely conflated in this literature and are kept separate throughout:
+official training reproduced; official checkpoint evaluated; matched student baseline trained;
+before/after improvement achieved; published baseline exceeded. This work makes the third and
+fourth. Section~\ref{sec:results} states each individually, including the ones that are negative.
