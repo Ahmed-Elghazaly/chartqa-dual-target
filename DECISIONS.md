@@ -979,3 +979,50 @@ on the strength of a check made many commits earlier — the same stale-evidence
 has documented four times in other people's code and once in Kaggle's API. `scripts/check_ci.py` now
 answers the question against the current commit, and distinguishes a failure on **this** commit from
 older failures already fixed, so it does not cry wolf and get ignored.
+
+---
+
+## 0024 — 2026-08-26 — The kernel verifies the code it received; the uploader waits for the dataset to be ready
+
+**Context.** The Phase 2 re-run, launched with two bug fixes committed and pushed, reproduced **both
+bugs exactly** — including an error message (`text=[11520]`) that can only be produced by the
+pre-fix code path. The kernel had run a stale copy of the repository.
+
+**Evidence.** Kaggle dataset `nanonanite/chartqa-dt-src` reported
+`currentVersionNumber: 10, lastUpdated 2026-08-26T17:56:05Z`. The kernel started at
+**17:56:07** — two seconds later. Kaggle attaches the latest **ready** dataset version at kernel
+start, and a version uploaded seconds earlier is still processing, so the kernel silently received
+version 9.
+
+Nothing reported this. The run proceeded normally and produced a plausible, wrong result: a report
+that two fixed bugs were still present.
+
+**Options.** (a) Sleep for a fixed interval after uploading. (b) Poll until the dataset reports a new
+ready version. (c) (b) plus have the kernel prove which code it actually received.
+
+**Decision.** (c). `_fingerprint()` hashes every staged `.py`/`.yaml`/`.toml` file, path-sensitively,
+into a short digest that is both written into the upload as `CODE_FINGERPRINT.txt` and embedded into
+the generated kernel. Before any install or download, the kernel compares them and exits with an
+explicit `STALE CODE` message on mismatch. Separately, the uploader now polls until the dataset
+reports `ready` **and** a version number greater than before, up to five minutes.
+
+(a) is rejected: a fixed sleep is a guess that is either too short some of the time or wasteful all
+of the time, and it still cannot detect the failure it is guessing about.
+
+**Consequences.** This is the most dangerous failure the project has hit, and it is worth being
+precise about why. Every other silent failure so far produced a *worse* result. This one produced a
+**convincingly wrong report about the codebase** — it said two fixed bugs were unfixed. Had the
+fixes been subtler, the natural response would have been to "fix" correct code, on evidence that
+looked impeccable.
+
+It also means earlier runs may have used stale code. Nothing needs re-deriving: run 8's
+measurements (peak 1.482 GB, 8.664 s/step, 7.22 h projected, loss 2.879 → 0.968) are unaffected,
+because the properties measured — memory, step time, LoRA coverage, quantisation — were identical in
+both code versions. But the confidence in *which* code produced them was unearned until now.
+
+Third instance of one pattern, and the sharpest: **acceptance is not compliance.**
+`llm_int8_skip_modules` was accepted and matched nothing (0012). `machine_shape` was accepted and
+ignored (0020). A dataset version was accepted and superseded by an older one. In each case the
+request succeeded and the effect did not occur. The remedy is always the same shape — observe the
+effect, never the acknowledgement — and it is now applied to the code itself, which is the one place
+it had not occurred to me to check.
