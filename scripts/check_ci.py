@@ -46,13 +46,25 @@ def main() -> int:
         tally[key] = tally.get(key, 0) + 1
     print(f"\nlast {len(recent)} runs: " + ", ".join(f"{k}={v}" for k, v in sorted(tally.items())))
 
-    failing = [r for r in recent if r["conclusion"] == "failure"]
-    if failing:
-        print(f"\n{len(failing)} of the last {len(recent)} runs FAILED. Inspect with:")
+    # The verdict is about THIS commit. Older failures are history, and after a
+    # fix lands they should stop being reported as a current problem -- otherwise
+    # the checker cries wolf and gets ignored, which is the failure it exists to
+    # prevent.
+    head_conclusions = [r["conclusion"] for r in for_head if r["conclusion"]]
+    if head_conclusions:
+        if all(c == "success" for c in head_conclusions):
+            print("\nCI is GREEN for this commit.")
+            older = [r for r in recent if r["headSha"] != head and r["conclusion"] == "failure"]
+            if older:
+                print(f"({len(older)} older run(s) failed; that is history, not a current problem.)")
+            return 0
+        failing = [r for r in for_head if r["conclusion"] == "failure"]
+        print("\nCI FAILED for this commit. Inspect with:")
         print(f"  gh run view {failing[0]['databaseId']} --log-failed")
         return 1
-    print("\nrecent CI is clean.")
-    return 0
+
+    print("\nNo completed run for this commit yet — verdict unknown.")
+    return 2
 
 
 if __name__ == "__main__":

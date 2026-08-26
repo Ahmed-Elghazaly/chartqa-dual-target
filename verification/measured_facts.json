@@ -1,0 +1,73 @@
+{
+  "_purpose": "Single source of truth for every measured or verified number this project quotes. Documentation must agree with this file; tests/test_docs_consistency.py enforces it. If a number changes, change it HERE and let the tests find every place that disagrees.",
+  "_verified": "2026-08-26",
+
+  "datasets": {
+    "chartqa_splits":        {"train": 28299, "val": 1920, "test": 2500},
+    "refchartqa_splits":     {"train": 55789, "validation": 6223, "test": 11690},
+    "refchartqa_test_by_type": {"human": 500, "machine": 1032, "pot": 10158},
+    "chartqapro_test_rows":  1948,
+    "chartqa_archive_bytes": 875370872,
+    "chartqapro_bytes":      193053989
+  },
+
+  "published_targets": {
+    "refchartqa_ap50_human_qwen25vl3b":   32.83,
+    "refchartqa_ap50_machine_qwen25vl3b": 59.28,
+    "refchartqa_ap50_pot_qwen25vl3b":     39.32,
+    "refchartqa_answer_without_boxes":    88.80,
+    "refchartqa_answer_with_boxes":       84.80,
+    "chartqa_qwen3vl2b_instruct":         79.1,
+    "chartqa_qwen3vl2b_thinking":         86.6
+  },
+
+  "model": {
+    "hf_id": "Qwen/Qwen3-VL-2B-Instruct",
+    "patch_size": 16,
+    "spatial_merge_size": 2,
+    "visual_token_factor": 32,
+    "min_pixels": 65536,
+    "max_pixels": 16777216,
+    "bf16_weights_bytes": 4255140312,
+    "unsloth_4bit_bytes": 2406693586
+  },
+
+  "subtoken": {
+    "_method": "800 RefChartQA validation images / 1045 boxes; 'sub-token' = narrower than one visual token on at least one axis",
+    "median_visual_tokens_native": 425,
+    "median_visual_tokens_512":    247,
+    "fraction_native": 41.3,
+    "fraction_512":    53.2,
+    "fraction_448":    60.5,
+    "by_subset_512": {"human": 49.1, "machine": 73.1, "pot": 49.1}
+  },
+
+  "phase2": {
+    "_source": "Kaggle Tesla T4, hf_peft backend, 512-pixel budget, 100 optimizer steps (session 8)",
+    "peak_reserved_gb": 1.482,
+    "seconds_per_step": 8.664,
+    "projected_full_run_hours": 7.22,
+    "loss_first_10": 2.879,
+    "loss_last_10": 0.968,
+    "lora_vision_params": 7208960,
+    "lora_language_params": 17432576,
+    "lora_vision_tensors": 208,
+    "lora_language_tensors": 392,
+    "trainable_params": 24641536,
+    "total_params": 1447530496,
+    "quantised_vision_full": 104,
+    "quantised_language_4bit": 196
+  },
+
+  "gates": {
+    "memory_gb": 13.5,
+    "full_run_hours": 10.0,
+    "planned_optimizer_steps": 3000,
+    "weekly_gpu_quota_hours": 30
+  },
+
+  "vendored": {
+    "refchartqa_evaluate_py_sha256": "d0c9f87d68d999da7963ea655935a7140fc35f245ad2c26c53e28e4f651c0dd8",
+    "official_max_coord": 999
+  }
+}

@@ -216,7 +216,7 @@ content in git) and rule 8 (private repository) stand unchanged.
 |---|---|---|
 | Does `filtered_results.jsonl` re-score to 32.83? | Needs the 2.88 GB dataset for image sizes and GT boxes | Phase 4.4 |
 | The 8-row surplus in the prediction file | Needs the ids of the 500 human test rows to diff against | Phase 4.4 |
-| Does RefChartQA `train` contain any ChartQA `test` question? | Needs both datasets locally | Phase 3.3 (dedup) + `tests/test_no_test_split_leakage.py` |
+| Does RefChartQA `train` contain any ChartQA `test` question? | Needs both datasets locally | Phase 3.3 (dedup) + a leakage test built in Phase 3.3 |
 | `bbox` vs `bbox_2d` in the output schema | Must be decided on measured validation evidence | Phase 5.1 |
 
 ---

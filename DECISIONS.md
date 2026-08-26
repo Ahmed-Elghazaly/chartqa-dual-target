@@ -822,6 +822,18 @@ instead of another twenty-minute benchmark that would have measured nothing.
 Neither failure was in the model, the backend, or Kaggle. Both were mine, and both are the kind that
 consume GPU hours before revealing themselves.
 
+**Options.** (a) Treat both as one-off mistakes and fix them in place. (b) Fix them, and add local
+tests that reproduce each failure so it cannot return. (c) (b) plus re-examine the "known gaps" table
+that had already predicted one of them.
+
+**Decision.** (c). Both bugs are fixed, both are covered by tests that would have caught them locally
+in milliseconds — including one that builds a real batch at both pixel budgets with the real
+processor — and the accepted-gaps table in `verification/preflight_checklist.md` has been revisited
+rather than left standing, because it contained the first bug with a confident and wrong reason for
+tolerating it.
+
+**Evidence.** The two failures, in full:
+
 ### Bug 1 — the resume test rebuilt the wrong optimizer class
 
 `KeyError: 'exp_avg'`, raised **after the 100 steps had already succeeded**.
@@ -906,3 +918,59 @@ the rule-7 upload guard really does fire against a real push rather than only in
 Worth noting as a pattern, since it is the same one as 0021: **code that has been written but never
 run is not evidence of anything.** The Hub helper had unit tests, and unit tests with a fake API
 verify the shape of a call, not that the service accepts it.
+
+---
+
+## 0023 — 2026-08-26 — One canonical facts file, and documentation consistency enforced in CI
+
+**Context.** Ahmed raised two concerns: that CI failures were arriving by email, and that the growing
+set of markdown files and scripts would drift apart over time or accumulate special cases. Both were
+well founded.
+
+The first was worse than it looked. **CI had been failing for eight consecutive runs while I reported
+it green**, because I was checking it occasionally rather than per commit. The failure itself was
+environmental — the official-evaluator job installed a CPU `torch` from the PyTorch index and then let
+`torchmetrics[detection]` pull a CUDA `torchvision` from PyPI, so the compiled ops never registered and
+every test importing the evaluator died with `RuntimeError: operator torchvision::nms does not exist`.
+Both are now fixed: the job installs both packages from the same index and asserts the pairing imports
+before running anything.
+
+**Options.** (a) Rely on discipline to keep the documents in step. (b) Reduce the number of documents.
+(c) Give every measured number one canonical home and make the tests enforce agreement.
+
+**Decision.** (c). `verification/measured_facts.json` holds every measured or verified number the
+project quotes — split sizes, published targets, model geometry, sub-token fractions, Phase 2
+measurements, gates, vendored hashes. `tests/test_docs_consistency.py` runs in CI and enforces:
+
+* decision numbers are unique, ascending and gapless;
+* every entry carries its Appendix H sections;
+* every `DECISIONS.md NNNN` cross-reference — in prose *or* in source — resolves to a real entry;
+* every `path/to/file` in backticks actually exists;
+* quoted numbers agree with the facts file, and the facts file agrees with the constants in the code
+  (`QWEN3VL_FACTOR`, `MEMORY_GATE_GB`, `OFFICIAL_MAX_COORD`, the vendored SHA-256);
+* internal arithmetic holds — the RefChartQA test subsets sum to the split size, the Phase 2
+  measurements sit inside their own gates;
+* **no document asserts that CI is green**, because that is a live fact that goes stale silently.
+
+(b) was rejected: each document has a distinct job and a distinct reader. The problem is not their
+number, it is that nothing checked them.
+
+**Evidence.** The check found two real drifts on its first run, before it had ever been committed:
+
+1. `verification/phase0.md` referenced `tests/test_no_test_split_leakage.py`, a Phase 3 file that does
+   not exist yet — a forward reference written as though it were a present one.
+2. Decision **0021** was written narratively, with "Bug 1"/"Bug 2" subsections, and never actually
+   contained a `**Decision.**` section. The format that every other entry follows had quietly lapsed
+   in the one entry written under time pressure.
+
+Both are now fixed, and neither could recur silently.
+
+**Consequences.** Documentation drift becomes a build failure rather than something a reader
+eventually notices. It also creates one place to change a number: if a measurement is superseded,
+`measured_facts.json` changes and the tests point at every prose location that disagrees.
+
+The reporting error is worth recording separately from its fix. I told Ahmed "CI green" several times
+on the strength of a check made many commits earlier — the same stale-evidence mistake this project
+has documented four times in other people's code and once in Kaggle's API. `scripts/check_ci.py` now
+answers the question against the current commit, and distinguishes a failure on **this** commit from
+older failures already fixed, so it does not cry wolf and get ignored.
