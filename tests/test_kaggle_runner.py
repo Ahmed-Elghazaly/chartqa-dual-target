@@ -174,8 +174,8 @@ def test_kernel_requests_a_specific_accelerator(tmp_path, monkeypatch):
             )
 
     monkeypatch.setattr(kaggle_run, "_username", lambda: "user")
-    kaggle_run.push_kernel(FakeApi(), "user/ds", ["cdt-train"], title="t", machine_shape="gpu_t4x2")
-    assert captured["meta"]["machine_shape"] == "gpu_t4x2"
+    kaggle_run.push_kernel(FakeApi(), "user/ds", ["cdt-train"], title="t")
+    assert captured["meta"]["machine_shape"] == kaggle_run.MACHINE_T4 == "NvidiaTeslaT4"
     assert captured["meta"]["enable_gpu"] is True
     assert captured["meta"]["is_private"] is True
 
@@ -193,8 +193,8 @@ def test_no_gpu_request_sets_machine_shape_none(tmp_path, monkeypatch):
             )
 
     monkeypatch.setattr(kaggle_run, "_username", lambda: "user")
-    kaggle_run.push_kernel(FakeApi(), "user/ds", ["x"], title="t", gpu=False)
-    assert captured["meta"]["machine_shape"] == "none"
+    kaggle_run.push_kernel(FakeApi(), "user/ds", ["x"], title="t", gpu=False, machine_shape="")
+    assert captured["meta"]["machine_shape"] == ""
 
 
 def test_torchao_is_pinned_before_the_model_download():
@@ -208,3 +208,19 @@ def test_torchao_is_pinned_before_the_model_download():
     assert script.index("torchao") < script.index('["cdt-train"]'), (
         "torchao must be pinned before the job runs, not after the model downloads"
     )
+
+
+def test_machine_shape_values_match_the_sdk_contract():
+    """`gpu_t4x2` looked plausible, was silently ignored, and produced a P100 twice.
+
+    kagglesdk documents exactly three accepted values; an unrecognised string is
+    dropped rather than rejected, so a typo is indistinguishable from a granted
+    request.
+    """
+    sdk = pytest.importorskip("kagglesdk")
+    from pathlib import Path as _P
+
+    doc = (_P(sdk.__file__).parent / "kernels/types/kernels_api_service.py").read_text()
+    for value in (kaggle_run.MACHINE_T4, kaggle_run.MACHINE_P100, kaggle_run.MACHINE_TPU):
+        assert value in doc, f"{value!r} is not a machine_shape kagglesdk documents"
+    assert kaggle_run.MACHINE_T4 == "NvidiaTeslaT4"

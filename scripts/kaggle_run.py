@@ -40,6 +40,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DATASET_SLUG = "chartqa-dt-src"
 KERNEL_SLUG = "chartqa-dt-run"
 
+# Accepted machine_shape values, read from kagglesdk's own docstring
+# (kernels/types/kernels_api_service.py). An unrecognised value is ignored
+# silently, so these are constants rather than free-form strings.
+MACHINE_T4 = "NvidiaTeslaT4"
+MACHINE_P100 = "NvidiaTeslaP100"
+MACHINE_TPU = "Tpu1VmV38"
+
 # Files the kernel needs. Deliberately explicit: a glob would eventually sweep up
 # a `.env`, a dataset archive, or a chart image, and non-negotiable rule 7 says
 # none of those may be redistributed.
@@ -286,7 +293,7 @@ def render_kernel_script(dataset: str, command: list[str], *, allow_cpu: bool = 
 
 def push_kernel(
     api, dataset_slug: str, command: list[str], *, title: str, gpu: bool = True,
-    machine_shape: str = "gpu_t4x2",
+    machine_shape: str = MACHINE_T4,
 ) -> str:
     user = _username()
     full = f"{user}/{KERNEL_SLUG}"
@@ -307,10 +314,16 @@ def push_kernel(
             "kernel_type": "script",
             "is_private": True,
             "enable_gpu": gpu,
-            # Without this Kaggle picks for us, and it has handed out a Tesla
-            # P100 (sm_60) that its own PyTorch build cannot use. T4 is also what
-            # IDEA.md's reference compute measurement was taken on.
-            "machine_shape": machine_shape if gpu else "none",
+            # Without this Kaggle picks for us, and it twice handed out a Tesla
+            # P100 (sm_60) that its own PyTorch build cannot use. T4 is also the
+            # card IDEA.md's reference compute measurement was taken on.
+            #
+            # The accepted values are documented in kagglesdk
+            # (kernels_api_service.py: machine_shape): NvidiaTeslaT4,
+            # NvidiaTeslaP100, Tpu1VmV38. An unrecognised string is ignored
+            # silently rather than rejected, which is how "gpu_t4x2" produced
+            # another P100 while looking like a request had been made.
+            "machine_shape": machine_shape,
             "enable_internet": True,
             "dataset_sources": [dataset_slug],
             "competition_sources": [],
@@ -359,8 +372,9 @@ def main() -> int:
     p.add_argument("--resolutions", type=str, default="512,native")
     p.add_argument("--backend", type=str, default=None)
     p.add_argument("--no-gpu", action="store_true")
-    p.add_argument("--machine-shape", type=str, default="gpu_t4x2",
-                   help="Kaggle accelerator to request (gpu_t4x2, gpu_p100, none)")
+    p.add_argument("--machine-shape", type=str, default=MACHINE_T4,
+                   choices=[MACHINE_T4, MACHINE_P100, MACHINE_TPU],
+                   help="Kaggle accelerator to request; values from kagglesdk")
     p.add_argument("--no-resume-test", action="store_true",
                    help="skip the kill-and-resume check (halves the number of model loads)")
     p.add_argument("--dry-run", action="store_true", help="stage everything, push nothing")
@@ -412,7 +426,7 @@ def main() -> int:
 
     print("pushing kernel ...")
     push_kernel(api, ds, command, title="chartqa-dt run", gpu=not args.no_gpu,
-                machine_shape=args.machine_shape)
+                machine_shape=args.machine_shape if not args.no_gpu else "")
     print(f"  kernel: https://www.kaggle.com/code/{kernel}")
 
     print("\nwaiting (Ctrl-C is safe; re-attach with --status) ...")

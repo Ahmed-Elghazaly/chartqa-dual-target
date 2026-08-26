@@ -728,7 +728,7 @@ The fail-fast check added earlier passed anyway, because it asked
 (c) (b) plus validate at runtime that the assigned device's architecture is in
 `torch.cuda.get_arch_list()`.
 
-**Decision.** (c). `kernel-metadata.json` now carries `machine_shape: "gpu_t4x2"`, and the kernel
+**Decision.** (c). `kernel-metadata.json` now carries an explicit `machine_shape`, and the kernel
 refuses to proceed on any device whose `sm_XX` is absent from the PyTorch build's arch list, naming
 both the device and the supported list. T4 is also the card `IDEA.md`'s compute budget was measured
 on, so requesting it makes our numbers comparable to that reference rather than to nothing.
@@ -768,3 +768,48 @@ Not a wasted session. Confirmed on real hardware:
 * **decision 0012 is confirmed in production**: `vision 104 full / 0 4-bit`,
   `language 0 full / 196 4-bit`. The vision tower really is held out of 4-bit on the real model, and
   the language model really is quantised.
+
+
+---
+
+## 0020 — 2026-08-26 — `machine_shape` values come from the SDK's own documented list, as constants
+
+**Context.** Decision 0019 added `machine_shape: "gpu_t4x2"` to request a T4. The next run was
+assigned a **Tesla P100 again**. The request had not been refused — it had been *ignored*.
+
+**Evidence.** `kagglesdk/kernels/types/kernels_api_service.py` documents the field:
+
+```
+machine_shape (str)
+  The machine shape to use for this session. Currently supported options:
+     * NvidiaTeslaT4
+     * NvidiaTeslaP100
+     * Tpu1VmV38
+```
+
+The setter validates only that the value is a `str`:
+
+```python
+if not isinstance(machine_shape, str):
+    raise TypeError('machine_shape must be of type str')
+self._machine_shape = machine_shape
+```
+
+So `"gpu_t4x2"` — which is what the Kaggle web UI's URL uses, and which reads perfectly plausibly —
+is accepted, transmitted, and silently disregarded. A typo and a granted request are
+indistinguishable from the client side.
+
+**Decision.** The three documented values are defined as module constants (`MACHINE_T4`,
+`MACHINE_P100`, `MACHINE_TPU`), the CLI restricts `--machine-shape` to them via `choices=`, and a
+test asserts each constant literally appears in the installed SDK's source. If Kaggle renames or
+extends the list, that test fails rather than the next run quietly landing on the wrong card.
+
+**Consequences.** Same family as 0012, 0018 and 0019, but a new member of it: not a guard that
+answered an adjacent question, but a **request that was accepted without being honoured**. Worth
+stating alongside them, because the remedy differs — for a guard, test the condition that causes the
+failure; for a request, verify the value against the receiver's own contract, and check that the
+request took effect.
+
+The arch check from 0019 worked exactly as intended in the meantime: the P100 was rejected in about
+twenty seconds with `accelerator: Tesla P100-PCIE-16GB sm_60 | torch supports: ['sm_70', ...]`,
+instead of another twenty-minute benchmark that would have measured nothing.
