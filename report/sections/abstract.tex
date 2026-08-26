@@ -1,7 +1,28 @@
 % section: abstract
 \begin{abstract}
-\TODO{Written last, from the recorded results. Must state both headline
-before/after numbers with confidence intervals, name the structured-output cost
-explicitly, and say plainly which of the five claims in
-Section~\ref{sec:results} are and are not made.}
+Chart question answering is close to saturated: a current 2-billion-parameter vision-language model
+scores \result{79.1} on ChartQA with no task-specific training, and the best published improvement
+over a comparable prompted model is $+3.8$ points obtained on four H100 GPUs. Chart \emph{grounding}
+--- identifying which region of the image an answer came from --- is not: the strongest published
+result on RefChartQA's human subset is \result{32.83} AP@0.5, from a larger model trained one epoch
+with boxes emitted as plain text.
+
+We fine-tune one small vision-language model to emit, for each chart and question, a single strict
+JSON record containing evidence regions, a typed expression tree, and a direct answer; a
+deterministic interpreter then recomputes the answer from the expression tree. Because the
+arithmetic leaves the model, reading the chart and computing with it become separately observable,
+which supports an error decomposition ordinary systems cannot produce.
+
+\TODO{results sentence: both headline before/after numbers with intervals, and the structured-output
+cost, stated plainly including if negative}
+
+We also report a mechanical account of why chart grounding is hard. The model represents the image
+as a grid of $32\times32$-pixel visual tokens, and at the input resolution used, \result{53.2\%} of
+RefChartQA grounding targets are narrower than one token on at least one axis --- they cannot be
+resolved as distinct regions in principle. Grounding results are therefore stratified by target
+size, where the aggregate figure conceals two different problems.
+
+All training uses free-tier hardware and no paid compute. Every methodological choice is recorded in
+an append-only decision log, and all decisions were frozen in a committed pre-registration before
+any test split was opened.
 \end{abstract}
