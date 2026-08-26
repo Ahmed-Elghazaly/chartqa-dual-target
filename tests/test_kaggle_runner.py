@@ -116,3 +116,27 @@ def test_archive_round_trips_the_tree(tmp_path):
         z.extractall(out)
     assert (out / "pyproject.toml").is_file()
     assert (out / "src" / "pkg" / "m.py").read_text() == "x = 1"
+
+
+def test_gpu_check_runs_before_anything_expensive():
+    """A kernel that silently fell back to CPU looked identical to a slow one.
+
+    Kaggle exposes no logs while a kernel runs, so a wrong accelerator was a
+    45-minute mystery instead of a 20-second answer. torch is preinstalled, so
+    the check costs nothing and must come before the 4.2 GB download.
+    """
+    script = kaggle_run.render_kernel_script("ds", ["cdt-train"])
+    assert "cuda.is_available" in script
+    assert script.index("cuda.is_available") < script.index("pip"), (
+        "the accelerator check must precede the model download and pip installs"
+    )
+    assert "Refusing to run a memory benchmark on CPU" in script
+
+
+def test_cpu_is_allowed_only_when_explicitly_requested():
+    gpu_script = kaggle_run.render_kernel_script("ds", ["x"], allow_cpu=False)
+    cpu_script = kaggle_run.render_kernel_script("ds", ["x"], allow_cpu=True)
+    assert "not False" in gpu_script or "and False" in gpu_script
+    assert "and True" in cpu_script or "not True" in cpu_script
+    compile(gpu_script, "main.py", "exec")
+    compile(cpu_script, "main.py", "exec")

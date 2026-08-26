@@ -173,6 +173,23 @@ import zipfile
 SRC = "/kaggle/input/{dataset}"
 WORK = "/kaggle/working/repo"
 
+# ---------------------------------------------------------------- fail fast
+# Everything expensive comes after this. torch is preinstalled on Kaggle, so the
+# accelerator can be checked in seconds -- before a 4.2 GB download and two model
+# loads. A kernel that silently fell back to CPU would look identical to a slow
+# one for the better part of an hour, and Kaggle exposes no logs while running.
+import torch as _torch
+
+_gpu = _torch.cuda.is_available()
+print("accelerator:", _torch.cuda.get_device_name(0) if _gpu else "NONE (CPU)", flush=True)
+if not _gpu and not {allow_cpu}:
+    raise SystemExit(
+        "no CUDA device. kernel-metadata.json set enable_gpu=true, so either the "
+        "accelerator was not granted or the account is not phone-verified. "
+        "Refusing to run a memory benchmark on CPU: the numbers would be "
+        "meaningless and the run would take hours."
+    )
+
 listing = os.listdir("/kaggle/input") if os.path.isdir("/kaggle/input") else "(missing)"
 print("contents of /kaggle/input:", listing, flush=True)
 if not os.path.isdir(SRC):
@@ -210,9 +227,7 @@ subprocess.run([sys.executable, "-m", "pip", "install", "-q", "--no-deps", "-e",
 subprocess.run([sys.executable, "-m", "pip", "install", "-q",
                 "peft>=0.14.0", "bitsandbytes>=0.44.0", "accelerate>=1.0.0"], check=True)
 
-import torch
-print("torch", torch.__version__, "| cuda", torch.cuda.is_available(),
-      "|", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu", flush=True)
+print("torch", _torch.__version__, flush=True)
 subprocess.run([sys.executable, "-c",
                 "from chartqa_dt.env import get_env; print(get_env().describe())"],
                cwd=root, check=True)
@@ -238,9 +253,11 @@ sys.exit(rc)
 """
 
 
-def render_kernel_script(dataset: str, command: list[str]) -> str:
+def render_kernel_script(dataset: str, command: list[str], *, allow_cpu: bool = False) -> str:
     """Render the kernel script, and refuse to ship one that does not parse."""
-    script = KERNEL_SCRIPT.format(dataset=dataset, command=json.dumps(command))
+    script = KERNEL_SCRIPT.format(
+        dataset=dataset, command=json.dumps(command), allow_cpu=repr(bool(allow_cpu))
+    )
     compile(script, "main.py", "exec")  # generated code is code; check it
     return script
 
@@ -254,7 +271,7 @@ def push_kernel(api, dataset_slug: str, command: list[str], *, title: str, gpu: 
     staging.mkdir(parents=True)
 
     (staging / "main.py").write_text(
-        render_kernel_script(DATASET_SLUG, command), encoding="utf-8"
+        render_kernel_script(DATASET_SLUG, command, allow_cpu=not gpu), encoding="utf-8"
     )
     (staging / "kernel-metadata.json").write_text(
         json.dumps({
