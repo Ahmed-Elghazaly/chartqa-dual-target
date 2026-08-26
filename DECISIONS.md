@@ -521,3 +521,55 @@ this evaluator that is strictly self-harm.
 
 Found by executing the evaluator on synthetic inputs rather than by reading it, which is the only
 reason the per-image/aggregate divergence surfaced at all.
+
+---
+
+## 0015 — 2026-08-26 — One canonical relaxed-accuracy function scores both benchmarks, quirks included
+
+**Context.** `PLAN.md` Phase 4.2 requires cross-checking our metrics against "both the official
+ChartQA and official RefChartQA evaluators". The ChartQA repository turns out to contain **no answer
+evaluator at all** — 41,899 files, and the only evaluation code is
+`Data Extraction/evaluate_data_extraction.py`, which scores table extraction rather than answers.
+
+**Options.** (a) Reimplement ChartQA relaxed accuracy from the paper's description (Level C at best).
+(b) Use `PLAN.md` Appendix D's version as the ChartQA scorer. (c) Identify the implementation that
+published ChartQA numbers were actually produced with, and use that for both benchmarks.
+
+**Decision.** (c). The canonical implementation is
+`google-research/pix2struct/pix2struct/metrics.py::relaxed_correctness` — the function RefChartQA's
+`evaluate.py` vendors verbatim, citing it by URL and line number. **The same function therefore
+scores both of this project's headline protocols**, and Phase 4.2's "both official evaluators"
+collapses to one.
+
+**Evidence.** Both implementations were executed over the Cartesian product of 12 targets × 18
+predictions = **216 (target, prediction) pairs**. **Disagreements: 0.**
+
+The three divergences from `PLAN.md` Appendix D are therefore properties of the *canonical* metric,
+not of RefChartQA's copy:
+
+| case | canonical | Appendix D |
+|---|---|---|
+| `target="0"`, `pred="0.0"` | **False** | True |
+| `target="1,234"`, `pred="1234"` | **False** | True |
+| `target="Yes"`, `pred="Yes."` | **False** | (undefined) |
+
+The cause of the first is a single character: `if prediction_float is not None and target_float:`
+tests `target_float` for **truthiness**, so a gold answer that parses to `0.0` is falsy, the numeric
+branch is skipped entirely, and the comparison silently falls through to case-insensitive string
+equality.
+
+**Consequences.** This is the decisive one: **every published ChartQA number was computed with this
+quirk in it** — Qwen3-VL-2B's 79.1 and 86.6, RefChartQA's 88.80 → 84.80, all of them. "Fixing" the
+zero-handling, as Appendix D does, would produce a metric that is arguably better and is *not the
+metric those numbers are on*. Under non-negotiable rule 6 that makes any comparison to them
+unmatched, and the whole point of the baseline ladder is matched comparison.
+
+So the canonical function is the scorer of record for ChartQA as well as RefChartQA, and Appendix D's
+version is retained only as a separately-named diagnostic whose disagreement count is reported —
+exactly as decision 0003 already established for the grounding side.
+
+Practical consequence for Phase 5.1: because a gold answer of `"0"` is compared as a **string**, a
+model that answers `"0.0"` or `"0.00"` is marked wrong. The answer normaliser must emit bare `"0"`,
+and that normaliser must be frozen in `PREREGISTRATION.md`. ChartQA gold tables contain many zeros —
+`IDEA.md` 5.3 measured 18.8% of human-sourced tables as containing one — so this is not a rare edge
+case.

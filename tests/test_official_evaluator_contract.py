@@ -171,3 +171,60 @@ def test_missing_one_of_two_ground_truth_boxes_halves_ap(ev):
 def test_empty_prediction_scores_zero_and_does_not_crash(ev):
     assert ev.compute_AP_50([item(ev, [], [GT_A])]) == 0.0
     assert ev.compute_P_at_FI([item(ev, [], [GT_A])]) == 0.0
+
+
+# ------------------------------- canonical equivalence (decision 0015)
+
+# Verbatim copy of google-research/pix2struct/pix2struct/metrics.py::relaxed_correctness,
+# inlined so this test needs no network. RefChartQA's evaluate.py cites it by URL.
+def _pix2struct_relaxed_correctness(target: str, prediction: str, max_relative_change: float = 0.05) -> bool:
+    def _to_float(text: str):
+        try:
+            if text.endswith("%"):
+                return float(text.rstrip("%")) / 100.0
+            return float(text)
+        except ValueError:
+            return None
+
+    prediction_float = _to_float(prediction)
+    target_float = _to_float(target)
+    if prediction_float is not None and target_float:
+        return abs(prediction_float - target_float) / abs(target_float) <= max_relative_change
+    return prediction.lower() == target.lower()
+
+
+def test_vendored_metric_equals_the_canonical_pix2struct_one(ev):
+    """Decision 0015: one function scores BOTH benchmarks.
+
+    The ChartQA repository ships no answer evaluator, so the implementation that
+    every published ChartQA number was produced with is pix2struct's. RefChartQA
+    vendors it verbatim. If these ever diverge, our ChartQA and RefChartQA answer
+    scores stop being the same metric.
+    """
+    import itertools
+
+    targets = ["10", "0", "0.0", "50%", "1,234", "Yes", "yes", "", "3.5", "-2", "100%", "abc"]
+    preds = ["10", "10.4", "10.6", "0", "0.0", "0.1", "0.5", "50%", "1234", "1,234",
+             "Yes", "Yes.", " 10 ", "", "3.6", "-2.05", "1.0", "ABC"]
+    mismatches = [
+        (t, p) for t, p in itertools.product(targets, preds)
+        if bool(ev.relaxed_accuracy(p, t)) != bool(_pix2struct_relaxed_correctness(t, p))
+    ]
+    assert not mismatches, f"vendored copy diverged from canonical on: {mismatches[:5]}"
+
+
+def test_the_zero_quirk_is_canonical_not_a_refchartqa_edit():
+    """`and target_float` is a truthiness test, so a gold answer of 0 is falsy.
+
+    Every published ChartQA number carries this. Reporting a 'fixed' metric would
+    make our numbers unmatched against all of them (rule 6).
+    """
+    assert _pix2struct_relaxed_correctness("0", "0.0") is False
+    assert _pix2struct_relaxed_correctness("0", "0") is True
+
+
+def test_answers_must_normalise_to_bare_zero():
+    """Consequence for the answer normaliser, frozen in PREREGISTRATION.md."""
+    assert _pix2struct_relaxed_correctness("0", "0") is True
+    for bad in ("0.0", "0.00", "0%"):
+        assert _pix2struct_relaxed_correctness("0", bad) is False, f"{bad!r} scores wrong against gold '0'"
