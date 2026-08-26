@@ -70,7 +70,12 @@ Python **3.11**.
 python3.11 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"            # CPU: executor, metrics, generator, tests
 pip install -e ".[dev,eval,gpu]"   # add the official evaluators and the training stack
+python scripts/check_credentials.py
 ```
+
+See [`SETUP.md`](SETUP.md) for credentials — in particular the Kaggle token trap, where a valid
+token in the wrong file fails on every authenticated endpoint while an unauthenticated endpoint
+keeps returning 200 and makes it look like a permissions problem.
 
 ## Commands
 

@@ -278,3 +278,80 @@ tempting and wrong for exactly the reason this project keeps running into: the c
 silent, automatic, and produced no error. Generalises to a standing rule — **anything vendored is
 excluded from every automated rewrite (line endings, formatters, linters, import sorters) and
 pinned by hash.**
+
+---
+
+## 0010 — 2026-08-26 — Input resolution becomes a measured variable in the Phase 2 smoke test
+
+**Context.** Decision 0008 established that the visual-token factor is 32, not the 28 assumed in
+`IDEA.md`/`PLAN.md`, and that `IDEA.md`'s stated cost of raising resolution (median tokens 580 → 2,280,
+roughly 4×) was computed under the wrong factor and does not hold for these images. The plan fixes the
+input budget at 512 px. That number was chosen using the incorrect analysis.
+
+**Options.** (a) Keep 512 px as written and revisit only in the Phase 8.3 resolution study, which is
+gated behind two other extensions and therefore lands after training is already done. (b) Measure peak
+memory and step time at both 512² and native (768² cap) during the Phase 2 smoke test, and choose the
+base resolution on that evidence before pre-registration. (c) Switch to native now without measuring.
+
+**Decision.** (b). Approved by Ahmed on 2026-08-26. The smoke test already measures peak reserved
+memory and seconds per optimizer step; it now does so at two input budgets instead of one. Whichever
+wins is frozen in `PREREGISTRATION.md` before any test split is opened. (c) is rejected — the whole
+problem with 512 was that it was chosen without measurement, and choosing native the same way repeats
+the error in the other direction.
+
+**Evidence.** Measured on 800 RefChartQA **validation** images / 1,045 boxes
+(`scripts/measure_resolution_ladder.py`):
+
+| Input budget | median visual tokens | targets sub-token (either axis) |
+|---|---:|---:|
+| 448² | 176 | 60.5% |
+| **512²** (planned) | **247** | **53.2%** |
+| 640² | 368 | 43.1% |
+| 768² / native | **425** | **41.3%** |
+
+Native costs 1.7× the tokens of 512², not 4×, and recovers ~12 percentage points of targets from the
+sub-token stratum. The saturation at 768² is not a coincidence: these charts are only ~800 px wide, so
+any cap at or above 768² is already native and there is nothing further to gain without upscaling.
+
+**Consequences.** Stays inside Phase 2's remit — its declared fallback ladder already treats image size
+as a tunable lever ("image 512 → 448"), so resolution was always a Phase 2 variable; this makes the
+choice measured rather than inherited. Touches no test split. Costs one extra configuration in a smoke
+test already being run. If native breaches the 13.5 GB memory gate, the Phase 2 fallback ladder applies
+unchanged and 512 is used — in which case we will have paid one measurement to confirm the plan was
+right, which is a good trade.
+
+---
+
+## 0011 — 2026-08-26 — Credentials are verified by a script with a negative control, never by "the command worked"
+
+**Context.** Setting up the three credentials produced a wrong diagnosis that survived two rounds of
+testing. Kaggle's `GET /api/v1/datasets/list` returns HTTP 200 to unauthenticated requests. Because
+`dataset_list(mine=True)` returned 200 while `kernels_list` and `competitions_list` returned 401, the
+evidence appeared to show a valid token missing a "kernels" scope. It showed nothing of the kind: the
+token was being rejected everywhere, and the 200 was simply an endpoint that never checks.
+
+**Options.** (a) Test credentials ad hoc when something breaks. (b) A checked-in script that probes only
+endpoints requiring authentication. (c) (b) plus a mandatory negative control — the same call with a
+junk token, which must be rejected, or the check is declared meaningless.
+
+**Decision.** (c), as `scripts/check_credentials.py`, with the setup gotchas written up in `SETUP.md`.
+The control runs *after* the real check, because Kaggle throttles a client that has just presented bad
+credentials and that throttle would otherwise corrupt the real result.
+
+**Evidence.** Verbatim probes. `datasets/list` with **no** `Authorization` header → **200, 82,233 bytes**;
+with deliberately invalid credentials → **200, 82,233 bytes**; with the real token → **200, 82,233 bytes**.
+Three different credential states, byte-identical responses. Root cause of the actual failure: Kaggle now
+issues `KGAT_`-prefixed **bearer** access tokens belonging in `~/.kaggle/access_token` or
+`KAGGLE_API_TOKEN`, while `kaggle.json` is for the **legacy** 32-hex key sent as HTTP Basic
+`username:key`. Moving the token to the right file fixed every endpoint at once. A second false signal
+came from TLS: the python.org 3.11 venv has no CA trust store, so raw `urllib` raised
+`CERTIFICATE_VERIFY_FAILED`, which reads as a rejected credential. All network calls now use `requests`,
+which bundles `certifi`.
+
+**Consequences.** Generalises the Phase 0 lesson to infrastructure: **a check that cannot fail is not a
+check.** The same reasoning already governs the evaluator regression suite (assert the cases that *must*
+be wrong, not only the ones that should be right) and `assert_lora_on_both_sides` (fail loudly rather
+than warn). Also a correction to my own reasoning worth recording: I reported "the token is missing a
+scope" to Ahmed with confidence, from evidence that could not distinguish that hypothesis from "the
+token is entirely rejected". The control is what separates them, and it should have been the first
+thing run, not the last.

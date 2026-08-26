@@ -18,6 +18,11 @@ model:
   lora_on_vision: true           # rule 3 — asserted at runtime, not trusted
   lora_on_language: true
   max_seq_len: 1024
-  image_max_pixels: 262144       # 512^2; Phase 2 measures this against native
+  # Decision 0010: Phase 2 measures peak memory and step time at BOTH 512^2 and
+  # native (768^2 cap) and the winner is frozen in PREREGISTRATION.md. 512^2 is
+  # the plan's inherited value and remains the default until that measurement.
+  #   512^2 = 247 median visual tokens, 53.2% of targets sub-token
+  #   768^2 = 425 median visual tokens, 41.3% of targets sub-token  (= native)
+  image_max_pixels: 262144       # 512^2
   image_min_pixels: null
   gradient_checkpointing: true
