@@ -217,3 +217,60 @@ def print_parameter_names(model: Any, pattern: str | None = None, limit: int = 6
     if len(names) > limit:
         print(f"  ... and {len(names) - limit} more")
     return names
+
+
+# --------------------------------------------------------------------------- #
+# Quantisation coverage
+# --------------------------------------------------------------------------- #
+
+
+def summarise_quantisation(model: Any) -> dict[str, Any]:
+    """Count 4-bit versus full-precision Linear layers, split by side.
+
+    Decision 0012: the vision tower is deliberately held out of 4-bit, because
+    quantising the visual encoder degrades the capability the second headline
+    measures. That intent is expressed as a list of module-name patterns handed
+    to ``BitsAndBytesConfig`` — and the first version of that list matched
+    nothing, silently, while a comment claimed it worked.
+
+    A unit test on the library's matching function catches the pattern bug. This
+    catches everything else: it inspects the **loaded model** and reports what
+    actually happened, so the smoke test can report it as a measured fact rather
+    than an intention.
+    """
+    counts = {
+        "vision_4bit": 0, "vision_full": 0,
+        "language_4bit": 0, "language_full": 0,
+        "other_4bit": 0, "other_full": 0,
+    }
+    examples: dict[str, str] = {}
+    for name, module in model.named_modules():
+        kind = type(module).__name__
+        is_linear4bit = "4bit" in kind.lower() or "params4bit" in kind.lower()
+        is_linear = kind in ("Linear", "Linear4bit", "Linear8bitLt") or is_linear4bit
+        if not is_linear:
+            continue
+        side = classify_parameter(name)
+        bucket = f"{side if side != 'other' else 'other'}_{'4bit' if is_linear4bit else 'full'}"
+        if bucket in counts:
+            counts[bucket] += 1
+            examples.setdefault(bucket, f"{name} ({kind})")
+    counts["vision_kept_full_precision"] = counts["vision_4bit"] == 0 and counts["vision_full"] > 0
+    counts["examples"] = examples
+    return counts
+
+
+def describe_quantisation(info: dict[str, Any]) -> str:
+    ok = info.get("vision_kept_full_precision")
+    lines = [
+        f"quantisation:  vision {info['vision_full']} full / {info['vision_4bit']} 4-bit"
+        f"   language {info['language_full']} full / {info['language_4bit']} 4-bit",
+    ]
+    if ok:
+        lines.append("  vision tower held at full precision, as intended (decision 0012)")
+    elif info["vision_4bit"] > 0:
+        lines.append(
+            f"  WARNING: {info['vision_4bit']} vision Linear layers ARE 4-bit. "
+            "The skip patterns did not take effect — see decision 0012."
+        )
+    return "\n".join(lines)

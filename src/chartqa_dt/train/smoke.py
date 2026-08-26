@@ -46,7 +46,11 @@ from chartqa_dt.modeling.backends.base import (
     peak_reserved_gb,
     reset_peak_memory,
 )
-from chartqa_dt.modeling.lora_assert import assert_lora_on_both_sides
+from chartqa_dt.modeling.lora_assert import (
+    assert_lora_on_both_sides,
+    describe_quantisation,
+    summarise_quantisation,
+)
 
 # Phase 2 hard gates (IDEA.md 14, PLAN.md Appendix F).
 MEMORY_GATE_GB = 13.5
@@ -184,6 +188,9 @@ class SmokeResult:
     loss_decreased: bool = False
     any_nan: bool = False
 
+    quantisation: dict[str, Any] = field(default_factory=dict)
+    vision_kept_full_precision: bool | None = None
+
     resume_verified: bool | None = None
     resume_loss_delta: float | None = None
 
@@ -319,6 +326,14 @@ def run_smoke(
         loaded = backend.load(model_cfg)
         result.load_seconds = loaded.load_seconds
         result.median_visual_tokens = loaded.geometry.n_visual_tokens(557, 800)
+
+        # Measured on the loaded model, before adapters change the module tree.
+        result.quantisation = summarise_quantisation(loaded.model)
+        result.vision_kept_full_precision = result.quantisation.get("vision_kept_full_precision")
+        print(describe_quantisation(result.quantisation))
+        if logger:
+            logger.event("quantisation", label=label,
+                         **{k: v for k, v in result.quantisation.items() if k != "examples"})
 
         loaded = backend.apply_lora(loaded, model_cfg)
         loaded = backend.prepare_for_training(loaded, model_cfg)

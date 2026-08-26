@@ -404,3 +404,49 @@ Found while a Kaggle kernel was already running with the broken version. That ru
 validation, not the measurement, so nothing has to be discarded — but had it been the real 100-step
 run, the memory figure would have been for a fully-quantised model and would have been wrong in the
 flattering direction.
+
+---
+
+## 0013 — 2026-08-26 — `hf_peft` loads the BF16 checkpoint and quantises it here; the two backends are therefore not memory-comparable
+
+**Context.** Two checkpoints exist for the primary backbone: `Qwen/Qwen3-VL-2B-Instruct` (BF16,
+4,255,140,312 bytes) and `unsloth/Qwen3-VL-2B-Instruct-unsloth-bnb-4bit` (2,406,693,586 bytes,
+pre-quantised). Decision 0012 requires the vision tower to stay out of 4-bit; a pre-quantised
+checkpoint has already made that choice and it cannot be revisited at load time.
+
+**Options.** (a) Both backends load the pre-quantised checkpoint — smallest download, fastest start.
+(b) `hf_peft` loads BF16 and applies our own quantisation config; `unsloth` uses Unsloth's
+checkpoint, which is what its loader expects. (c) Both load BF16.
+
+**Decision.** (b). `hf_peft` downloads 4.2 GB and quantises locally with `VISION_SKIP_PATTERNS`, so
+what is and is not quantised is a property of this repository and is verified at runtime by
+`summarise_quantisation` on the loaded model. `unsloth` uses Unsloth's checkpoint because forcing it
+onto BF16 would be testing a configuration nobody ships. (c) is rejected because it would break the
+Unsloth path for no gain.
+
+**Evidence.** Unsloth's checkpoint declares a **63-entry** `llm_int8_skip_modules` list:
+
+| entry kind | count |
+|---|---:|
+| `model.visual.blocks.N.attn` / `.mlp`, N = 0..23 | 48 |
+| other vision (`visual`, `vision_tower`, …) | 3 |
+| non-vision (`embed_tokens`, `lm_head`, `merger`, `router`, and selected language layers such as `model.language_model.layers.3.mlp`) | 12 |
+
+Two things follow. First, this **independently corroborates decision 0012**: Unsloth, who do this
+professionally, keep the entire vision tower out of 4-bit, and they express it with **full module
+paths** (`model.visual.blocks.23.attn`) — the very form that was missing from our first attempt.
+Their list does also contain the bare `visual` and `vision_tower` entries, which as measured in 0012
+match nothing; the full paths are what actually does the work.
+
+Second, they additionally hold a handful of *language* layers at higher precision — dynamic
+quantisation driven by their own calibration, which we neither have nor can reproduce.
+
+**Consequences.** The two backends will carry different quantisation profiles, so **their peak-memory
+figures are not directly comparable and the Phase 2 table must say so**. Comparing them as if they
+were would be a like-for-like claim that is not like-for-like — the same error non-negotiable rule 6
+forbids for published baselines, applied internally. What *is* comparable within each backend is the
+512-versus-native resolution arm of decision 0010, since only the input budget changes there.
+
+Also worth stating plainly: the `hf_peft` path costs a 4.2 GB download per cold session rather than
+2.4 GB. On a free tier that is minutes, not money, and it buys control over the one quantisation
+decision that touches the headline grounding metric.
