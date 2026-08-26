@@ -182,6 +182,7 @@ class SmokeResult:
     load_seconds: float = 0.0
 
     median_visual_tokens: int = 0
+    dtype_resolved: str = ""
     lora: dict[str, Any] = field(default_factory=dict)
     losses: list[float] = field(default_factory=list)
     loss_first_10: float = 0.0
@@ -327,6 +328,11 @@ def run_smoke(
         loaded = backend.load(model_cfg)
         result.load_seconds = loaded.load_seconds
         result.median_visual_tokens = loaded.geometry.n_visual_tokens(557, 800)
+        # Carry the load-time notes into the run record: a dtype or attention
+        # substitution (decision 0017) must appear in the Phase 2 table, not only
+        # in stdout that scrolls past.
+        result.notes.update(loaded.notes)
+        result.dtype_resolved = str(loaded.notes.get("dtype_note", ""))
 
         # Measured on the loaded model, before adapters change the module tree.
         result.quantisation = summarise_quantisation(loaded.model)
