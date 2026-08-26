@@ -328,3 +328,38 @@ sits between our 18.9% area rule and 35.1% axis rule; their sample was 787 boxes
   ("image 512 → 448") — and it does not touch any test split.
 
 Recorded as `DECISIONS.md` entry 0008. Raised with Ahmed on 2026-08-26 before proceeding past Phase 1.
+
+### F11 addendum — the source of the error, confirmed by loading both processors
+
+Added 2026-08-26 during Phase 2, with `transformers` 5.16.0 installed. Both processors were loaded
+and their geometry read by `VisualGeometry.from_processor`:
+
+```
+Qwen/Qwen3-VL-2B-Instruct
+   patch=16 merge=2 -> factor=32  min_pixels=65,536     max_pixels=16,777,216
+   800x557 -> (544, 800) = 425 visual tokens
+
+Qwen/Qwen2.5-VL-3B-Instruct
+   patch=14 merge=2 -> factor=28  min_pixels=3,136      max_pixels=12,845,056
+   800x557 -> (560, 812) = 580 visual tokens
+```
+
+**`PLAN.md` Appendix C is Qwen2.5-VL's geometry, not Qwen3-VL's — every constant matches exactly.**
+Appendix C hard-codes `FACTOR = 28`, `min_pixels = 4*28*28 = 3,136` and
+`max_pixels = 16384*28*28 = 12,845,056`. Those are, to the digit, Qwen2.5-VL-3B's real values as
+printed above. And Qwen2.5-VL-3B's median token count on these images is **580** — precisely the
+figure `IDEA.md` quotes.
+
+So this was not a typo in one constant. The appendix was written against the fallback model's
+preprocessing and applied to the primary model. Three independent numbers agreeing to the digit
+rules out coincidence.
+
+**Two consequences worth noting.**
+
+1. It vindicates deriving the geometry from the loaded processor rather than hard-coding it
+   (decision 0008). If Phase 2 falls back to Qwen2.5-VL-3B, the factor becomes 28 automatically and
+   correctly, with no code change — and the 580-token figure becomes the right one to quote.
+2. Our `smart_resize` port is now cross-checked against
+   `transformers.models.qwen2_vl.image_processing_qwen2_vl.smart_resize` across 10 image shapes at
+   both factors, and matches on every one (`tests/test_coords.py::test_our_smart_resize_matches_transformers`,
+   marked `official`, runs in CI).
