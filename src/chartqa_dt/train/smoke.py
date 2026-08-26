@@ -55,6 +55,18 @@ from chartqa_dt.modeling.lora_assert import (
 )
 
 # Phase 2 hard gates (IDEA.md 14, PLAN.md Appendix F).
+# The modal RefChartQA image size, measured across all three question subsets
+# (800x557 dominates human, machine and PoT alike). The smoke test generates
+# charts at this size regardless of the pixel budget, because the budget's job is
+# to control DOWNSCALING inside the processor -- exactly as it will in training.
+#
+# Deriving the source size from the budget instead (image_px = sqrt(max_pixels))
+# produced a 4096x2867 synthetic chart for the "native" arm, whose ~11,520 visual
+# tokens overflowed max_seq_len and made the processor reject the batch:
+#   ValueError: Mismatch in `image` token count between text and `input_ids`.
+SOURCE_IMAGE_W = 800
+SOURCE_IMAGE_H = 557
+
 MEMORY_GATE_GB = 13.5
 FULL_RUN_GATE_HOURS = 10.0
 # Pre-registered budget: 24,000 example presentations at effective batch 8.
@@ -251,6 +263,29 @@ HEADER = (
 # --------------------------------------------------------------------------- #
 
 
+def build_optimizer(model: Any, lr: float) -> Any:
+    """AdamW8bit when bitsandbytes is usable, plain AdamW otherwise.
+
+    Both the initial optimizer and the one rebuilt on resume must come from here.
+    They are NOT interchangeable: bitsandbytes stores its moments under different
+    state keys, so loading an AdamW8bit state_dict into a torch AdamW raises
+      KeyError: 'exp_avg'
+    -- which is precisely how the first 100-step run failed, after the 100 steps
+    had already succeeded.
+    """
+    import torch
+
+    params = [p for p in model.parameters() if p.requires_grad]
+    try:
+        import bitsandbytes as bnb
+
+        return bnb.optim.AdamW8bit(params, lr=lr)
+    except (ImportError, RuntimeError):
+        # No CUDA / no bitsandbytes: memory figures are then not comparable, and
+        # the caller records that in `notes`.
+        return torch.optim.AdamW(params, lr=lr)
+
+
 def _train_steps(
     loaded: LoadedModel,
     *,
@@ -259,7 +294,6 @@ def _train_steps(
     grad_accum: int,
     lr: float,
     max_len: int,
-    image_px: int,
     seed: int,
     optimizer: Any | None = None,
     on_step: Any = None,
@@ -272,15 +306,7 @@ def _train_steps(
     device = next(model.parameters()).device
 
     if optimizer is None:
-        params = [p for p in model.parameters() if p.requires_grad]
-        try:
-            import bitsandbytes as bnb
-
-            optimizer = bnb.optim.AdamW8bit(params, lr=lr)
-        except (ImportError, RuntimeError):
-            # No CUDA / no bitsandbytes: the memory numbers are then not
-            # comparable, and the caller records that in `notes`.
-            optimizer = torch.optim.AdamW(params, lr=lr)
+        optimizer = build_optimizer(model, lr)
 
     rng = random.Random(seed)
     losses: list[float] = []
@@ -290,7 +316,7 @@ def _train_steps(
         optimizer.zero_grad(set_to_none=True)
         total = 0.0
         for _ in range(grad_accum):
-            samples = [make_bar_chart(image_px, int(image_px * 0.7), rng) for _ in range(batch_size)]
+            samples = [make_bar_chart(SOURCE_IMAGE_W, SOURCE_IMAGE_H, rng) for _ in range(batch_size)]
             batch = build_batch(loaded.processor, samples, max_len)
             batch = {k: (v.to(device) if hasattr(v, "to") else v) for k, v in batch.items()}
             out = model(**batch)
@@ -369,7 +395,6 @@ def run_smoke(
         if logger:
             logger.event("lora_coverage", label=label, **result.lora)
 
-        image_px = int(math.sqrt(image_max_pixels))
         t0 = time.time()
         losses, optimizer, grad_norms = _train_steps(
             loaded,
@@ -378,7 +403,6 @@ def run_smoke(
             grad_accum=cfg.train.grad_accum,
             lr=cfg.train.lr,
             max_len=model_cfg.max_seq_len,
-            image_px=image_px,
             seed=cfg.seed,
             on_step=(lambda s, v: logger.log({"smoke_loss": v, "label": label}, step=s)) if logger else None,
         )
@@ -409,7 +433,7 @@ def run_smoke(
         # the 13.5 GiB gate is judged on.
         if test_resume and out_dir is not None:
             result.resume_verified, result.resume_loss_delta = _verify_resume(
-                backend, loaded, model_cfg, cfg, out_dir / f"ckpt_{label}", optimizer, image_px
+                backend, loaded, model_cfg, cfg, out_dir / f"ckpt_{label}", optimizer
             )
 
         if result.peak_reserved_gb == 0.0:
@@ -434,7 +458,6 @@ def _verify_resume(
     cfg: Config,
     ckpt_dir: Path,
     optimizer: Any,
-    image_px: int,
 ) -> tuple[bool, float]:
     """Save, reload into a fresh model, and check the next steps agree.
 
@@ -452,7 +475,7 @@ def _verify_resume(
     seed = cfg.seed + 12345
     live_losses, _, _ = _train_steps(
         loaded, steps=3, batch_size=cfg.train.per_device_batch, grad_accum=1,
-        lr=cfg.train.lr, max_len=model_cfg.max_seq_len, image_px=image_px,
+        lr=cfg.train.lr, max_len=model_cfg.max_seq_len,
         seed=seed, optimizer=optimizer,
     )
 
@@ -471,13 +494,13 @@ def _verify_resume(
     fresh = backend.load(model_cfg)
     fresh.model = PeftModel.from_pretrained(fresh.model, str(ckpt_dir), is_trainable=True)
     fresh = backend.prepare_for_training(fresh, model_cfg)
-    params = [p for p in fresh.model.parameters() if p.requires_grad]
-    opt2 = torch.optim.AdamW(params, lr=cfg.train.lr)
+    # Same class as the optimizer that was saved -- see build_optimizer.
+    opt2 = build_optimizer(fresh.model, cfg.train.lr)
     opt2.load_state_dict(torch.load(ckpt_dir / "optimizer.pt", map_location="cpu"))
 
     resumed_losses, _, _ = _train_steps(
         fresh, steps=3, batch_size=cfg.train.per_device_batch, grad_accum=1,
-        lr=cfg.train.lr, max_len=model_cfg.max_seq_len, image_px=image_px,
+        lr=cfg.train.lr, max_len=model_cfg.max_seq_len,
         seed=seed, optimizer=opt2,
     )
 

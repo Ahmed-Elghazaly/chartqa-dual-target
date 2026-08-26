@@ -70,7 +70,7 @@ Recorded here so they are not rediscovered as surprises.
 | **No learning-rate scheduler** in the smoke loop | Phase 6 must add cosine + `warmup_ratio` from the config | The smoke test measures memory and step time; a scheduler changes neither. It must **not** be inherited by Phase 6 training. |
 | **fp16 without a `GradScaler`** | Phase 6 | LoRA parameters are upcast to fp32 by `prepare_model_for_kbit_training`, so gradients are fp32 and underflow is unlikely — but "unlikely" is why D3 now gates on gradient norm. If Phase 6 shows dead gradients, add a scaler. |
 | `device = next(model.parameters()).device` assumes a single device | Phase 6 if a model is ever sharded | A 2B model in 4-bit uses 1.48 GB of a 15 GB card; sharding will not occur. Revisit only if the backbone changes. |
-| Resume test uses plain `AdamW`, not `AdamW8bit` | Phase 6 checkpointing | Optimizer *state* round-trip is what is being verified; the implementation difference does not affect that. Phase 6 must round-trip the real optimizer. |
+| ~~Resume test uses plain `AdamW`, not `AdamW8bit`~~ | ~~Phase 6 checkpointing~~ | **This judgement was wrong and cost a session.** The two optimizers store moments under different keys, so loading one state into the other raises `KeyError: 'exp_avg'` — the check did not merely weaken, it could not run. Both paths now come from `build_optimizer()`. See `DECISIONS.md` 0021. |
 
 ## Why Phase 2 is not being re-run for the D3 instrumentation
 
@@ -82,3 +82,30 @@ decreasing, all of which the running job already records.
 The instrumentation matters for Phase 6, where it will be present from the first step. Spending
 quota to backfill a number into a phase that does not use it would be exactly the kind of avoidable
 consumption this checklist exists to prevent.
+
+
+---
+
+## Addendum — a gap I recorded as acceptable, which was not
+
+Bug 1 in `DECISIONS.md` 0021 was **already written in the table above** as a known gap, with a
+reason for accepting it. The reason was wrong, and the run that would have taken about forty minutes
+failed after thirty-five.
+
+Worth extracting, because "known gap" is a category that invites exactly this:
+
+> Writing a risk down is not the same as assessing it. A gap accepted with the reasoning *"the
+> difference does not affect what is being verified"* deserves the same treatment as any other
+> claim in this project — **check it, cheaply, before relying on it.** Loading an `AdamW8bit`
+> state dict into a `torch.optim.AdamW` takes two lines to try locally.
+
+The three remaining gaps in the table have therefore been re-examined rather than left standing:
+
+* **No LR scheduler in the smoke loop.** Verified harmless *for its stated purpose*: a scheduler
+  changes neither peak memory nor seconds-per-step, which are the only two things the smoke test
+  measures. It remains mandatory for Phase 6 and is listed there as a task, not a gap.
+* **fp16 without a `GradScaler`.** No longer merely accepted — it is now *gated*. Gradient norm must
+  be non-zero and finite every step, which is the direct symptom of the underflow this gap risks.
+  The 100-step run showed loss falling 2.879 → 0.968, which is positive evidence gradients are live.
+* **Single-device assumption.** Verified against the measurement: peak reserved memory is 1.48 GB on
+  a 15 GB card, so the model is not sharded and cannot become so at this size.

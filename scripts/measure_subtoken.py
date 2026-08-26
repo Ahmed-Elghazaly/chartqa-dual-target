@@ -15,7 +15,12 @@ import collections
 import json
 import math
 import statistics
+import sys
 import urllib.request
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+import chartqa_dt.net  # noqa: F401  repairs the TLS trust store on import
 
 ROWS_URL = (
     "https://datasets-server.huggingface.co/rows"

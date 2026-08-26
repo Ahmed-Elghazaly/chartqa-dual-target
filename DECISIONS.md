@@ -813,3 +813,62 @@ request took effect.
 The arch check from 0019 worked exactly as intended in the meantime: the P100 was rejected in about
 twenty seconds with `accelerator: Tesla P100-PCIE-16GB sm_60 | torch supports: ['sm_70', ...]`,
 instead of another twenty-minute benchmark that would have measured nothing.
+
+---
+
+## 0021 — 2026-08-26 — Two bugs found by the first 100-step run, both in our own code
+
+**Context.** The first full Phase 2 measurement (100 steps × two input budgets) failed on both arms.
+Neither failure was in the model, the backend, or Kaggle. Both were mine, and both are the kind that
+consume GPU hours before revealing themselves.
+
+### Bug 1 — the resume test rebuilt the wrong optimizer class
+
+`KeyError: 'exp_avg'`, raised **after the 100 steps had already succeeded**.
+
+`_train_steps` builds a `bitsandbytes.optim.AdamW8bit` when bitsandbytes is usable. The resume path
+rebuilt a plain `torch.optim.AdamW` and loaded the saved state into it. The two store their moments
+under different keys, so the load fails.
+
+This was recorded as an accepted gap in `verification/preflight_checklist.md` — *"Resume test uses
+plain AdamW, not AdamW8bit … the implementation difference does not affect what is being verified"*.
+That judgement was wrong: the difference does not merely weaken the check, it prevents it running at
+all. Both paths now come from a single `build_optimizer()`.
+
+### Bug 2 — the source image size was derived from the pixel budget
+
+`ValueError: Mismatch in 'image' token count between text and 'input_ids'. Got ids=[1020] and text=[11520]`
+
+The smoke test computed `image_px = int(sqrt(image_max_pixels))` and generated a chart that size. For
+the `native` arm that is `sqrt(16,777,216) = 4096`, i.e. a **4096×2867** synthetic chart. Its ~11,520
+visual tokens overflow `max_seq_len=1024`; the processor truncates the image placeholders and then
+refuses the mismatch.
+
+The pixel budget's job is to control **downscaling inside the processor**. It must not control the
+size of the source image, because in training the source images are whatever the dataset contains.
+Charts are now generated at **800×557** — the modal RefChartQA size across all three question
+subsets — at every budget, which is exactly what production will do.
+
+**Consequences.** Both are now covered by tests that would have caught them locally in
+milliseconds, including one that builds a real batch at both budgets with the real processor and
+asserts the sequence fits. The general lesson is narrower than the earlier ones and worth stating
+plainly: **a test harness that does not exercise the same shapes as production is not a rehearsal.**
+The 512-pixel arm worked precisely because 512 happened to be a plausible image width; the bug was
+invisible until a budget was used whose square root was not.
+
+### What the run did establish, and why it is not being repeated for its own sake
+
+The 512-pixel arm completed **100 real optimizer steps** before the resume step failed, and those
+numbers are valid:
+
+| | measured | gate |
+|---|---:|---:|
+| peak reserved memory | **1.482 GB** | ≤ 13.5 |
+| seconds per optimizer step | **8.664** | — |
+| projected full run (3,000 steps) | **7.22 h** | ≤ 10 |
+| loss, first 10 → last 10 of 100 steps | **2.879 → 0.968** | must decrease |
+| NaN | none | none |
+| LoRA vision / language | 7,208,960 / 17,432,576 | both non-zero |
+| model load | 36.4 s | — |
+
+The re-run is needed for the resume verification and the native arm, not to re-establish these.
