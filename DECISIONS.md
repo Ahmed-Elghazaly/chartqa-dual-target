@@ -629,3 +629,41 @@ themselves — since that is the one that fails silently.
 Depth accounting in Appendix B was checked at the same time and is **correct**: depth 4 executes,
 depth 5 raises. `count(args)` counts arguments rather than evidence matches, which is unusual but
 consistent and is left as specified.
+
+---
+
+## 0017 — 2026-08-26 — Compute dtype is chosen from the GPU's actual capability, not from the config
+
+**Context.** The model configs request `dtype: bfloat16`, which is correct on modern hardware and
+matches what the Unsloth reference measurement in `IDEA.md` §14 used. All of this project's free
+compute is a **Tesla T4**, which is Turing, compute capability **7.5**. **bfloat16 requires Ampere
+(8.0).**
+
+**Options.** (a) Keep `bfloat16` everywhere as configured. (b) Change the configs to `float16`.
+(c) Resolve the dtype at load time from `torch.cuda.is_bf16_supported()`, keeping the config as the
+*request* and recording any substitution in the run notes.
+
+**Decision.** (c), as `resolve_dtype()`. The same treatment is applied to
+`attn_implementation`: `flash_attention_2` falls back to `sdpa` below compute capability 8.0. Both
+return a note that is printed and written into the run record, so a substitution is never silent.
+(b) is rejected because the configs should express intent — on a rented Ampere box bfloat16 is the
+right choice and should be taken automatically.
+
+**Evidence.** bf16 requires SM 8.0; the T4 is SM 7.5. PyTorch does not refuse bf16 on a T4 — it
+**emulates** it. Everything runs, the numbers are correct, and it is simply much slower.
+
+**Consequences.** This is the same failure shape as every other one in this project so far: nothing
+errors, nothing warns, the number is just worse. What makes it particularly nasty here is *where* it
+would have surfaced — on a timed benchmark whose entire purpose is to decide whether this backbone
+fits inside a 10-hour budget. An emulated dtype would have inflated seconds-per-step, and the
+honest-looking conclusion would have been "this backbone is too slow for the free tier", possibly
+triggering the fallback ladder in `IDEA.md` §7 and a backbone change — on the basis of a
+configuration mistake rather than a property of the model.
+
+Caught while a Phase 2 validation run was in flight and taking longer than expected. The measurement
+that matters has not been taken yet, so nothing needs discarding.
+
+Note for later: float16 has a narrower exponent range than bfloat16, so loss scaling matters more
+and NaN risk is higher. The smoke test already checks for non-finite loss, and Phase 6's fallback
+ladder already begins with a learning-rate reduction, so the existing guards cover it. If Stage 2
+proves unstable on a T4, this entry is the first thing to re-read.

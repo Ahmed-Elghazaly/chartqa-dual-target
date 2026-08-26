@@ -181,6 +181,54 @@ QWEN_VISION_TARGETS: tuple[str, ...] = ("qkv", "attn.proj", "linear_fc1", "linea
 # this project intends, and it would have happened without any warning.
 
 
+def resolve_dtype(requested: str) -> tuple[Any, str]:
+    """Pick a compute dtype the actual GPU supports, and say so.
+
+    A free Kaggle/Colab T4 is Turing (compute capability 7.5). **bfloat16 needs
+    Ampere (8.0)**. On a T4, bf16 tensors are emulated rather than accelerated:
+    everything runs and produces correct numbers, just far slower — which on a
+    timed memory benchmark looks like a bad result rather than a wrong setting.
+
+    float16 is the right choice on pre-Ampere hardware. It carries a narrower
+    exponent range, so loss scaling matters, but LoRA on a 4-bit base is a
+    well-trodden fp16 path.
+
+    Returns (dtype, note); the note goes into the run record so the substitution
+    is never silent.
+    """
+    try:
+        import torch
+    except ImportError:
+        return None, "torch unavailable"
+
+    want = getattr(torch, requested, torch.float16)
+    if not torch.cuda.is_available():
+        return want, "no CUDA device; dtype not exercised"
+
+    name = torch.cuda.get_device_name(0)
+    major, minor = torch.cuda.get_device_capability(0)
+    if want is torch.bfloat16 and not torch.cuda.is_bf16_supported():
+        return torch.float16, (
+            f"requested bfloat16 but {name} is compute capability {major}.{minor} "
+            "(bf16 needs 8.0+); using float16 instead"
+        )
+    return want, f"{requested} on {name} (sm_{major}{minor})"
+
+
+def resolve_attn_implementation(requested: str) -> tuple[str, str]:
+    """Fall back from flash_attention_2 on hardware that cannot run it."""
+    if requested != "flash_attention_2":
+        return requested, ""
+    try:
+        import torch
+
+        if torch.cuda.is_available() and torch.cuda.get_device_capability(0)[0] < 8:
+            return "sdpa", "flash_attention_2 needs Ampere or newer; using sdpa"
+    except ImportError:
+        pass
+    return requested, ""
+
+
 def resolve_target_modules(cfg: ModelConfig) -> list[str]:
     """LoRA target module names, honouring the vision/language switches.
 

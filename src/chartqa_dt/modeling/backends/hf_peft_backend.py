@@ -34,6 +34,8 @@ from chartqa_dt.modeling.backends.base import (
     peak_reserved_gb,
     register_backend,
     reset_peak_memory,
+    resolve_attn_implementation,
+    resolve_dtype,
     resolve_target_modules,
 )
 from chartqa_dt.vision.coords import VisualGeometry
@@ -72,7 +74,12 @@ class HFPeftBackend(Backend):
         t0 = time.time()
 
         model_id = cfg.hf_id
-        dtype = getattr(torch, cfg.dtype, torch.bfloat16)
+        dtype, dtype_note = resolve_dtype(cfg.dtype)
+        attn_impl, attn_note = resolve_attn_implementation(cfg.attn_implementation)
+        if dtype_note:
+            print(f"  dtype: {dtype_note}")
+        if attn_note:
+            print(f"  attn: {attn_note}")
 
         quant_config = None
         if cfg.load_in_4bit:
@@ -107,7 +114,7 @@ class HFPeftBackend(Backend):
             model_id,
             dtype=dtype,
             quantization_config=quant_config,
-            attn_implementation=cfg.attn_implementation,
+            attn_implementation=attn_impl,
             device_map="auto" if torch.cuda.is_available() else None,
         )
 
@@ -123,6 +130,8 @@ class HFPeftBackend(Backend):
             dtype=str(dtype).replace("torch.", ""),
             quantized_4bit=bool(cfg.load_in_4bit),
             notes={
+                "dtype_note": dtype_note,
+                "attn_note": attn_note,
                 "model_type": getattr(arch, "model_type", "?"),
                 "architectures": getattr(arch, "architectures", []),
                 "image_max_pixels": geometry.max_pixels,
