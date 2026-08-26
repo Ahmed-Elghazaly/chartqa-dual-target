@@ -29,6 +29,21 @@ TRACKED_DOCS = [
 ]
 
 
+# Documents that describe the CURRENT state of the project. A stale claim here
+# misleads a reader today.
+STATUS_DOCS = ["README.md", "SETUP.md", "RUNS.md", "verification/preflight_checklist.md"]
+
+# DECISIONS.md is an append-only historical record and book/notes/ is narrative.
+# Both legitimately quote past claims and point forward at work not yet done, so
+# the "current fact" rules do not apply to them -- but everything structural
+# (numbering, required sections, cross-references) still does.
+
+
+def status_docs() -> dict[str, str]:
+    return {rel: (ROOT / rel).read_text(encoding="utf-8")
+            for rel in STATUS_DOCS if (ROOT / rel).is_file()}
+
+
 def docs() -> dict[str, str]:
     out = {}
     for rel in TRACKED_DOCS:
@@ -168,10 +183,15 @@ def test_phase2_measurements_are_inside_their_gates():
 
 
 def test_files_referenced_by_docs_exist():
-    """A doc pointing at a file that was renamed is drift you can catch."""
+    """A doc pointing at a file that was renamed is drift you can catch.
+
+    Scoped to status documents: the decision log is history and may reference a
+    file that a superseded entry created, while the book notes point forward at
+    work not yet done.
+    """
     pattern = re.compile(r"`((?:src|scripts|tests|configs|verification|book|report)/[\w./-]+)`")
     missing: list[str] = []
-    for name, text in docs().items():
+    for name, text in status_docs().items():
         for rel in set(pattern.findall(text)):
             if rel.endswith("/"):
                 continue
@@ -189,7 +209,7 @@ def test_no_doc_claims_ci_is_green():
     """
     offenders = [
         f"{name}: {line.strip()}"
-        for name, text in docs().items()
+        for name, text in status_docs().items()
         for line in text.splitlines()
         if re.search(r"CI (?:is |was )?green", line, re.I)
     ]

@@ -950,7 +950,12 @@ measurements, gates, vendored hashes. `tests/test_docs_consistency.py` runs in C
   (`QWEN3VL_FACTOR`, `MEMORY_GATE_GB`, `OFFICIAL_MAX_COORD`, the vendored SHA-256);
 * internal arithmetic holds — the RefChartQA test subsets sum to the split size, the Phase 2
   measurements sit inside their own gates;
-* **no document asserts that CI is green**, because that is a live fact that goes stale silently.
+* **no status document asserts a CI outcome**, because that is a live fact that goes stale silently.
+
+The last two rules are scoped to *status* documents — `README.md`, `SETUP.md`, `RUNS.md`, the
+pre-flight checklist. `DECISIONS.md` is append-only history and `book/notes/` is narrative; both
+legitimately quote a past claim or point forward at work not yet done. The structural rules
+(numbering, required sections, cross-references) apply everywhere.
 
 (b) was rejected: each document has a distinct job and a distinct reader. The problem is not their
 number, it is that nothing checked them.
