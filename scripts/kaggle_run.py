@@ -58,6 +58,8 @@ def _api():
 
 
 def _username() -> str:
+    """Kaggle slugs are lowercase; a mixed-case ref in `dataset_sources` silently
+    fails to attach and the kernel starts with no code in /kaggle/input."""
     for path, key in (
         (Path.home() / ".kaggle" / "kaggle.json", "username"),
     ):
@@ -65,10 +67,10 @@ def _username() -> str:
             try:
                 user = json.loads(path.read_text()).get(key)
                 if user:
-                    return user
+                    return user.lower()
             except json.JSONDecodeError:
                 pass
-    user = os.environ.get("KAGGLE_USERNAME")
+    user = (os.environ.get("KAGGLE_USERNAME") or "").lower()
     if not user:
         raise SystemExit(
             "Cannot determine your Kaggle username.\n"
@@ -142,7 +144,14 @@ import subprocess, sys, os, glob, shutil
 SRC = "/kaggle/input/{dataset}"
 WORK = "/kaggle/working/repo"
 
-# The dataset is uploaded zipped (dir_mode="zip"); Kaggle may or may not expand it.
+print("contents of /kaggle/input:", os.listdir("/kaggle/input") if os.path.isdir("/kaggle/input") else "(missing)", flush=True)
+if not os.path.isdir(SRC):
+    raise SystemExit(
+        "code dataset not attached at " + SRC + ".\n"
+        "Kaggle normalises refs to lowercase - check dataset_sources in kernel-metadata.json."
+    )
+
+# Kaggle may or may not expand an uploaded archive.
 os.makedirs(WORK, exist_ok=True)
 archives = glob.glob(os.path.join(SRC, "*.zip"))
 if archives:
