@@ -667,3 +667,43 @@ Note for later: float16 has a narrower exponent range than bfloat16, so loss sca
 and NaN risk is higher. The smoke test already checks for non-finite loss, and Phase 6's fallback
 ladder already begins with a learning-rate reduction, so the existing guards cover it. If Stage 2
 proves unstable on a T4, this entry is the first thing to re-read.
+
+
+---
+
+## 0018 — 2026-08-26 — The dtype check keys off compute capability, because `is_bf16_supported()` answers a different question
+
+**Context.** Decision 0017's first implementation tested
+`torch.cuda.is_bf16_supported()`. Reading the function before trusting it showed the check would
+**never have fired on a T4** — the exact hardware it exists for.
+
+**Evidence.** In torch 2.13 the signature is:
+
+```python
+def is_bf16_supported(including_emulation: bool = True):
+    ...
+    if torch.cuda.get_device_properties(device).major >= 8:
+        return True
+    if not including_emulation:
+        return False
+    return _check_bf16_tensor_supported(device)   # emulation probe
+```
+
+The default is `including_emulation=True`, so on a T4 (capability 7.5) it falls through to the
+emulation probe and returns **True**. The helper answers *"can this run?"*. The question decision
+0017 needs answered is *"can this run fast?"*.
+
+**Decision.** Test `torch.cuda.get_device_capability(0)[0] >= 8` directly — which is precisely what
+PyTorch's own implementation checks before it reaches the emulation probe. Unambiguous, and free of
+any dependence on a default argument that could change.
+
+**Consequences.** The fix for 0017 was itself broken by exactly the kind of silent
+false-negative it was written to prevent: a guard that always passes is not a guard, and it would
+have been indistinguishable from a working one until someone wondered why the T4 was slow. The test
+suite now models the trap explicitly — the fake device asserts that
+`is_bf16_supported()` returns `True` while `is_bf16_supported(including_emulation=False)` returns
+`False`, so a future "simplification" back to the helper fails immediately.
+
+Generalises to something worth keeping: **a boolean helper's default arguments are part of its
+contract.** `is_bf16_supported()` and `is_bf16_supported(including_emulation=False)` are different
+questions with the same name, and only one of them is the one being asked.

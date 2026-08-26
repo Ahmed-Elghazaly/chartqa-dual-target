@@ -182,19 +182,22 @@ QWEN_VISION_TARGETS: tuple[str, ...] = ("qkv", "attn.proj", "linear_fc1", "linea
 
 
 def resolve_dtype(requested: str) -> tuple[Any, str]:
-    """Pick a compute dtype the actual GPU supports, and say so.
+    """Pick a compute dtype the GPU supports **natively**, and say so.
 
-    A free Kaggle/Colab T4 is Turing (compute capability 7.5). **bfloat16 needs
-    Ampere (8.0)**. On a T4, bf16 tensors are emulated rather than accelerated:
-    everything runs and produces correct numbers, just far slower — which on a
-    timed memory benchmark looks like a bad result rather than a wrong setting.
+    A free Kaggle/Colab T4 is Turing, compute capability 7.5. **bfloat16 needs
+    Ampere (8.0).** PyTorch does not refuse bf16 on a T4 — it emulates it. The
+    numbers stay correct and everything simply runs far slower, which on a timed
+    benchmark reads as "this backbone is too slow" rather than "this setting is
+    wrong".
 
-    float16 is the right choice on pre-Ampere hardware. It carries a narrower
-    exponent range, so loss scaling matters, but LoRA on a 4-bit base is a
-    well-trodden fp16 path.
+    The test is compute capability, deliberately, **not**
+    ``torch.cuda.is_bf16_supported()``. That helper takes
+    ``including_emulation: bool = True`` and therefore returns ``True`` on a T4 —
+    it answers "can this run?", where the question here is "can this run fast?".
+    PyTorch's own implementation checks ``major >= 8`` before falling through to
+    the emulation probe, so that is what we check.
 
-    Returns (dtype, note); the note goes into the run record so the substitution
-    is never silent.
+    Returns (dtype, note); the note is recorded so a substitution is never silent.
     """
     try:
         import torch
@@ -207,10 +210,10 @@ def resolve_dtype(requested: str) -> tuple[Any, str]:
 
     name = torch.cuda.get_device_name(0)
     major, minor = torch.cuda.get_device_capability(0)
-    if want is torch.bfloat16 and not torch.cuda.is_bf16_supported():
+    if want is torch.bfloat16 and major < 8:
         return torch.float16, (
-            f"requested bfloat16 but {name} is compute capability {major}.{minor} "
-            "(bf16 needs 8.0+); using float16 instead"
+            f"requested bfloat16 but {name} is compute capability {major}.{minor}; "
+            "native bf16 needs 8.0+, and below that PyTorch emulates it. Using float16."
         )
     return want, f"{requested} on {name} (sm_{major}{minor})"
 

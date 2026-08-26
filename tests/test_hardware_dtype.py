@@ -35,8 +35,9 @@ class FakeCuda:
     def get_device_capability(self, i=0):
         return self._cap
 
-    def is_bf16_supported(self):
-        return self._bf16
+    def is_bf16_supported(self, including_emulation: bool = True):
+        # Mirrors torch: True on a T4 when emulation counts, False when it does not.
+        return self._bf16 or including_emulation
 
 
 @pytest.fixture
@@ -52,8 +53,22 @@ def as_a100(monkeypatch):
 def test_bfloat16_is_downgraded_on_a_t4(as_t4):
     dtype, note = resolve_dtype("bfloat16")
     assert dtype is torch.float16
-    assert "7.5" in note and "bf16 needs 8.0+" in note
+    assert "7.5" in note and "8.0+" in note
     assert "Tesla T4" in note, "the substitution must name the device that caused it"
+
+
+def test_capability_is_used_rather_than_is_bf16_supported(as_t4):
+    """The trap that broke the first version of this fix.
+
+    torch.cuda.is_bf16_supported() takes `including_emulation: bool = True`, so on
+    a T4 it returns True — it answers "can this run?", not "can this run fast?".
+    A check built on it would never fire on exactly the hardware it exists for.
+    """
+    assert torch.cuda.is_bf16_supported() is True, "precondition: the helper says yes on a T4"
+    assert torch.cuda.is_bf16_supported(including_emulation=False) is False
+    assert resolve_dtype("bfloat16")[0] is torch.float16, (
+        "resolve_dtype must key off compute capability, not the emulation-inclusive helper"
+    )
 
 
 def test_bfloat16_is_kept_on_ampere(as_a100):
