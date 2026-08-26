@@ -2,4 +2,43 @@
 \section{Ablations}
 \label{sec:ablations}
 
-\TODO{not written yet}
+\subsection{What structured output costs}
+
+\input{tables/tab_structured_cost}
+
+The same weights are evaluated twice, differing only in what the prompt asks for: the full JSON
+record, or a bare answer. The plain arm uses the elicitation from the model authors' own evaluation
+appendix, so this comparison is anchored to the prompt that produced the published figure rather
+than to one of our own devising.
+
+Two published measurements on comparable models bound the expectation: chain-of-thought cost a 3B
+model $82.0 \rightarrow 73.1$, and box output cost one $88.80 \rightarrow 84.80$. This system asks a
+\emph{smaller} model for more than either --- answerability, evidence boxes, values, units, a focus
+region, a typed plan and an answer, in one record --- so a cost at or above that range would be
+unsurprising. It is reported as a named result rather than absorbed into the headline.
+
+\TODO{measured cost, per question kind}
+
+\subsection{Input resolution}
+
+\input{tables/tab_resolution}
+
+Resolution is the only lever that moves targets out of the sub-token stratum, so this ablation tests
+the mechanism proposed in Section~\ref{sec:setup:subtoken} directly: if the sub-token account is
+right, the gain from higher resolution should land disproportionately on small targets rather than
+spreading evenly.
+
+\TODO{AP@0.5 by target-size stratum at each resolution, with median visual tokens and peak memory}
+
+\subsection{The selective crop}
+
+\input{tables/tab_crop}
+
+A predicted focus region can be cropped and re-examined at higher effective resolution. This is
+reported as an ablation and never as part of a headline, deliberately: prior work measured that
+inference-time grounding of this kind can \emph{lower} accuracy, because a slightly wrong box
+removes the answer from the image entirely. A clean negative result here is a genuine contribution
+--- evidence against a technique that sounds obviously good.
+
+\TODO{crop request rate, accepted rate, help rate, harm rate, and both headlines with the crop
+forcibly disabled}

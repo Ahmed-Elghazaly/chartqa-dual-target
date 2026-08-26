@@ -2,4 +2,55 @@
 \section{Results}
 \label{sec:results}
 
-\TODO{not written yet}
+\TODO{populated from recorded results files; no number in this section is typed by hand}
+
+\subsection{The five claims, stated separately}
+\label{sec:results:claims}
+
+These are routinely conflated in this literature. They are not the same statement and are not
+equally strong.
+
+\begin{enumerate}
+  \item \textbf{Official training reproduced.} \emph{No.} No published training recipe for this task
+        is reproduced here; the closest published system used hardware and a teacher model
+        unavailable to this work.
+  \item \textbf{Official checkpoint evaluated.} \TODO{yes/no --- depends on whether RefChartQA's
+        released checkpoint proves downloadable in Phase 4.4}
+  \item \textbf{Matched student baseline trained.} \emph{Yes.} A direct-answer LoRA control is
+        trained on matched data and evaluated under identical conditions, which is what separates
+        ordinary domain adaptation from the contribution of grounding, typed plans and execution.
+  \item \textbf{Before/after improvement achieved.} \TODO{the mandatory result}
+  \item \textbf{Published baseline exceeded.} \TODO{only if genuinely matched --- same dataset
+        version, split, metric implementation, input conditions and training-data regime. Otherwise
+        this is context, not a win.}
+\end{enumerate}
+
+\subsection{Headline table}
+
+\input{tables/tab_headline}
+
+Every cell carries a bootstrap confidence interval, and every comparison states whether it is
+matched. Grounding is reported as a per-subset triple, because the official evaluator produces no
+aggregate and the published reference figure is the human subset alone
+(Section~\ref{sec:setup:data}).
+
+\subsection{Grounding, stratified by target size}
+
+\input{tables/tab_stratified}
+\input{figures/fig_ap_by_area}
+
+The aggregate figure is the least informative view of this result. Roughly half of all targets are
+smaller than one visual token at the input resolution used, and those two populations behave as
+different problems. Per-bucket item counts are given alongside the scores: a bucket containing forty
+items carries almost no information and is not presented as though it does.
+
+\subsection{Zero-shot grounding: an unpublished measurement}
+
+No zero-shot RefChartQA grounding figure for this model exists in the literature. Producing it is a
+deliverable in its own right, and the interpretation was fixed in advance of measuring so that it
+could not be rationalised afterwards: a value well below the published reference confirms the
+expected headroom; a value near it means headroom is thinner than hoped; and a value \emph{above} it
+is reported as a finding rather than treated as a failure, with the headline becoming
+trained-versus-matched-baseline --- which is the mandatory result in any case.
+
+\TODO{state the measured value and which branch was taken}

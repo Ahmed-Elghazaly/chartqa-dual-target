@@ -1,5 +1,64 @@
 % section: analysis
-\section{Analysis}
+\section{Error analysis}
 \label{sec:analysis}
 
-\TODO{not written yet}
+\subsection{Oracle decomposition}
+
+\input{tables/tab_oracle}
+
+Because the answer is recomputed by an interpreter from an explicit expression tree, the pipeline can
+be cut at each stage and fed perfect information:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Evidence & Plan & What the gap tells you \\
+\midrule
+predicted & predicted & the real system \\
+\textbf{gold} & predicted & how much error came from \emph{seeing} \\
+predicted & \textbf{gold} & how much error came from \emph{reasoning} \\
+gold & gold & the interpreter's own ceiling \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+This is the most informative analysis available here, and it is only possible because the arithmetic
+was moved out of the model. A system that answers directly cannot be cut this way: every error is
+simply ``wrong''.
+
+\TODO{the four measured configurations}
+
+\subsection{Does synthetic plan supervision transfer?}
+
+Typed-plan supervision is drawn predominantly from synthetic charts by necessity, since only about
+$5.7\%$ of real questions yield a unique plan. Whether that transfers is the hypothesis the design
+rests on, and it is measured directly: plan validity and interpreter agreement on real charts versus
+synthetic ones.
+
+\TODO{transfer measurement}
+
+\subsection{Plan diagnostics}
+
+\TODO{valid-JSON rate, accepted-plan coverage, exact operation-tree match on synthetic data where
+the true plan is known, interpreter success, operand accuracy, unit accuracy}
+
+Records failing validation are counted as failures throughout. They are never silently replaced with
+the direct answer, which means the reported accuracy already includes the cost of malformed output
+rather than hiding it.
+
+\subsection{Calibration}
+
+\input{figures/fig_calibration}
+
+\TODO{expected calibration error, Brier score, accuracy-versus-coverage}
+
+Answer accuracy is reported at 100\% coverage throughout. Selective accuracy is a diagnostic only:
+quoting a higher number obtained by declining to answer hard questions would not be comparable to
+any published figure.
+
+\subsection{Qualitative failures}
+
+\input{figures/fig_qualitative_success}
+\input{figures/fig_qualitative_failure}
+
+\TODO{at least eight examples spanning distinct failure modes, with predicted and gold boxes drawn}
