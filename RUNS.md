@@ -11,8 +11,14 @@ artifact went, and what it cost. Appendix F requires it.
 | 4 | 2026-08-26 | Kaggle | 3 steps @512 | ~20 min | — | superseded | Slow; investigation found bf16 emulated on pre-Ampere and led to decisions 0017/0018. |
 | 5 | 2026-08-26 | **Kaggle P100** | 3 steps @512, no resume test | ~4 min | — | **ERROR** | Two real findings: Kaggle assigned a **P100 (sm_60)** unusable by its own PyTorch build, and `torchao 0.10.0` is too old for transformers/peft. Both fixed (decision 0019). **Confirmed working:** Kaggle path resolution, seeding, backend registry, and decision 0012's vision-tower quantisation skip (`vision 104 full / 0 4-bit`). |
 
-Deliberately running a 3-step validation before the real 100-step measurement. Row 1 is exactly why:
-a full run would have burned a session to discover a one-word bug in a metadata field.
+| 6 | 2026-08-26 | Kaggle P100 | 3 steps @512 | ~20 s | — | **ERROR (by design)** | Assigned a P100 again: `machine_shape: "gpu_t4x2"` was accepted and silently ignored. The new architecture check caught it in twenty seconds instead of running a meaningless benchmark. Correct values are `NvidiaTeslaT4` / `NvidiaTeslaP100` / `Tpu1VmV38` (decision 0020). |
+| 7 | 2026-08-26 | Kaggle T4 (requested) | 3 steps @512, no resume test | _running_ | | | Survived the twenty-second architecture gate, so the accelerator request was honoured this time. |
+
+Deliberately running 3-step validations before the real 100-step measurement. Row 1 is exactly why:
+a full run would have burned a session to discover a one-word bug in a metadata field. Rows 5–6 are
+the same argument at a larger scale — two Kaggle sessions to learn that the free tier hands out a
+card its own PyTorch cannot use, and that asking for a different one requires a string the SDK
+documents but does not validate.
 
 ## Budget tracker
 
