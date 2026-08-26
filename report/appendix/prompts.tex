@@ -1,5 +1,33 @@
 % appendix: prompts
-\section{Prompts}
+\section{Prompts and decoding}
 \label{app:prompts}
 
-\TODO{filled from the repository file of the same name}
+Every prompt was designed on validation data only and frozen in
+\texttt{PREREGISTRATION.md} before any test split was opened.
+
+\subsection{Structured-output prompt}
+\TODO{verbatim prompt from Phase 5.1, together with the JSON schema shown to the model}
+
+\subsection{Plain-answer prompt (structured output disabled)}
+
+The structured-output cost in Section~\ref{sec:ablations} compares the same weights under two
+elicitations. The plain arm uses the prompt from the Qwen3-VL technical report's own evaluation
+appendix, so that this arm is anchored to the elicitation that produced the published
+\result{79.1}:
+
+\begin{quote}\ttfamily
+\{question\}\\
+Answer the question using a single word or phrase.
+\end{quote}
+
+\subsection{Decoding}
+\TODO{temperature, top-p, max new tokens, retry policy --- from the frozen pre-registration}
+
+\subsection{Answer normalisation}
+
+The canonical relaxed-accuracy metric compares a gold answer of \texttt{"0"} as a \emph{string}
+(Section~\ref{sec:setup:metrics}), so a prediction of \texttt{"0.0"} scores incorrect. The
+normaliser therefore emits bare \texttt{"0"}. Since a measurable fraction of human-sourced ChartQA
+gold tables contain a zero, this is a routine case rather than an edge case.
+
+\TODO{full normaliser rules, frozen}

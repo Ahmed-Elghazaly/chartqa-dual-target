@@ -1,5 +1,36 @@
 % appendix: decisions
-\section{Decisions}
+\section{Decision log}
 \label{app:decisions}
 
-\TODO{filled from the repository file of the same name}
+Every methodological choice in this work is recorded in an append-only log at the moment it was
+made, in the format: context, options considered, decision, evidence, consequences. Entries are
+never edited; a changed decision is a new entry naming the one it supersedes.
+
+The log is reproduced in full in the repository. The entries that most affect how the results should
+be read are summarised here.
+
+\begin{itemize}
+  \item \textbf{The published grounding target is a subset score.} RefChartQA's evaluator produces
+        three separate figures and no aggregate; the reference value this work targets is the human
+        subset alone, $n=500$. All grounding results are reported as a per-subset triple and
+        compared human-to-human.
+  \item \textbf{The official evaluators are used unmodified}, including a canonical quirk under which
+        a gold answer of zero is compared as a string. Adopting the quirk keeps our numbers on the
+        same scale as every published one; ``fixing'' it would not.
+  \item \textbf{Predicted coordinates are clamped to $[0,999]$.} The evaluator silently discards any
+        box containing a coordinate of 1000, which is what an edge-touching box produces.
+  \item \textbf{Grounding output is minimal and ordered best-first}, because dataset-level AP pools
+        all predictions into one precision--recall curve with tied scores.
+  \item \textbf{The visual-token size is $32\times32$, not $28\times28$}, derived from the loaded
+        processor rather than hard-coded.
+  \item \textbf{The vision tower is excluded from 4-bit quantisation}, verified on the loaded model
+        rather than trusted from configuration.
+  \item \textbf{A bare string argument in a plan always denotes an evidence label}, resolving an
+        ambiguity that otherwise makes $\mathrm{mean}([\text{"2019"},\text{"2018"}])$ return
+        $2018.5$.
+  \item \textbf{Compute dtype is chosen from the GPU's compute capability}, since the free-tier T4
+        emulates bfloat16 rather than refusing it.
+\end{itemize}
+
+\TODO{append the Phase 2 backbone selection, the model-variant choice, the RefChartQA audit outcome,
+the plan-yield measurement, and the zero-shot grounding branch taken}
