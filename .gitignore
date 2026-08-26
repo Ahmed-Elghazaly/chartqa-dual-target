@@ -61,3 +61,7 @@ report/**/*.toc
 report/**/*.bbl
 report/**/*.blg
 report/**/*.synctex.gz
+
+.kaggle_dataset/
+.kaggle_kernel/
+outputs/
