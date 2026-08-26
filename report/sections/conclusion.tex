@@ -2,4 +2,27 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-\TODO{not written yet}
+\TODO{written last, from recorded results}
+
+\subsection{What we would do differently}
+
+Two things are already clear before the headline results exist, because they cost time during the
+build rather than at the end.
+
+\paragraph{Read the evaluator by running it, not by reading it.}
+Every scoring decision in this work was settled by executing the official evaluator on constructed
+cases with known answers. That was not the original plan, and the change of method was forced: a
+conclusion reached by careful reading turned out to rest on wrong reasoning, and the behaviour that
+mattered most --- extra predicted boxes being harmless on one image and ruinous across twenty ---
+is invisible at the scale anyone would naturally test.
+
+\paragraph{Treat every inherited constant as unverified.}
+Of the code supplied to this project verbatim on the grounds that a subtle mistake would silently
+corrupt results, two of five components contained such a mistake: a visual-token size belonging to a
+different model generation, and an executor in which a bare string argument meant ``evidence label''
+in some operations and ``numeric literal'' in others. Both produced plausible numbers rather than
+errors. Neither was detectable without running the code against a case whose answer was known in
+advance.
+
+The common shape is worth stating once: in this field, the failures that cost weeks are not the ones
+that crash. They are the ones that converge.
