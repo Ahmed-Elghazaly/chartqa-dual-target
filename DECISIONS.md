@@ -355,3 +355,52 @@ than warn). Also a correction to my own reasoning worth recording: I reported "t
 scope" to Ahmed with confidence, from evidence that could not distinguish that hypothesis from "the
 token is entirely rejected". The control is what separates them, and it should have been the first
 thing run, not the last.
+
+---
+
+## 0012 — 2026-08-26 — The vision tower is kept out of 4-bit, and the skip patterns are full module paths
+
+**Context.** QLoRA stores the frozen base weights in 4 bits. Applying that to the *visual encoder*
+degrades exactly the capability this project's second headline measures, so `BitsAndBytesConfig`
+is given `llm_int8_skip_modules` to hold the vision tower at higher precision. (Despite the `int8`
+name, `quantizer_bnb_4bit.py` reads the same field for the 4-bit path — verified by test.)
+
+The first implementation passed `["visual", "vision_tower", "lm_head"]` and **did nothing at all**
+for the vision tower, while a code comment asserted that it worked.
+
+**Options.** (a) Quantise everything, accept the loss, save a few hundred MB. (b) Skip the vision
+tower using bare module names. (c) Skip it using full module paths, with a test that pins the
+matching rule against the real Qwen3-VL module names.
+
+**Decision.** (c). `VISION_SKIP_PATTERNS` now holds full paths (`model.visual`,
+`model.vision_tower`, `model.vision_model`, plus a top-level `visual` for architectures that place
+it there, and `lm_head`), and `tests/test_quantisation_skip.py` asserts that every real vision
+module path is excluded while the language modules are still quantised.
+
+**Evidence.** `transformers.quantizers.quantizers_utils.should_convert_module` matches with:
+
+```python
+re.match(f"{key}\.", full_name) or re.match(f"{key}", full_name) or full_name.endswith(key)
+```
+
+`re.match` is anchored at the start of the string. Measured directly against real module names:
+
+| pattern list | `model.visual.blocks.0.attn.qkv` | `model.language_model...q_proj` |
+|---|---|---|
+| `["visual", "vision_tower", "lm_head"]` | **QUANTISED** | QUANTISED |
+| `["model.visual", "model.vision_tower", "lm_head"]` | kept fp16 | QUANTISED |
+
+`"visual"` fails all three tests against `"model.visual.blocks.0.attn.qkv"`: it is not a prefix,
+not a full match, and not a suffix.
+
+**Consequences.** Costs a few hundred MB of VRAM against the 13.5 GiB gate, which the Phase 2
+measurement will price exactly. Worth it: this is the difference between measuring a model whose
+visual encoder is intact and one whose visual encoder was silently degraded. The general lesson is
+the same one this project keeps relearning — **a configuration option that is accepted without
+error is not the same as a configuration option that took effect.** The only reliable check is to
+run the library's own matching function against the real names, which is what the test does.
+
+Found while a Kaggle kernel was already running with the broken version. That run is a 3-step path
+validation, not the measurement, so nothing has to be discarded — but had it been the real 100-step
+run, the memory figure would have been for a fully-quantised model and would have been wrong in the
+flattering direction.

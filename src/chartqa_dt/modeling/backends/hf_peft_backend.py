@@ -38,6 +38,16 @@ from chartqa_dt.modeling.backends.base import (
 )
 from chartqa_dt.vision.coords import VisualGeometry
 
+# Module paths kept out of 4-bit quantisation. Full paths, anchored at the start:
+# see the note in `load()` for why bare names silently fail to match.
+VISION_SKIP_PATTERNS: tuple[str, ...] = (
+    "model.visual",
+    "model.vision_tower",
+    "model.vision_model",
+    "visual",          # for models where the tower is top-level
+    "lm_head",
+)
+
 
 @register_backend
 class HFPeftBackend(Backend):
@@ -75,7 +85,16 @@ class HFPeftBackend(Backend):
                 bnb_4bit_use_double_quant=True,
                 # Keep the visual encoder out of 4-bit: quantising it damages the
                 # exact capability this project measures.
-                llm_int8_skip_modules=["visual", "vision_tower", "lm_head"],
+                #
+                # These must be FULL module paths, not bare names. transformers'
+                # `should_convert_module` matches with
+                #     re.match(f"{key}\\.", full_name) or re.match(key, full_name)
+                #     or full_name.endswith(key)
+                # and `re.match` is anchored at the START of the string. A bare
+                # "visual" therefore does NOT match "model.visual.blocks.0.attn.qkv",
+                # and the vision tower gets quantised anyway with no warning.
+                # Verified in tests/test_quantisation_skip.py.
+                llm_int8_skip_modules=list(VISION_SKIP_PATTERNS),
             )
 
         processor = AutoProcessor.from_pretrained(model_id)
