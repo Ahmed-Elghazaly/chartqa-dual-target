@@ -95,3 +95,32 @@ Secrets* or the Colab 🔑 panel, along with `GITHUB_USER` and `HF_TOKEN`.
 
 Everything long is resumable and pushes checkpoints to the private HF repo on every save, because
 these sessions are killed without warning.
+
+---
+
+## Disk, and why local development is `--dev` only
+
+Verified 2026-08-26 (all sizes are real, fetched as HTTP metadata without downloading):
+
+| artifact | bytes |
+|---|---:|
+| `ahmed-masry/ChartQA` → `ChartQA Dataset.zip` (holds the gold tables) | 875,370,872 |
+| `omoured/RefChartQA` parquet (9 files) | ~2.88 GB |
+| `ahmed-masry/ChartQAPro` parquet | 193,053,989 |
+| `Qwen/Qwen3-VL-2B-Instruct` weights | 4,255,140,312 |
+
+That is roughly **9 GB before extraction**, and the ChartQA archive roughly doubles when unzipped.
+A development laptop with ~11 GB free cannot hold the full corpus alongside the model cache.
+
+**So: full-data work runs on Kaggle**, where `/kaggle/temp` and `/kaggle/working` have room, and
+local work uses `--dev`, which materialises a ~200-example subset that exercises every downstream
+component without the full download:
+
+```bash
+cdt-data download --dev --datasets chartqa,refchartqa
+./reproduce.sh          # the whole pipeline in --dev mode
+```
+
+This is not a workaround — it is why `--dev` is a required feature in the build plan rather than a
+convenience. Every component must be developable and testable without the full corpus, or the only
+machine that can run the code is the one that is hardest to debug on.
