@@ -152,3 +152,41 @@ def test_row_renders_pass_fail_and_unknown():
     assert "PASS" in _result().row()
     assert "FAIL" in _result(peak_reserved_gb=99.0).row()
     assert "—" in _result(resume_verified=None).row()
+
+
+# ----------------------------------------------------- the DECISIONS.md table
+
+
+def test_markdown_table_marks_pass_and_fail(tmp_path):
+    from chartqa_dt.train.smoke import markdown_table
+
+    text = markdown_table([
+        _result(label="a"),
+        _result(label="b", peak_reserved_gb=99.0),
+        SmokeResult(backend="unsloth", model_id="m", image_max_pixels=1, label="c",
+                    ok=False, error="BackendUnavailable: no notebook for this size"),
+    ])
+    lines = text.splitlines()
+    assert lines[0].startswith("| configuration")
+    assert "**PASS**" in lines[2]
+    assert "FAIL" in lines[3] and "**PASS**" not in lines[3]
+    assert "FAILED" in lines[4] and "BackendUnavailable" in lines[4]
+
+
+def test_report_round_trips_through_load(tmp_path):
+    from chartqa_dt.train.smoke import load_report, write_report
+
+    original = [_result(label="a", seconds_per_step=4.25), _result(label="b", ok=False, error="x")]
+    back = load_report(write_report(original, tmp_path))
+    assert [r.label for r in back] == ["a", "b"]
+    assert back[0].seconds_per_step == 4.25
+    assert back[1].ok is False
+    assert back[0].passes_all_gates and not back[1].passes_all_gates
+
+
+def test_write_report_also_emits_the_markdown_table(tmp_path):
+    from chartqa_dt.train.smoke import write_report
+
+    write_report([_result(label="a")], tmp_path)
+    md = (tmp_path / "smoke_results.md").read_text()
+    assert md.startswith("| configuration") and "**PASS**" in md

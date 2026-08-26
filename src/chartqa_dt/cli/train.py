@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 from chartqa_dt.cli._common import NotYetBuilt, base_parser, setup
 
@@ -26,7 +27,14 @@ def main() -> None:
                         "'native' means the model's own max_pixels; a number R means R^2 pixels.")
     p.add_argument("--no-resume-test", action="store_true",
                    help="skip the kill-and-resume verification (it doubles model loads)")
+    p.add_argument("--summarise", type=str, default=None,
+                   help="print the DECISIONS.md table for an existing smoke_results.json and exit")
     ctx = setup(p)
+
+    if ctx.args.summarise:
+        from chartqa_dt.train.smoke import load_report, markdown_table
+        print(markdown_table(load_report(Path(ctx.args.summarise))))
+        return
 
     if ctx.args.stage != "smoke":
         raise NotYetBuilt(f"cdt-train --stage {ctx.args.stage}", "Phase 6 — Training")
@@ -36,7 +44,7 @@ def main() -> None:
 
 def _run_smoke(ctx) -> None:
     from chartqa_dt.modeling.backends.base import list_backends
-    from chartqa_dt.train.smoke import HEADER, run_smoke, write_report
+    from chartqa_dt.train.smoke import HEADER, markdown_table, run_smoke, write_report
 
     available = list_backends()
     print("\nbackends:")
@@ -89,6 +97,8 @@ def _run_smoke(ctx) -> None:
         for r in results:
             print(r.row())
         print(f"\nwritten: {path}")
+        print("\n--- DECISIONS.md table ---")
+        print(markdown_table(results))
 
         passing = [r for r in results if r.passes_all_gates]
         if not passing:

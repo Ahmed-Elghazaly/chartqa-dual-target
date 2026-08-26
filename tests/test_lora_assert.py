@@ -171,3 +171,17 @@ def test_print_parameter_names_filters(capsys):
     names = print_parameter_names(model, pattern=r"visual.*lora_A", limit=3)
     assert names and all("visual" in n and "lora_A" in n for n in names)
     assert "and " in capsys.readouterr().out    # truncation notice
+
+
+def test_summary_records_parameter_names_not_only_counts():
+    """PLAN.md 2.2 asks for trainable parameter NAMES.
+
+    A count proves something is trainable; the names prove it is the right
+    something. The first draft of resolve_target_modules produced perfectly
+    healthy-looking counts while missing the vision MLP entirely.
+    """
+    info = assert_lora_on_both_sides(build(vision_lora=True, language_lora=True), verbose=False)
+    assert info["sample_vision_names"], "vision parameter names must be recorded"
+    assert info["sample_language_names"], "language parameter names must be recorded"
+    assert all("visual" in n for n in info["sample_vision_names"])
+    assert all("language_model" in n or "model.layers" in n for n in info["sample_language_names"])

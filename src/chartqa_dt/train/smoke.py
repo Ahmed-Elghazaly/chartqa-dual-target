@@ -35,6 +35,7 @@ import math
 import random
 import time
 from dataclasses import asdict, dataclass, field
+from dataclasses import fields as dataclasses_fields
 from pathlib import Path
 from typing import Any
 
@@ -452,6 +453,37 @@ def _verify_resume(
     return bool(delta < 1e-2), float(delta)
 
 
+def markdown_table(results: list[SmokeResult]) -> str:
+    """A DECISIONS.md-ready table, so the Phase 2 record is generated not retyped."""
+    head = (
+        "| configuration | peak GB | s/step | proj. hours | visual tokens | "
+        "vision params | language params | vision fp16 | loss | resume | gates |\n"
+        "|---|---:|---:|---:|---:|---:|---:|:--:|:--:|:--:|:--:|"
+    )
+    def tick(b: object) -> str:
+        return "yes" if b is True else ("—" if b is None else "no")
+    rows = []
+    for r in results:
+        if not r.ok:
+            rows.append(f"| `{r.label}` | — | — | — | — | — | — | — | — | — | **FAILED**: {r.error[:70]} |")
+            continue
+        rows.append(
+            f"| `{r.label}` | {r.peak_reserved_gb:.2f} | {r.seconds_per_step:.2f} | "
+            f"{r.projected_full_run_hours:.2f} | {r.median_visual_tokens} | "
+            f"{r.lora.get('vision_params', 0):,} | {r.lora.get('language_params', 0):,} | "
+            f"{tick(r.vision_kept_full_precision)} | {tick(r.loss_decreased)} | "
+            f"{tick(r.resume_verified)} | {'**PASS**' if r.passes_all_gates else 'FAIL'} |"
+        )
+    return "\n".join([head, *rows])
+
+
+def load_report(path: Path) -> list[SmokeResult]:
+    """Read a smoke_results.json back into SmokeResult objects."""
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    known = {f.name for f in dataclasses_fields(SmokeResult)}
+    return [SmokeResult(**{k: v for k, v in r.items() if k in known}) for r in payload["results"]]
+
+
 def write_report(results: list[SmokeResult], out_dir: Path) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / "smoke_results.json"
@@ -469,4 +501,5 @@ def write_report(results: list[SmokeResult], out_dir: Path) -> Path:
         ),
         encoding="utf-8",
     )
+    (out_dir / "smoke_results.md").write_text(markdown_table(results) + "\n", encoding="utf-8")
     return path

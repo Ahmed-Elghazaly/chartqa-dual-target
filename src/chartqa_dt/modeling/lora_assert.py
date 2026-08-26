@@ -81,6 +81,11 @@ class LoRACoverage:
             "trainable_fraction": round(self.trainable_fraction, 8),
             "vision_share_of_trainable": round(self.vision_share, 6),
             "unclassified_names": self.unclassified_names[:20],
+            # PLAN.md 2.2 asks for trainable parameter NAMES, not only counts.
+            # A count proves something is trainable; the names prove it is the
+            # right something. Kept for the Phase 2 record.
+            "sample_vision_names": [n for n, _ in self.rows if classify_parameter(n) == "vision"][:6],
+            "sample_language_names": [n for n, _ in self.rows if classify_parameter(n) == "language"][:6],
         }
 
     def describe(self, max_rows: int = 40) -> str:
