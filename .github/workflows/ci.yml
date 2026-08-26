@@ -56,9 +56,24 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: python -m pip install --upgrade pip
-      - name: install CPU torch first (avoids pulling CUDA wheels)
-        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      # torch AND torchvision must come from the same index. Installing only
+      # torch from the CPU index and letting torchmetrics[detection] pull
+      # torchvision from PyPI mixes a CPU torch with a CUDA torchvision; the
+      # compiled ops then fail to register and every test that touches the
+      # official evaluator dies with:
+      #     RuntimeError: operator torchvision::nms does not exist
+      - name: install CPU torch and torchvision together
+        run: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
       - run: pip install -e ".[dev,eval]"
+      - name: sanity-check the torch/torchvision pairing before running tests
+        run: |
+          python - <<'PY'
+          import torch, torchvision
+          print("torch", torch.__version__, "| torchvision", torchvision.__version__)
+          from torchvision.ops import nms  # registers the compiled ops
+          import torchmetrics.detection    # the import that was failing
+          print("torchvision ops registered OK")
+          PY
       - name: evaluator cross-check and regression suite
         run: pytest -q -m "official and not network"
 
