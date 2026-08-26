@@ -109,3 +109,68 @@ question.
 - The same "reading tells you what it says, running tells you what it does" discipline found the
   quantisation skip patterns that matched nothing, and the evaluator behaviour that reverses between
   one image and twenty.
+
+---
+
+## Addendum — requests that are accepted but not honoured
+
+Everything above is about *guards*: checks that answer a question adjacent to the one you meant.
+There is a second, related failure that showed up immediately afterwards, and it has a different
+remedy.
+
+The free GPU turned out to matter more than expected. Kaggle offers two cards, and it handed us a
+**Tesla P100**. That card is old enough (compute capability 6.0) that Kaggle's *own* PyTorch build
+cannot use it at all:
+
+```
+Tesla P100-PCIE-16GB with CUDA capability sm_60 is not compatible with the current PyTorch installation.
+The current PyTorch install supports sm_70 sm_75 sm_80 sm_86 sm_90 sm_100 sm_120.
+```
+
+The fail-fast check written a few hours earlier passed anyway, because it asked
+`torch.cuda.is_available()` — and a GPU *was* available. It simply could not run anything. That is
+the guard failure again, third instance.
+
+So we started requesting a specific card. Kaggle's API has a field for it. We set it to
+`"gpu_t4x2"`, which is what appears in the web interface's own URLs and reads entirely plausibly.
+
+**The next run was assigned a P100 again.**
+
+Not refused. *Ignored.* Here is the setter, in Kaggle's SDK:
+
+```python
+def machine_shape(self, machine_shape):
+    if not isinstance(machine_shape, str):
+        raise TypeError('machine_shape must be of type str')
+    self._machine_shape = machine_shape
+```
+
+It validates that your request is a string. Nothing more. The three values it actually accepts are
+documented four hundred lines away in a docstring — `NvidiaTeslaT4`, `NvidiaTeslaP100`,
+`Tpu1VmV38` — and anything else is transmitted and discarded in silence.
+
+From the client's side, a typo and a granted request look identical.
+
+### Why this is a different bug from the others
+
+A guard that asks the wrong question is fixed by testing the condition that actually causes the
+failure. But nothing was being *tested* here. We made a request, it was accepted, and we assumed
+acceptance meant compliance.
+
+The remedy is correspondingly different, and it is two things rather than one:
+
+1. **Verify the value against the receiver's own contract.** The three legal strings are now
+   constants, and a test asserts each one literally appears in the installed SDK's source. If Kaggle
+   renames them, the test fails instead of the next run landing on the wrong card.
+2. **Verify the request took effect.** The kernel prints the device it actually received and refuses
+   to continue if its architecture is absent from `torch.cuda.get_arch_list()`. Asking for a T4 and
+   *checking you got one* are separate acts.
+
+The second point is the general one. **Acceptance is not compliance.** Any time you configure
+something across a boundary — an API field, an environment variable, a config file consumed by
+another process, a flag passed to a library — the only evidence that it worked is an observation of
+the effect. `llm_int8_skip_modules` was accepted and matched nothing. `machine_shape` was accepted
+and changed nothing. Both were "configured correctly" in the sense that no error was raised.
+
+The cost of checking is a printed line and an assertion. The cost of not checking, twice now, was a
+session each.
