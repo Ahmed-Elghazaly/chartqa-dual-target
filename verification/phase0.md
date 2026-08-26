@@ -500,3 +500,35 @@ What it **accepts**, which the "validation rules beyond the schema" must therefo
 
 That list is exactly the plan's own stated extra rules, plus the two hazards found by measurement in
 this project. So Appendix A is internally consistent; it simply delegates more than it looks.
+
+---
+
+## 9. Image geometry measured **separately by question subset**
+
+Added 2026-08-26. The earlier sub-token measurement (F11) sampled 800 consecutive validation rows,
+which turned out to be dominated by one subset. Since the published 32.83 target is the **human**
+subset alone, its geometry is what the headline comparison depends on — not a blend.
+
+Measured across 1,000 validation rows sampled at ten offsets spanning the split
+(`scripts/` ad-hoc; reproducible from the datasets-server rows endpoint):
+
+| subset | n | median W×H | already below 512² | median visual tokens | sub-token native | @512² | @448² |
+|---|---:|---|---:|---:|---:|---:|---:|
+| human | 392 | 800×557 | 6% | 425 | **40.6%** | **49.1%** | 55.6% |
+| machine | 108 | 800×557 | 0% | 425 | **61.1%** | **73.1%** | 84.3% |
+| pot | 500 | 800×557 | 7% | 425 | 39.8% | 49.1% | 64.2% |
+
+Modal image size is **800×557 in all three subsets**, so the blended figure in F11 was not
+misleading about size. Two things it did obscure:
+
+1. **The machine subset is far harder to ground.** At the planned 512-pixel budget, **73.1%** of its
+   targets are sub-token, against 49.1% for human. Its boxes are systematically smaller. Any
+   cross-subset comparison of grounding scores must account for this rather than reading it as the
+   model being worse at machine-generated questions.
+2. **A small minority of images are already below the budget** (6–7% for human and PoT). For those,
+   raising the pixel cap changes nothing at all, because no downscaling was happening. The
+   resolution ablation's effect is therefore concentrated on the ~93% that are large enough to be
+   downscaled, and the report should say so rather than implying a uniform treatment.
+
+This also confirms `SOURCE_IMAGE_W × SOURCE_IMAGE_H = 800×557` as the right synthetic size for the
+smoke test: it is the modal real size in every subset, so the benchmark exercises production shapes.
