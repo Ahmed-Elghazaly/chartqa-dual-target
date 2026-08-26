@@ -6,7 +6,10 @@ artifact went, and what it cost. Appendix F requires it.
 | # | Date | Host | What ran | Wall | Peak GB | Outcome | Notes |
 |---|---|---|---|---|---|---|---|
 | 1 | 2026-08-26 | Kaggle T4 | Phase 2 smoke, 3 steps @512 (path validation) | ~30 s | — | **ERROR** | Code dataset never attached: Kaggle lowercases refs, `dataset_sources` had the mixed-case username. Fixed; kernel now prints `/kaggle/input` and exits with an explanation. |
-| 2 | 2026-08-26 | Kaggle T4 | Phase 2 smoke, 3 steps @512 (path validation, retry) | _running_ | | | |
+| 2 | 2026-08-26 | Kaggle | 3 steps @512 | ~30 s | — | **ERROR** | Generated kernel had a `SyntaxError`: a `\n` in a non-raw string became a real newline. Generated code is now `compile()`d before pushing. |
+| 3 | 2026-08-26 | Kaggle | 3 steps @512 | ~30 s | — | **ERROR** | Expected `code.zip`, found it already expanded. Kaggle auto-extracts uploads; both layouts now handled. |
+| 4 | 2026-08-26 | Kaggle | 3 steps @512 | ~20 min | — | superseded | Slow; investigation found bf16 emulated on pre-Ampere and led to decisions 0017/0018. |
+| 5 | 2026-08-26 | **Kaggle P100** | 3 steps @512, no resume test | ~4 min | — | **ERROR** | Two real findings: Kaggle assigned a **P100 (sm_60)** unusable by its own PyTorch build, and `torchao 0.10.0` is too old for transformers/peft. Both fixed (decision 0019). **Confirmed working:** Kaggle path resolution, seeding, backend registry, and decision 0012's vision-tower quantisation skip (`vision 104 full / 0 4-bit`). |
 
 Deliberately running a 3-step validation before the real 100-step measurement. Row 1 is exactly why:
 a full run would have burned a session to discover a one-word bug in a metadata field.

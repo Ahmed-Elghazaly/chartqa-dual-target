@@ -32,8 +32,12 @@ def test_generated_kernel_script_compiles():
 
 
 def test_generated_script_has_no_stray_newline_in_a_string():
+    """Comments are skipped: prose may legitimately carry an odd quote, and a
+    comment cannot break the parse anyway -- `compile()` above covers that."""
     script = kaggle_run.render_kernel_script("ds", ["x"])
     for i, line in enumerate(script.splitlines(), 1):
+        if line.lstrip().startswith("#"):
+            continue
         quotes = line.count('"') - line.count('\\"')
         assert quotes % 2 == 0, f"line {i} has an unbalanced quote: {line!r}"
 
@@ -140,3 +144,67 @@ def test_cpu_is_allowed_only_when_explicitly_requested():
     assert "and True" in cpu_script or "not True" in cpu_script
     compile(gpu_script, "main.py", "exec")
     compile(cpu_script, "main.py", "exec")
+
+
+def test_gpu_check_validates_architecture_not_just_presence():
+    """`torch.cuda.is_available()` being True is not enough.
+
+    Kaggle handed out a Tesla P100 (sm_60) whose architecture its own PyTorch
+    build does not support: "Tesla P100-PCIE-16GB with CUDA capability sm_60 is
+    not compatible with the current PyTorch installation." Every CUDA op then
+    fails or silently falls back, so a benchmark on it measures nothing -- and the
+    presence check passed happily.
+    """
+    script = kaggle_run.render_kernel_script("ds", ["x"])
+    assert "get_arch_list" in script, "must check the arch list, not only availability"
+    assert "not supported by this PyTorch" in script
+
+
+def test_kernel_requests_a_specific_accelerator(tmp_path, monkeypatch):
+    """Left to itself Kaggle chooses, and it chose an unusable card."""
+    import json
+
+    monkeypatch.setattr(kaggle_run, "REPO_ROOT", tmp_path)
+    captured = {}
+
+    class FakeApi:
+        def kernels_push(self, folder):
+            captured["meta"] = json.loads(
+                (kaggle_run.Path(folder) / "kernel-metadata.json").read_text()
+            )
+
+    monkeypatch.setattr(kaggle_run, "_username", lambda: "user")
+    kaggle_run.push_kernel(FakeApi(), "user/ds", ["cdt-train"], title="t", machine_shape="gpu_t4x2")
+    assert captured["meta"]["machine_shape"] == "gpu_t4x2"
+    assert captured["meta"]["enable_gpu"] is True
+    assert captured["meta"]["is_private"] is True
+
+
+def test_no_gpu_request_sets_machine_shape_none(tmp_path, monkeypatch):
+    import json
+
+    monkeypatch.setattr(kaggle_run, "REPO_ROOT", tmp_path)
+    captured = {}
+
+    class FakeApi:
+        def kernels_push(self, folder):
+            captured["meta"] = json.loads(
+                (kaggle_run.Path(folder) / "kernel-metadata.json").read_text()
+            )
+
+    monkeypatch.setattr(kaggle_run, "_username", lambda: "user")
+    kaggle_run.push_kernel(FakeApi(), "user/ds", ["x"], title="t", gpu=False)
+    assert captured["meta"]["machine_shape"] == "none"
+
+
+def test_torchao_is_pinned_before_the_model_download():
+    """Kaggle preinstalls torchao 0.10.0; transformers/peft require >0.16.0.
+
+    Discovered after a 4.2 GB download and a successful quantised load, at the
+    moment LoRA was applied. Pinning it up front costs seconds.
+    """
+    script = kaggle_run.render_kernel_script("ds", ["cdt-train"])
+    assert "torchao>=0.16.0" in script
+    assert script.index("torchao") < script.index('["cdt-train"]'), (
+        "torchao must be pinned before the job runs, not after the model downloads"
+    )

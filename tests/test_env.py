@@ -7,6 +7,8 @@ resolved roots are asserted against what those platforms actually provide.
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from chartqa_dt.env import Environment, _roots_for, detect_platform, get_env, load_dotenv
@@ -123,3 +125,34 @@ def test_environment_is_frozen(clean_env):
     assert isinstance(e, Environment)
     with pytest.raises(Exception):
         e.platform = "kaggle"  # type: ignore[misc]
+
+
+def test_colab_is_detected_by_module_not_only_by_sys_modules(clean_env, monkeypatch):
+    """The documented Colab test is whether `google.colab` imports.
+
+    Checking `sys.modules` alone fails in a fresh process, because nothing has
+    imported it yet -- which is exactly the situation a CLI entry point is in.
+    """
+    monkeypatch.delenv("CDT_PLATFORM", raising=False)
+    import chartqa_dt.env as envmod
+
+    monkeypatch.setattr(envmod, "_colab_module_importable", lambda: True)
+    assert envmod.detect_platform() == "colab"
+
+
+def test_colab_env_vars_are_a_secondary_signal(clean_env, monkeypatch):
+    monkeypatch.delenv("CDT_PLATFORM", raising=False)
+    import chartqa_dt.env as envmod
+
+    monkeypatch.setattr(envmod, "_colab_module_importable", lambda: False)
+    monkeypatch.setenv("COLAB_GPU", "1")
+    assert envmod.detect_platform() == "colab"
+
+
+def test_colab_probe_is_side_effect_free(clean_env):
+    """find_spec rather than import: nothing should execute to answer this."""
+    import chartqa_dt.env as envmod
+
+    before = set(sys.modules)
+    envmod._colab_module_importable()
+    assert "google.colab" not in (set(sys.modules) - before)

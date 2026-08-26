@@ -707,3 +707,64 @@ suite now models the trap explicitly — the fake device asserts that
 Generalises to something worth keeping: **a boolean helper's default arguments are part of its
 contract.** `is_bf16_supported()` and `is_bf16_supported(including_emulation=False)` are different
 questions with the same name, and only one of them is the one being asked.
+
+---
+
+## 0019 — 2026-08-26 — The accelerator is requested explicitly, and its architecture is validated before use
+
+**Context.** The first Phase 2 run that got far enough to report anything did so on a **Tesla
+P100-PCIE-16GB**, not the T4 that `IDEA.md` §14's reference measurement used. Kaggle's own PyTorch
+build cannot use it:
+
+```
+Tesla P100-PCIE-16GB with CUDA capability sm_60 is not compatible with the current PyTorch installation.
+The current PyTorch install supports CUDA capabilities sm_70 sm_75 sm_80 sm_86 sm_90 sm_100 sm_120.
+```
+
+The fail-fast check added earlier passed anyway, because it asked
+`torch.cuda.is_available()` — which is `True`. A GPU was present; it was simply unusable.
+
+**Options.** (a) Accept whatever Kaggle assigns and cope. (b) Request a T4 explicitly.
+(c) (b) plus validate at runtime that the assigned device's architecture is in
+`torch.cuda.get_arch_list()`.
+
+**Decision.** (c). `kernel-metadata.json` now carries `machine_shape: "gpu_t4x2"`, and the kernel
+refuses to proceed on any device whose `sm_XX` is absent from the PyTorch build's arch list, naming
+both the device and the supported list. T4 is also the card `IDEA.md`'s compute budget was measured
+on, so requesting it makes our numbers comparable to that reference rather than to nothing.
+
+**Evidence.** `kernels_push` sets `request.machine_shape` from an `acc` argument or from a
+`machine_shape` metadata key; without it the assignment is Kaggle's choice. Observed device
+capability `sm_60`; PyTorch build arch list `sm_70 … sm_120`.
+
+**Consequences.** This is the *third* variant of the same failure in this project: a check that
+returns `True` for a question adjacent to the one being asked. `is_bf16_supported()` answered "can
+this run?" instead of "can this run fast?" (0018); `llm_int8_skip_modules=["visual"]` answered "is
+this a valid pattern?" instead of "does this match anything?" (0012); and now
+`is_available()` answered "is a GPU present?" instead of "can this GPU run our code?".
+
+The general form is worth naming, because it will recur: **an affirmative answer is only useful if
+you know which question was asked.** Where a guard exists to prevent a specific failure, the test
+must be against the condition that actually causes that failure — device capability, a matched
+module name, an arch list — not against a convenient nearby boolean.
+
+### Also fixed in the same run
+
+`torchao` on the Kaggle image is **0.10.0**; transformers/peft refuse anything below **0.16.0**
+(`ImportError: Found an incompatible version of torchao`). It surfaced only after the 4.2 GB model
+download and a successful quantised load, at the moment LoRA was applied. Now pinned in the kernel's
+install step, before anything expensive.
+
+### What this run did establish
+
+Not a wasted session. Confirmed on real hardware:
+
+* the environment module resolves Kaggle correctly — `platform: kaggle`,
+  `data_root /kaggle/temp/cdt-data` (1,026.6 GiB free), `output_root /kaggle/working/cdt-outputs`
+  (19.5 GiB free). Phase 1 acceptance criterion 6 is now verified in place rather than by simulation;
+* seeding works end to end: `seed=0 python=True numpy=True torch=True cuda=True deterministic=True`;
+* the backend registry reports honestly: `hf_peft available=True`,
+  `unsloth available=False (missing dependency)`;
+* **decision 0012 is confirmed in production**: `vision 104 full / 0 4-bit`,
+  `language 0 full / 196 4-bit`. The vision tower really is held out of 4-bit on the real model, and
+  the language model really is quantised.

@@ -181,14 +181,32 @@ WORK = "/kaggle/working/repo"
 import torch as _torch
 
 _gpu = _torch.cuda.is_available()
-print("accelerator:", _torch.cuda.get_device_name(0) if _gpu else "NONE (CPU)", flush=True)
-if not _gpu and not {allow_cpu}:
-    raise SystemExit(
-        "no CUDA device. kernel-metadata.json set enable_gpu=true, so either the "
-        "accelerator was not granted or the account is not phone-verified. "
-        "Refusing to run a memory benchmark on CPU: the numbers would be "
-        "meaningless and the run would take hours."
-    )
+if _gpu:
+    _name = _torch.cuda.get_device_name(0)
+    _major, _minor = _torch.cuda.get_device_capability(0)
+    _arch = "sm_%d%d" % (_major, _minor)
+    _supported = list(_torch.cuda.get_arch_list())
+    print("accelerator:", _name, _arch, "| torch supports:", _supported, flush=True)
+    # is_available() being True is NOT enough. Kaggle sometimes assigns a
+    # Tesla P100 (sm_60), which its own PyTorch build does not support at all:
+    # "Tesla P100-PCIE-16GB with CUDA capability sm_60 is not compatible with
+    # the current PyTorch installation." Every CUDA op then fails or silently
+    # falls back, so a benchmark on it measures nothing.
+    if _arch not in _supported and not {allow_cpu}:
+        raise SystemExit(
+            "GPU " + _name + " (" + _arch + ") is not supported by this PyTorch "
+            "build, which supports " + str(_supported) + ". Re-run and request a "
+            "different accelerator: machine_shape='gpu_t4x2' in kernel-metadata.json."
+        )
+else:
+    print("accelerator: NONE (CPU)", flush=True)
+    if not {allow_cpu}:
+        raise SystemExit(
+            "no CUDA device. kernel-metadata.json set enable_gpu=true, so either the "
+            "accelerator was not granted or the account is not phone-verified. "
+            "Refusing to run a memory benchmark on CPU: the numbers would be "
+            "meaningless and the run would take hours."
+        )
 
 listing = os.listdir("/kaggle/input") if os.path.isdir("/kaggle/input") else "(missing)"
 print("contents of /kaggle/input:", listing, flush=True)
@@ -224,8 +242,12 @@ if not os.path.exists(os.path.join(root, "pyproject.toml")):
 print("package root:", root, flush=True)
 
 subprocess.run([sys.executable, "-m", "pip", "install", "-q", "--no-deps", "-e", root], check=True)
+# Kaggle preinstalls torchao 0.10.0; transformers/peft refuse anything below
+# 0.16.0 with "Found an incompatible version of torchao". Pin it up front rather
+# than discovering it after the 4.2 GB model download.
 subprocess.run([sys.executable, "-m", "pip", "install", "-q",
-                "peft>=0.14.0", "bitsandbytes>=0.44.0", "accelerate>=1.0.0"], check=True)
+                "peft>=0.14.0", "bitsandbytes>=0.44.0", "accelerate>=1.0.0",
+                "torchao>=0.16.0"], check=True)
 
 print("torch", _torch.__version__, flush=True)
 subprocess.run([sys.executable, "-c",
@@ -262,7 +284,10 @@ def render_kernel_script(dataset: str, command: list[str], *, allow_cpu: bool = 
     return script
 
 
-def push_kernel(api, dataset_slug: str, command: list[str], *, title: str, gpu: bool = True) -> str:
+def push_kernel(
+    api, dataset_slug: str, command: list[str], *, title: str, gpu: bool = True,
+    machine_shape: str = "gpu_t4x2",
+) -> str:
     user = _username()
     full = f"{user}/{KERNEL_SLUG}"
     staging = REPO_ROOT / ".kaggle_kernel"
@@ -282,6 +307,10 @@ def push_kernel(api, dataset_slug: str, command: list[str], *, title: str, gpu: 
             "kernel_type": "script",
             "is_private": True,
             "enable_gpu": gpu,
+            # Without this Kaggle picks for us, and it has handed out a Tesla
+            # P100 (sm_60) that its own PyTorch build cannot use. T4 is also what
+            # IDEA.md's reference compute measurement was taken on.
+            "machine_shape": machine_shape if gpu else "none",
             "enable_internet": True,
             "dataset_sources": [dataset_slug],
             "competition_sources": [],
@@ -330,6 +359,8 @@ def main() -> int:
     p.add_argument("--resolutions", type=str, default="512,native")
     p.add_argument("--backend", type=str, default=None)
     p.add_argument("--no-gpu", action="store_true")
+    p.add_argument("--machine-shape", type=str, default="gpu_t4x2",
+                   help="Kaggle accelerator to request (gpu_t4x2, gpu_p100, none)")
     p.add_argument("--no-resume-test", action="store_true",
                    help="skip the kill-and-resume check (halves the number of model loads)")
     p.add_argument("--dry-run", action="store_true", help="stage everything, push nothing")
@@ -380,7 +411,8 @@ def main() -> int:
     print(f"  dataset: {ds}")
 
     print("pushing kernel ...")
-    push_kernel(api, ds, command, title="chartqa-dt run", gpu=not args.no_gpu)
+    push_kernel(api, ds, command, title="chartqa-dt run", gpu=not args.no_gpu,
+                machine_shape=args.machine_shape)
     print(f"  kernel: https://www.kaggle.com/code/{kernel}")
 
     print("\nwaiting (Ctrl-C is safe; re-attach with --status) ...")

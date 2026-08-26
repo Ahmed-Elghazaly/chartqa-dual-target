@@ -49,13 +49,35 @@ def detect_platform() -> Platform:
     if os.environ.get("KAGGLE_KERNEL_RUN_TYPE") or Path("/kaggle/working").is_dir():
         return "kaggle"
 
-    # Colab: the module only exists inside a Colab runtime.
-    if "google.colab" in sys.modules or os.environ.get("COLAB_RELEASE_TAG"):
+    # Colab. The documented test is whether `google.colab` imports; checking
+    # sys.modules alone is not enough, because in a fresh process nothing has
+    # imported it yet. Environment variables are kept as secondary signals since
+    # they are undocumented and have changed name across Colab generations.
+    if _colab_module_importable():
         return "colab"
-    if Path("/content").is_dir() and Path("/usr/local/lib/python3.11/dist-packages").is_dir():
+    if os.environ.get("COLAB_RELEASE_TAG") or os.environ.get("COLAB_GPU"):
+        return "colab"
+    if Path("/content").is_dir() and Path("/opt/deeplearning").exists():
         return "colab"
 
     return "local"
+
+
+def _colab_module_importable() -> bool:
+    """True inside a Colab runtime. Cheap and side-effect free.
+
+    ``google.colab`` exists only in Colab, so a successful find is conclusive.
+    ``find_spec`` is used rather than a real import so that nothing is executed
+    just to answer a question about the environment.
+    """
+    if "google.colab" in sys.modules:
+        return True
+    try:
+        import importlib.util
+
+        return importlib.util.find_spec("google.colab") is not None
+    except (ImportError, ValueError, ModuleNotFoundError):
+        return False
 
 
 def _first_writable(*candidates: Path) -> Path:
