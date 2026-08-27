@@ -1147,3 +1147,79 @@ The checklist item is therefore now specific rather than general: not "resume is
 
 The current run (11) was launched before this fix and will still report a resume failure if the
 diagnosis is right. That is useful rather than wasteful: it is a prediction, and the next run tests it.
+
+---
+
+## 0027 — 2026-08-27 — Read the authoritative source **before** writing, not after
+
+**Context.** Ahmed observed that this project has settled into a pattern of making a mistake, finding
+it, and documenting it — and asked for correctness first time instead. That is a fair criticism and
+the numbers support it.
+
+**Evidence.** Every defect found so far, classified by whether reading an authoritative source before
+writing would have prevented it:
+
+| # | defect | preventable? | what I should have read first |
+|---|---|---|---|
+| 1 | visual-token factor 28 vs 32 | **yes** | the model's `config.json` |
+| 2 | vision MLP is `linear_fc1`, not `fc1` | **yes** — *the plan said to check* | `named_modules()` of the model |
+| 3 | loss masked the prompt; the docstring said otherwise | **yes** | my own docstring |
+| 4 | `llm_int8_skip_modules=["visual"]` matched nothing | **yes** | `should_convert_module` source |
+| 5 | `is_bf16_supported()` guard could never fire | **yes** | the function signature |
+| 6 | `machine_shape="gpu_t4x2"` silently ignored | **yes** | the `kagglesdk` docstring |
+| 7 | `device_map="auto"` sharded across two GPUs | **yes** | the `device_map` documentation |
+| 8 | checkpoint omitted RNG state | **yes** — *the plan listed it* | `PLAN.md` 6.3 |
+| 9 | CI mixed a CPU torch with a CUDA torchvision | **yes** | the PyTorch install matrix |
+| 10 | Kaggle lowercases dataset refs | no | undocumented |
+| 11 | a stale dataset version was attached | no | undocumented race |
+| 12 | `torchao 0.10` too old on the Kaggle image | no | image contents vary |
+
+**Nine of twelve were preventable by reading first.** Two of those nine — #2 and #8 — were cases where
+`PLAN.md` explicitly said what to check and I implemented an abbreviated version anyway. Those are not
+knowledge gaps; they are process failures, and they are the ones worth fixing.
+
+**Options.** (a) Continue and rely on the existing gates to catch things. (b) Add more documentation
+about being careful. (c) Invert the order of work: for anything touching an external API, read the
+authoritative source *in this session* before writing code against it, and prove the technique against
+observable reality before building on it.
+
+**Decision.** (c). (b) is explicitly rejected — more prose about carefulness is what the criticism is
+about, and a document nobody consults at the moment of writing prevents nothing.
+
+Concretely, three rules, applied from now:
+
+1. **Source before signature.** Before calling an unfamiliar external API, read its actual signature
+   or implementation in this session — `inspect.signature`, `inspect.getsource`, or the file itself.
+   Not recollection, not a plausible-looking name.
+2. **Prove the technique before building on it.** Where a component's correctness is not observable
+   from its output — box extraction, coordinate conversion, loss masking — write the adversarial proof
+   *first*, against ground truth known by construction, and only then write the component.
+3. **When the plan specifies a list, implement the list.** #2 and #8 both came from reading a
+   requirement and shipping a subset. If a requirement cannot be met immediately, it is a gap with a
+   test that fails, not a paragraph explaining why it is acceptable.
+
+**Evidence that this is being applied rather than described.** The single highest-risk component of
+Phase 3 is exact bounding-box extraction from matplotlib artists — `PLAN.md` 3.5 warns that a
+generator with subtly wrong boxes "would poison training silently and is very hard to detect later".
+Before writing any of it:
+
+* the matplotlib geometry API was read directly — `get_window_extent(renderer=None)` returns a Bbox in
+  **display space** with non-negative extents, display origin is **bottom-left** while image origin is
+  **top-left**, and extents are meaningless before `fig.canvas.draw()`;
+* `verification/prove_box_extraction.py` proves the technique against rendered pixels, adversarially:
+  each box must be ≥97% its own bar's colour, must contain ≤1% of any neighbour, must have a clean
+  strip above it, and **a box shifted by 60% of its own width must fail** — otherwise the check cannot
+  distinguish exact from approximate;
+* box height divided by plotted value is constant to four decimal places across four bars, which an
+  estimate would not achieve;
+* `tests/test_box_extraction.py` runs all of it in CI, including a test that the y-axis flip is
+  present, since a missing flip produces boxes that look plausible and are vertically mirrored.
+
+**Consequences.** Slower to start each component, and the slowness is the point: nine of twelve
+defects cost more to find than the reading would have cost to prevent. It also means the number of
+decision entries should *fall* from here — this project's decision log is largely a record of
+corrections, and the aim is to stop generating them.
+
+Also checked, since it was asked: **no relevant skills exist**. A search across
+pytorch / transformers / vision-language models / LoRA / Hugging Face / Kaggle / deep learning
+returned nothing, so no packaged expertise is available to lean on.
