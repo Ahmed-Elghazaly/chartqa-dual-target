@@ -49,13 +49,15 @@ class Bucket:
 class StratifiedReport:
     boundary_tokens: float
     buckets: list[Bucket] = field(default_factory=list)
-    subtoken_fraction: float = 0.0
+    subtoken_fraction: float = 0.0          # by area — the PLAN 4.5 bucketing rule
+    subtoken_fraction_by_axis: float = 0.0  # the Phase 0 definition, for comparability
     overall_ap50: float = 0.0
     overall_p_at_f1: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return {"boundary_tokens": self.boundary_tokens,
                 "subtoken_fraction": self.subtoken_fraction,
+                "subtoken_fraction_by_axis": self.subtoken_fraction_by_axis,
                 "overall_ap50": self.overall_ap50,
                 "overall_p_at_f1": self.overall_p_at_f1,
                 "buckets": [b.to_dict() for b in self.buckets]}
@@ -70,8 +72,10 @@ class StratifiedReport:
         lines.append(f"  {'ALL':<20}{sum(b.n_targets for b in self.buckets):>9,}"
                      f"{'':>8}{100 * self.overall_ap50:>9.2f}%"
                      f"{100 * self.overall_p_at_f1:>8.2f}%")
-        lines.append(f"\n  sub-token targets: {100 * self.subtoken_fraction:.1f}% "
-                     f"(boundary = {self.boundary_tokens:g} visual token)")
+        lines.append(f"\n  sub-token targets: {100 * self.subtoken_fraction:.1f}% by area "
+                     f"(boundary = {self.boundary_tokens:g} visual token); "
+                     f"{100 * self.subtoken_fraction_by_axis:.1f}% narrower than one "
+                     f"token on an axis")
         return "\n".join(lines)
 
 
@@ -85,88 +89,144 @@ def box_area_in_tokens(box: Box, image_w: float, image_h: float,
     return max(0.0, width) * max(0.0, height) / (token_px * token_px)
 
 
-def is_subtoken(box: Box, resized_w: float, resized_h: float, token_px: float) -> bool:
+def is_subtoken_by_area(box: Box, resized_w: float, resized_h: float,
+                        token_px: float) -> bool:
+    """Area smaller than one visual token — the bucketing rule `PLAN.md` 4.5 specifies.
+
+    4.5 says "split by target-box **area**" and expects "roughly 23.9% of targets below
+    it". Measured on 7,158 RefChartQA training boxes at 512 px: **24.8%**. That match is
+    what confirms this is the intended definition.
+    """
+    return box_area_in_tokens(box, resized_w, resized_h, resized_w, resized_h,
+                              token_px) < 1.0
+
+
+def is_subtoken_by_axis(box: Box, resized_w: float, resized_h: float,
+                        token_px: float) -> bool:
     """Narrower than one token on **at least one axis** — the Phase 0 definition.
 
-    Area alone would call a 4×256 px sliver "two tokens" and hide it, when it is exactly
-    the target a token grid cannot localise. Kept identical to the definition used for the
-    Phase 0 sub-token measurements so the numbers stay comparable.
+    A different and much larger population: **66.7%** of the same 7,158 boxes, against
+    24.8% by area. Both are meaningful and they answer different questions. Area asks "is
+    there enough of this target for a token to be mostly inside it"; axis asks "can a
+    token grid resolve this target's narrow dimension at all" — a 4×256 px sliver has the
+    area of two tokens and still cannot be localised across its short side.
+
+    Kept because the Phase 0 sub-token analysis used it, and mixing the two definitions
+    would make those numbers incomparable. `PLAN.md` 4.5's buckets use area.
     """
     width = (box[2] - box[0]) / 1000.0 * resized_w
     height = (box[3] - box[1]) / 1000.0 * resized_h
     return width < token_px or height < token_px
 
 
+def _match(preds: Sequence[Box], gts: Sequence[Box],
+           iou_threshold: float = 0.5) -> list[int | None]:
+    """Greedy match in emitted order; returns the GT index each prediction took."""
+    from chartqa_dt.eval.metrics import iou
+
+    used: set[int] = set()
+    out: list[int | None] = []
+    for pred in preds:
+        best_j, best_iou = None, iou_threshold
+        for j, gt in enumerate(gts):
+            if j in used:
+                continue
+            v = iou(pred, gt)
+            if v >= best_iou:
+                best_iou, best_j = v, j
+        if best_j is not None:
+            used.add(best_j)
+        out.append(best_j)
+    return out
+
+
 def stratify(items: Iterable[Mapping[str, Any]], *, token_px: float = 32.0,
              boundary_tokens: float = 1.0) -> StratifiedReport:
-    """Bucket by target area and score each bucket independently.
+    """Bucket targets by area and score each bucket independently.
 
-    Each item is a mapping with ``pred_boxes``, ``gt_boxes`` (both normalised 0–1000),
-    and ``resized_size`` as ``(w, h)``.
+    Each item is a mapping with ``pred_boxes``, ``gt_boxes`` (both normalised 0–1000) and
+    ``resized_size`` as ``(w, h)``.
 
-    AP is computed **within** a bucket, over only the targets in it, because AP is a
-    dataset-level quantity: a per-item AP averaged across items is a different and less
-    meaningful number.
+    **Predictions are filtered with the targets, following COCO's area-range semantics.**
+    The obvious implementation — restrict the ground truths to a bucket but score every
+    prediction against them — is wrong, and visibly so: with *perfect* predictions it
+    reported 78% and 94% for the two buckets while the overall score was 100%, because a
+    prediction matching a large target became a false positive in the small-target bucket.
+
+    So for each bucket: keep the targets in it, keep the predictions that matched those
+    targets, and keep an unmatched prediction only if its **own** area falls in the
+    bucket. Targets outside the bucket are ignored rather than missed, exactly as COCO
+    ignores ground truths outside an area range.
+
+    AP is computed *within* a bucket over that bucket's targets, because AP is a
+    dataset-level quantity — averaging a per-item AP would be a different, less meaningful
+    number.
     """
     import numpy as np
 
     items = list(items)
-    buckets = {"sub-token": [], f"≥ {boundary_tokens:g} token": []}
-    areas: dict[str, list[float]] = {k: [] for k in buckets}
-    n_sub = n_total = 0
-
-    for idx, item in enumerate(items):
-        rw, rh = item.get("resized_size", (0, 0))
-        gts: Sequence[Box] = item.get("gt_boxes") or []
-        preds: Sequence[Box] = item.get("pred_boxes") or []
-        for gt in gts:
-            n_total += 1
-            sub = is_subtoken(gt, rw, rh, token_px)
-            n_sub += sub
-            key = "sub-token" if sub else f"≥ {boundary_tokens:g} token"
-            buckets[key].append((f"i{idx}", gt, preds))
-            areas[key].append(box_area_in_tokens(gt, rw, rh, rw, rh, token_px))
-
-    report = StratifiedReport(boundary_tokens=boundary_tokens)
-    for name, entries in buckets.items():
-        gt_map: dict[str, list[Box]] = {}
-        pred_list: list[tuple[str, float, Box]] = []
-        seen: set[str] = set()
-        pairs = []
-        for key, gt, preds in entries:
-            gt_map.setdefault(key, []).append(gt)
-            if key not in seen:
-                seen.add(key)
-                pred_list.extend((key, 1.0, b) for b in preds)
-        for key in gt_map:
-            preds = next(p for k, _g, p in entries if k == key)
-            pairs.append((list(preds), gt_map[key]))
-        bucket = Bucket(
-            name=name, n_targets=len(entries), n_items=len(gt_map),
-            ap50=average_precision_coco(pred_list, gt_map, 0.5) if entries else 0.0,
-            p_at_f1=(sum(grounding_is_perfect(p, g) for p, g in pairs) / len(pairs)
-                     if pairs else 0.0),
-            median_area_tokens=float(np.median(areas[name])) if areas[name] else 0.0,
-        )
-        report.buckets.append(bucket)
+    names = ("sub-token", f"≥ {boundary_tokens:g} token")
+    gt_maps: dict[str, dict[str, list[Box]]] = {n: {} for n in names}
+    pred_lists: dict[str, list[tuple[str, float, Box]]] = {n: [] for n in names}
+    pair_lists: dict[str, list[tuple[list, list]]] = {n: [] for n in names}
+    areas: dict[str, list[float]] = {n: [] for n in names}
+    n_sub = n_total = n_sub_axis = 0
 
     all_gt: dict[str, list[Box]] = {}
     all_pred: list[tuple[str, float, Box]] = []
-    all_pairs = []
+    all_pairs: list[tuple[list, list]] = []
+
     for idx, item in enumerate(items):
         key = f"i{idx}"
-        gts = list(item.get("gt_boxes") or [])
-        preds = list(item.get("pred_boxes") or [])
+        rw, rh = item.get("resized_size", (0, 0))
+        gts: list[Box] = list(item.get("gt_boxes") or [])
+        preds: list[Box] = list(item.get("pred_boxes") or [])
+
+        def bucket_of(box: Box, _w: float = rw, _h: float = rh) -> str:
+            return names[0] if is_subtoken_by_area(box, _w, _h, token_px) else names[1]
+
+        for gt in gts:
+            n_total += 1
+            sub = is_subtoken_by_area(gt, rw, rh, token_px)
+            n_sub += sub
+            n_sub_axis += is_subtoken_by_axis(gt, rw, rh, token_px)
+            name = names[0] if sub else names[1]
+            gt_maps[name].setdefault(key, []).append(gt)
+            areas[name].append(box_area_in_tokens(gt, rw, rh, rw, rh, token_px))
+
+        matched = _match(preds, gts)
+        for name in names:
+            kept = [p for p, m in zip(preds, matched)
+                    if (bucket_of(gts[m]) == name) if m is not None]
+            kept += [p for p, m in zip(preds, matched)
+                     if m is None and bucket_of(p) == name]
+            if kept or key in gt_maps[name]:
+                pred_lists[name].extend((key, 1.0, b) for b in kept)
+                pair_lists[name].append((kept, gt_maps[name].get(key, [])))
+
         if gts:
             all_gt[key] = gts
         all_pred.extend((key, 1.0, b) for b in preds)
         all_pairs.append((preds, gts))
+
+    report = StratifiedReport(boundary_tokens=boundary_tokens)
+    for name in names:
+        pairs = pair_lists[name]
+        report.buckets.append(Bucket(
+            name=name,
+            n_targets=sum(len(v) for v in gt_maps[name].values()),
+            n_items=len(gt_maps[name]),
+            ap50=average_precision_coco(pred_lists[name], gt_maps[name], 0.5),
+            p_at_f1=(sum(grounding_is_perfect(p, g) for p, g in pairs) / len(pairs)
+                     if pairs else 0.0),
+            median_area_tokens=float(np.median(areas[name])) if areas[name] else 0.0,
+        ))
+
     report.overall_ap50 = average_precision_coco(all_pred, all_gt, 0.5)
     report.overall_p_at_f1 = (sum(grounding_is_perfect(p, g) for p, g in all_pairs)
                               / len(all_pairs)) if all_pairs else 0.0
     report.subtoken_fraction = n_sub / n_total if n_total else 0.0
+    report.subtoken_fraction_by_axis = n_sub_axis / n_total if n_total else 0.0
     return report
 
 
-__all__ = ["EXPECTED_SUBTOKEN_FRACTION", "Bucket", "StratifiedReport",
-           "box_area_in_tokens", "is_subtoken", "stratify"]

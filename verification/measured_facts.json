@@ -273,6 +273,17 @@
       "relaxed_accuracy_cases": 423,
       "p_at_f1_disagreements": 0,
       "synthetic_ap_exact_agreement": "119/120 scenarios < 1e-6; worst 0.0019"
+    },
+    "stratification": {
+      "_method": "7,158 RefChartQA TRAIN boxes, resized to 512 px long side, token 32 px",
+      "subtoken_fraction_by_area_pct": 24.8,
+      "subtoken_fraction_by_axis_pct": 66.7,
+      "plan_4_5_expected_pct": 23.9
+    },
+    "extra_box_cost": {
+      "ap50_clean": 1.0,
+      "ap50_one_spurious_box_per_image": 0.68,
+      "_note": "Official torchmetrics path. Free within a single image when ranked last; expensive across a dataset because the official ties every score at 1.0."
     }
   }
 }

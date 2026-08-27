@@ -2445,3 +2445,111 @@ reproduce the number were never published.
 metrics agree with the official evaluator on a **real shared prediction set** of 11,690
 predictions, not just on synthetic cases — AP@0.5 differing by 0.000 (human), 0.068
 (machine) and 0.036 (pot) percentage points.
+
+---
+
+## 0053 — Our metrics are corrected to the official's behaviour, including its quirks
+
+**Date** 2026-08-27 · **Phase** 4.2 · **Status** adopted
+
+**Context.** `PLAN.md` Appendix D specifies the metric implementations and `PLAN.md` 4.2
+specifies what happens when they disagree with the official evaluators: *"the official one
+wins and you fix yours."* Implementing Appendix D verbatim and cross-checking it found
+three disagreements, all of them real.
+
+**Decision.** Match the official in every case, and keep the divergent behaviour visible
+rather than quietly correct.
+
+**1. `relaxed_correctness` — 61 disagreements in 423 cases, every one in our favour.**
+The canonical implementation is `google-research/pix2struct/pix2struct/metrics.py`, which
+the RefChartQA evaluator vendors verbatim. Appendix D adds two things it does not have:
+
+* **Comma stripping.** Appendix D reads `"1,234"` as 1234.0; the official calls plain
+  `float(text)`, which raises, so `"1,234"` is a *string* and matches only another
+  `"1,234"`.
+* **An explicit zero guard.** Appendix D tests `if t == 0`; the official tests
+  `if prediction_float is not None and target_float` — a **truthiness** test, so a gold
+  answer of `"0"` is falsy and the whole comparison falls through to string equality.
+  Hence `"0"` vs `"0"` is correct and `"0"` vs `"0.0"` is **not** (`DECISIONS.md` 0015).
+
+The official also does not `.strip()`, so `" Yes "` fails against `"Yes"`. Rather than
+loosen the shared metric, `normalise_prediction` tidies model output *before* scoring —
+one visible place in the pipeline, leaving the metric identical to everyone else's.
+
+Being more generous would have inflated every number relative to the published literature
+while looking like an improvement.
+
+**2. AP@0.5 — Appendix D uses the wrong interpolation.** The official evaluator calls
+`torchmetrics.MeanAveragePrecision`, which is COCO 101-point interpolation via
+`pycocotools`, not the all-point rule Appendix D implements. Measured difference: up to
+0.009 AP. `average_precision_coco` matches; Appendix D's version is retained under its own
+name so the gap stays measurable.
+
+**3. P@F1 is not an F1.** The official helper is named `is_image_grounding_correct` and its
+docstring claims "F_1 score = 1.0". It computes COCO AP on the single image and tests
+`map == 1.0`, which is a different predicate. Characterised against the vendored code:
+
+| predictions, in emitted order | official |
+|---|---|
+| true box only | correct |
+| true box, then one or two spurious | **correct** |
+| spurious box, then the true one | wrong |
+| true, spurious, true (2 targets) | wrong |
+| one of two targets found | wrong |
+
+So: **every target matched, and every false positive ranked after every true positive.**
+Trailing extras are free; a leading one is fatal. One measured case scored F1 = 0.667 and
+*correct* officially. `grounding_is_perfect` reproduces the predicate; `f1_of_boxes` keeps
+the actual F1 as a diagnostic that is never reported.
+
+**This sharpens `DECISIONS.md` 0014.** "Emit few boxes, best first" is right, and the two
+halves are enforced by different metrics: P@F1 punishes *ordering* (a spurious box before a
+true one is fatal) while AP punishes *count* (one spurious box per image took AP from 1.00
+to 0.68 across a dataset, though it is free within a single image).
+
+**Consequences.** Agreement is now: 0 of 423 relaxed-accuracy cases disagree, 0 of 40 P@F1
+scenarios, and AP matches to under 1e-6 on 119 of 120 randomised scenarios. On the **real**
+prediction set of 11,690 rows, AP differs by 0.000, 0.068 and 0.036 percentage points
+across the three subsets.
+
+One residual remains and is reported rather than fitted: a single randomised scenario in
+120 differs by 0.0019, in whether the highest recall threshold is included. A float32
+storage hypothesis was tried and made agreement **worse** — 112 of 120 instead of 119 — so
+it was reverted. No reported number depends on it: `DECISIONS.md` 0003 keeps the official
+evaluator as the scorer of record, and ours exists for the stratified analysis and
+confidence intervals it cannot produce.
+
+---
+
+## 0054 — Stratified buckets split by target AREA, and filter predictions with them
+
+**Date** 2026-08-27 · **Phase** 4.5 · **Status** adopted
+
+**Context.** `PLAN.md` 4.5 asks for AP split by target-box area at a one-visual-token
+boundary, and predicts "roughly 23.9% of targets below it". Phase 0 had measured a
+sub-token fraction of 53.2% using a different rule, and the gap needed resolving before
+either number could be reported.
+
+**Decision.** Two definitions, both kept, each used where it belongs. Measured on 7,158
+RefChartQA **training** boxes at 512 px (rule 1: not validation, not test):
+
+| definition | fraction |
+|---|---:|
+| target **area** below one token² — `PLAN.md` 4.5's bucketing rule | **24.8%** |
+| narrower than one token on **at least one axis** — the Phase 0 rule | 66.7% |
+
+24.8% against a predicted 23.9% confirms area is what 4.5 means. The axis rule is not
+redundant: a 4 × 256 px sliver has the area of two tokens and still cannot be localised
+across its short side, so it answers a different question and stays in the report.
+
+**Consequences.** The first implementation restricted *targets* to a bucket but
+scored *every* prediction against them, so a prediction matching a large target became a
+false positive in the small-target bucket. With perfect predictions it reported 78% and
+94% per bucket while the overall score was 100% — a number that would have been reported
+as a finding about small targets.
+
+Buckets now follow COCO's area-range semantics: keep the targets in the bucket, keep the
+predictions that matched them, and keep an unmatched prediction only if its own area falls
+in the bucket. Targets outside a bucket are *ignored*, not missed.
+`test_perfect_predictions_score_one_in_every_bucket` guards it — the invariant is simply
+that a perfect prediction set scores 100% in *every* stratum, not only overall.
