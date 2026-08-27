@@ -368,3 +368,66 @@ def test_the_measured_512_sessions_bracket_the_recorded_projection():
         f"projection {p2['projected_full_run_hours']} h sits outside the measured "
         f"range {min(sessions)}–{max(sessions)} h"
     )
+
+
+def test_split_totals_match_the_upstream_totals():
+    d = FACTS["datasets"]
+    assert sum(d["refchartqa_splits"].values()) == 73_702, "RefChartQA README total"
+    assert d["chartqa_splits"]["train"] == 28_299
+
+
+def test_mining_counts_follow_from_the_yields():
+    """A yield and a count that disagree mean one was updated and the other was not."""
+    p3 = FACTS["phase3"]
+    for kind, questions in (("human", 7_398), ("machine", 20_901)):
+        implied = p3["mining_yield_pct"][kind] / 100 * questions
+        assert implied == pytest.approx(p3["mining_mined_counts"][kind], abs=2), (
+            f"{kind}: {p3['mining_yield_pct'][kind]}% of {questions:,} is {implied:.0f}, "
+            f"but the file records {p3['mining_mined_counts'][kind]:,}"
+        )
+    assert sum(p3["mining_mined_counts"][k] for k in ("human", "machine")) == \
+        p3["mining_mined_counts"]["all"]
+
+
+def test_level_b_deltas_follow_from_their_operands():
+    lb = FACTS["phase4"]["level_b_reproduction"]
+    for subset, delta in lb["delta"].items():
+        implied = (lb["official_ap50_on_example_file"][subset]
+                   - lb["published_ap50"][subset])
+        assert implied == pytest.approx(delta, abs=0.02), subset
+    assert lb["reproduces_32_83"] is False, (
+        "if this ever becomes True, DECISIONS.md 0052 and PLAN.md 4.4 must change with it"
+    )
+
+
+def test_mixture_components_sum_to_their_totals():
+    for stage in ("stage1", "stage2"):
+        s = FACTS["phase3"]["mixtures"][stage]
+        parts = sum(s.get(k, 0) for k in ("synthetic", "chartqa", "refchartqa"))
+        assert parts == s["total"], f"{stage}: components {parts} != total {s['total']}"
+        assert s["compositional"] <= s["with_plan"] <= s["total"], (
+            f"{stage}: a compositional plan is a plan, and a plan needs a record"
+        )
+        assert s["with_boxes"] <= s["total"]
+
+
+def test_coverage_percentages_are_bounded_by_their_parts():
+    cov = FACTS["phase3"]["element_box_coverage_pct"]
+    parts = [v for k, v in cov.items() if k != "overall"]
+    assert min(parts) <= cov["overall"] <= max(parts)
+    assert all(0.0 <= v <= 100.0 for v in cov.values())
+
+
+def test_the_two_subtoken_definitions_stay_distinct():
+    """They measure different things (24.8% by area, 66.7% by axis, `DECISIONS.md` 0054).
+
+    If these ever converge, one of them has been redefined and the Phase 0 comparison
+    numbers are no longer comparable.
+    """
+    s = FACTS["phase4"]["stratification"]
+    assert s["subtoken_fraction_by_axis_pct"] > s["subtoken_fraction_by_area_pct"]
+    assert s["subtoken_fraction_by_area_pct"] == \
+        pytest.approx(s["plan_4_5_expected_pct"], abs=2.0), (
+            "the area fraction is what confirms PLAN 4.5's bucketing rule; a drift of "
+            "more than 2 points means the definition moved"
+        )
