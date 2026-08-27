@@ -1674,3 +1674,67 @@ Two figures deserve emphasis because they invert the plan's expectations. **Memo
 (5.6 GiB of 13.5) and **time is what binds** — the Phase 2 fallback ladder's first two rungs are both
 memory levers and neither was ever the right tool. And the sharded measurements taken earlier
 understated memory by 3.8×, so any figure from before decision 0025 is not comparable.
+
+---
+
+## 0036 — 2026-08-27 — The backbone choice re-examined against the 2026 field, and confirmed
+
+**Context.** Ahmed asked whether Qwen3-VL-2B-Instruct is genuinely the best choice or merely the one
+`IDEA.md` proposed. My knowledge cutoff predates today, so the field was searched rather than
+recalled.
+
+**Options actually considered, with what each turned out to be.**
+
+| candidate | what it is | verdict |
+|---|---|---|
+| **Qwen3-VL-4B-Instruct** | same architecture, same coordinate system, ChartQA **84.6** | **rejected — the higher baseline is a liability** |
+| **Qwen3-VL-8B-Instruct** | Apache-2.0, ChartQA 89.6, ~6 GB at Q4 | rejected on **time**, not memory |
+| **NVIDIA LocateAnything-3B** (June 2026) | grounding specialist, parallel box decoding | rejected — wrong shape of model, and `license: other` |
+| **Moondream 3** | 9B MoE, 2B active, detection-oriented | rejected — `custom_code`, no ChartQA baseline, 9B resident |
+| **Qwen3-VL-2B-Instruct** | ChartQA 79.1, Apache-2.0, native 0–1000 boxes | **retained** |
+
+**Evidence and reasoning.**
+
+**The 4B is the interesting rejection, because it looks like an upgrade.** Its published ChartQA is
+84.6 against the 2B's 79.1. But `IDEA.md` §2 states the rule that produced this entire project:
+
+> *Pick a task where the model is bad **before** training, so that the improvement is unambiguously
+> your own work.*
+
+A backbone that starts 5.5 points higher makes the mandatory before/after result **harder** to
+demonstrate, not easier. On the metric that is already near-saturated, a stronger starting point is a
+liability. The 2B's weaker baseline is a feature of the design, not a compromise. Time is the
+secondary objection: roughly 2× the step cost puts a full run at ~20 h, exactly at the revised gate.
+
+**The 8B fails on time, and it is worth being precise about why**, because `IDEA.md` §7 lists it as
+fallback rank 3 with "only if memory allows". Memory does allow — Q4 weights are about 6 GB against a
+measured 5.57 GB peak for the 2B and a 13.5 GB ceiling. But at roughly 4× the per-step cost a full run
+is near 40 hours, against a 30-hour weekly quota. The constraint that rejects it is not the one the
+plan anticipated.
+
+**LocateAnything-3B is the most interesting candidate and the clearest rejection.** Its config
+exposes `box_start_token_id`, `coord_start_token_id`, `ref_end_token_id`, `none_token_id` — it is
+architecturally a *detector*, built to emit coordinates through dedicated tokens. This project needs
+one model to emit, in a single record, an answerability flag, evidence boxes with labels and units, a
+**nested typed program**, and an answer. `IDEA.md` §1 is explicit that the halves are inseparable:
+
+> The plan references the evidence ... and the evidence is only selected because the question asked
+> for it. Neither half is separable.
+
+Bolting a detector to a separate language model would be a two-model architecture and a different
+project — and would forfeit the error decomposition in Phase 9.1, which exists precisely because one
+model produces both. Its licence is `nvidia-license`, not Apache-2.0, which also sits badly with a
+project that has a publication checklist.
+
+**Decision.** Retain **Qwen3-VL-2B-Instruct**. Phase 2's selection stands, now on comparative evidence
+rather than on the plan's say-so.
+
+**Consequences.** Two things worth recording for the report. First, the 4B analysis makes the
+project's founding logic concrete: there is a real, available model that scores better and is worse
+for this purpose, which is a cleaner illustration of the saturation argument than any citation.
+Second, `IDEA.md` §7's fallback ladder ranks the 8B on memory; the measured constraint is time, so if
+the ladder is ever descended the ordering should be re-derived rather than followed.
+
+Also settled, since it was asked: **no relevant skills and no relevant MCP connectors exist.** Both
+registries were searched — pytorch, transformers, vision-language models, LoRA, Hugging Face, Kaggle,
+arXiv, documentation — and both returned nothing. There is no packaged expertise to lean on here.
