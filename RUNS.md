@@ -14,9 +14,11 @@ times in this table to track consumption against Kaggle's ~30 GPU-hours per week
 | 6 | 2026-08-26 | Kaggle **P100** | 3 steps @512 | 0.5 min | — | **ERROR (by design)** | P100 again — `machine_shape: "gpu_t4x2"` was accepted and silently ignored. The new architecture check caught it in twenty seconds. Correct values are `NvidiaTeslaT4` / `NvidiaTeslaP100` / `Tpu1VmV38` (decision 0020). |
 | 7 | 2026-08-26 | Kaggle **T4** | 3 steps @512, no resume test | 3 min | 1.48 | **COMPLETE** | First fully working run. Path validated end to end; every guard fired correctly (dtype substitution, quantisation skip, LoRA both sides). |
 | 8 | 2026-08-26 | Kaggle T4 | **100 steps** @512 + @native, with resume | 25 min | 1.48 | **partial** | 512 arm completed 100 steps and passed every gate; resume failed on `KeyError: 'exp_avg'`, native arm failed before training. Both bugs were ours — decision 0021. |
-| 9 | 2026-08-26 | Kaggle T4 | 100 steps @512 + @native, with resume | _running_ | | | Re-run with both fixes. |
+| 9 | 2026-08-26 | Kaggle T4 | 100 steps @512 + @native, with resume | 20 min | — | **ERROR** | **Ran stale code.** Dataset version 10 uploaded at 17:56:05; kernel started 17:56:07 and Kaggle attached version 9. Reproduced two already-fixed bugs exactly. Fixed by a code fingerprint the kernel verifies before doing anything (decision 0024). |
+| 10 | 2026-08-27 | Kaggle T4 ×2 | 100 steps @512 + @native, with resume | 25 min | 1.75* | **partial** | Fingerprint gate confirmed current code. 512 arm ran 100 steps; native arm crashed. Root cause: `device_map="auto"` sharded the model across **two** T4s — explaining the crash, a +52% step-time penalty, and a memory figure measuring only device 0 (decision 0025). *Peak is therefore an undercount. |
+| 11 | 2026-08-27 | Kaggle T4 (pinned) | 100 steps @512 + @native, with resume | _running_ | | | First run with single-device pinning, all-device memory accounting, and the sharding gate. |
 
-**Total GPU time so far: ~0.9 h** of the ~30 h weekly quota.
+**Total GPU time so far: ~1.6 h** of the ~30 h weekly quota.
 
 Runs 1–3 and 6 cost under a minute each because the failure was caught by a cheap gate rather than
 discovered after a download. That is the entire argument for
@@ -28,17 +30,22 @@ run 8 cost twenty-five for two bugs that local tests now catch in milliseconds.
 | Item | Spent | Cap |
 |---|---:|---:|
 | Paid compute | **USD 0.00** | USD 20.00 (interruption contingency only — rule 9) |
-| Kaggle GPU hours this week | **~0.9 h** | ~30 h |
+| Kaggle GPU hours this week | **~1.6 h** | ~30 h |
 | Committed ahead (Phases 5–7) | ~17 h | — |
 
 ## Phase 2 gates (IDEA.md §14, PLAN.md Appendix F)
+
+**Note:** the figures below come from run 8, which is now known to have been **sharded across two
+T4s** (decision 0025). Memory is an undercount and step time carries a ~52% inter-GPU penalty. They
+are retained because they establish that the pipeline trains at all; the authoritative single-card
+measurement is run 11.
 
 Measured on run 8, `hf_peft` backend, 512-pixel budget, 100 optimizer steps, Tesla T4:
 
 | Gate | Threshold | Measured | Status |
 |---|---|---|---|
-| Peak reserved memory | ≤ 13.5 GiB | **1.482 GiB** | **pass**, with an order of magnitude to spare |
-| Projected full run (3,000 steps) | ≤ 10 h | **7.22 h** | **pass** |
+| Peak reserved memory | ≤ 13.5 GiB | 1.482 GiB (device 0 only — undercount) | provisional |
+| Projected full run (3,000 steps) | ≤ 10 h | 7.22 h, vs 10.94 h on run 10 | **unresolved — the two straddle the gate** |
 | LoRA trainable on both sides | non-zero by name and count | **7,208,960 vision / 17,432,576 language**, 0 unclassified | **pass** |
 | No NaN | — | none over 100 steps | **pass** |
 | Loss decreasing | — | **2.879 → 0.968** | **pass** |
