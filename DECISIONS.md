@@ -1499,3 +1499,62 @@ and it reported 6% ink. The detector was right: the box clipped the top of the t
 case was wrong. The blank region is now **derived from the bar geometry** rather than chosen by
 inspection — which is the same lesson as everywhere else in this project, applied to a test rather
 than to production code: **do not eyeball a value you can compute.**
+
+---
+
+## 0033 — 2026-08-27 — Resume verified; micro-batch grouping exhausted; the 10-hour gate is a coin toss at 512 pixels
+
+**Context.** Run 12 tested two things at once: whether the RNG-state fix (0026) repairs the resume
+check, and whether regrouping the pre-registered effective batch buys enough time margin to clear the
+10-hour gate at 512 pixels.
+
+**Evidence — resume, and a confirmed prediction.**
+
+| | resume delta | verified |
+|---|---:|---|
+| run 11, before the RNG fix | 0.0438 / 0.0488 | **no** |
+| run 12, after the fix | **0.0053 / 0.0018 / 0.0014** | **yes**, all three arms |
+
+A 10–30× reduction against a `1e-2` tolerance. Before run 11 finished I recorded the prediction that
+it would still fail because it launched before the fix; it did, and run 12 closes it. The diagnosis in
+0026 — unrestored dropout masks, not numerical drift — is now confirmed rather than plausible.
+**`PLAN.md` 6.3's kill-and-resume requirement is satisfied**, on a checkpoint carrying adapter
+weights, optimizer state and RNG states.
+
+**Evidence — micro-batch grouping.**
+
+| grouping | peak GB | s/step | projected | memory cost | time gain |
+|---|---:|---:|---:|---:|---:|
+| 2×4 | 5.65 | 12.64 | 10.53 h | — | — |
+| 4×2 | 7.29 | 12.29 | 10.24 h | +29% | −2.8% |
+| 8×1 | **10.87** | 11.95 | **9.96 h** | **+92%** | −5.5% |
+
+**Decision.** The grouping stays at the pre-registered **2×4**. Regrouping buys 5.5% of time for 92%
+more memory and pushes peak to 10.87 GB against a 13.5 GB ceiling — spending nearly all the memory
+headroom for a gain smaller than the noise. The lever is real but empty.
+
+**The finding that matters more than either result.** Run-to-run variance on *identical*
+configuration is larger than the effect being measured:
+
+* the same 512px / 2×4 arm measured **11.90 s/step** in run 11 and **12.64** in run 12 — **6% apart**;
+* the entire spread across three groupings is **5.5%**.
+
+So "9.96 h passes a 10-hour gate" is not a measurement of anything. Both figures are draws from a
+distribution centred near the gate. Reporting either as a pass or a fail would be reporting the toss.
+
+**Consequences.** Three honest options remain, and the next run decides between them on evidence
+rather than preference:
+
+1. **448 pixels**, the plan's own next fallback rung — 176 visual tokens against 247, so roughly 30%
+   faster and real margin. It costs the metric this project exists to move: the sub-token fraction
+   worsens from 53.2% to 60.5%.
+2. **Accept ≈10 h at 512 pixels.** Kaggle's session ceiling is ~12 hours, not 10, and resume is now
+   *verified working* — so a run that overruns is recoverable rather than lost. The 10-hour figure is
+   a self-imposed margin, and the thing it protects against has just been given a safety net.
+3. **Reduce the step budget**, which is a pre-registration deviation and the least attractive.
+
+Option 2 deserves stating plainly rather than being assumed away: the gate's purpose is that a run can
+finish, and verified resume changes what "can finish" means. But redefining a gate after seeing the
+number it failed is exactly the move this project forbids elsewhere, so it is not taken unilaterally.
+The next run measures 448 against 512 directly, and the choice is then made with both numbers and the
+sub-token cost visible.
