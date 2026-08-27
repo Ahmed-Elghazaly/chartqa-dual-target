@@ -87,5 +87,21 @@
     "omoured/RefChartQA": "c6b6504adb96cf72f0852a5f73ba4c62b718f843",
     "ahmed-masry/ChartQAPro": "e27c2874825874d6767d2bbc538ed4f0dc2c64c2",
     "Qwen/Qwen3-VL-2B-Instruct": "89644892e4d85e24eaac8bacfd4f463576704203"
+  },
+  "sequence_budget": {
+    "_purpose": "Measured token costs for the structured output, so Phase 5 prompt design and the max_seq_len setting rest on measurement rather than estimation.",
+    "_measured": "2026-08-27, Qwen3VLProcessor / Qwen2Tokenizer, Qwen3-VL-2B-Instruct",
+    "max_seq_len": 1024,
+    "chat_wrapper_tokens": 20,
+    "record_compact_tokens": 141,
+    "record_pretty_tokens": 253,
+    "record_schema_maximum_tokens": 399,
+    "total_512px": 482,
+    "total_native": 660,
+    "worst_case_512px": 740,
+    "pad_token_id": 151643,
+    "eos_token_id": 151645,
+    "_pretty_printing_penalty": "pretty-printed JSON costs 80% more tokens than compact (253 vs 141) for identical content. The prompt must demand compact.",
+    "_pad_is_not_eos": "pad 151643 != eos 151645, so masking pad tokens does not mask the stop token - the model must still learn to emit <|im_end|>."
   }
 }

@@ -251,3 +251,38 @@ def test_pinned_model_matches_the_configured_backbone():
         "the configured backbone must have a pinned revision"
     )
     assert Config().model.hf_id == FACTS["model"]["hf_id"]
+
+
+# ------------------------------------------------------- sequence budget
+
+
+def test_the_structured_record_fits_the_sequence_budget():
+    """Measured, not estimated. If any of these stop holding, Phase 5's prompt
+    design or max_seq_len must change before training, not after."""
+    b = FACTS["sequence_budget"]
+    assert b["total_512px"] < b["max_seq_len"], "the planned configuration must fit"
+    assert b["worst_case_512px"] < b["max_seq_len"], (
+        "even a full 8-item evidence list must fit, or the schema's own maximum is unreachable"
+    )
+    assert b["total_native"] < b["max_seq_len"], "native must fit too, for the Phase 8.3 ablation"
+
+
+def test_compact_json_is_materially_cheaper_than_pretty():
+    """The prompt must demand compact output; the penalty is large enough to matter."""
+    b = FACTS["sequence_budget"]
+    assert b["record_pretty_tokens"] > 1.5 * b["record_compact_tokens"], (
+        "if pretty-printing were nearly free, the compactness instruction could be dropped"
+    )
+
+
+def test_pad_and_eos_are_different_tokens():
+    """build_batch masks pad tokens. If pad were eos, that would also mask the
+    stop token and the model would never learn to terminate."""
+    b = FACTS["sequence_budget"]
+    assert b["pad_token_id"] != b["eos_token_id"]
+
+
+def test_sequence_budget_matches_the_model_config():
+    from chartqa_dt.config import Config
+
+    assert Config().model.max_seq_len == FACTS["sequence_budget"]["max_seq_len"]
