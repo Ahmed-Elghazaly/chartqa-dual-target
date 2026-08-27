@@ -285,5 +285,38 @@
       "ap50_one_spurious_box_per_image": 0.68,
       "_note": "Official torchmetrics path. Free within a single image when ranked last; expensive across a dataset because the official ties every score at 1.0."
     }
+  },
+  "phase5": {
+    "reproducible_anchors": {
+      "_finding": "The two halves of this project have very different anchor quality, and it is worth stating before any number is produced.",
+      "chartqa_answer": {
+        "published": 79.1,
+        "source": "arXiv 2511.21631 Table 4, Qwen3-VL 2B Instruct, ChartQA_test",
+        "checkpoint_public": true,
+        "checkpoint": "Qwen/Qwen3-VL-2B-Instruct",
+        "prompt_documented": true,
+        "evaluator_vendored": true,
+        "claim_level": "B \u2014 reproducible: number, exact checkpoint, exact prompt and verified evaluator all available"
+      },
+      "refchartqa_grounding": {
+        "published": 32.83,
+        "checkpoint_public": false,
+        "predictions_public": false,
+        "alternative_public_grounding_checkpoints": 0,
+        "claim_level": "C \u2014 cited, not reproducible by anyone (DECISIONS.md 0052)"
+      }
+    },
+    "frozen_slices": {
+      "chartqa_variant_200": {
+        "n": 200,
+        "sha256_prefix": "f2fbf013994d5759",
+        "purpose": "PLAN 5.2 variant selection, balanced"
+      },
+      "chartqa_val": {
+        "n": 1920,
+        "sha256_prefix": "34e889ed16b6899b",
+        "purpose": "PLAN 5.3 zero-shot ChartQA"
+      }
+    }
   }
 }
