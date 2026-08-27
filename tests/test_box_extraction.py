@@ -106,3 +106,65 @@ def test_y_axis_is_flipped_into_image_coordinates(rendered):
 
 def test_the_proof_script_passes_end_to_end():
     assert prove.main() == 0
+
+
+# ---------------------------------------- line, pie and scatter (PLAN.md 3.5)
+
+all_types = pytest.importorskip("prove_box_extraction_all_types")
+
+
+def test_line_vertex_boxes_are_exact():
+    """`Line2D.get_window_extent()` covers the whole polyline, which is not what
+    grounding needs; a per-vertex box comes from `transData.transform` plus the
+    marker radius. A disc inscribed in its bounding square fills pi/4 = 78.5%, so
+    a correct box lands near that — too high means the box is too small, too low
+    means it is too large or misplaced."""
+    assert all_types.prove_line() == []
+
+
+def test_pie_wedge_boxes_contain_and_are_tight():
+    """A wedge is a sector, so its bounding box necessarily includes background
+    and slivers of neighbours. 'No other colour inside' would be wrong by
+    construction; containment plus tightness is the correct pair."""
+    assert all_types.prove_pie() == []
+
+
+def test_scatter_marker_boxes_use_points_squared():
+    """`s` is an AREA in points squared, so diameter is sqrt(s) points. Treating
+    `s` as a diameter would make every scatter box far too large, and the box
+    would still contain its marker — which is why the check has an upper bound."""
+    assert all_types.prove_scatter() == []
+
+
+def test_points_to_pixels_conversion():
+    """72 points per inch, dpi pixels per inch. Guessing this is how marker boxes
+    end up plausible and wrong."""
+    assert all_types.prove_points_to_pixels() == []
+    assert all_types.points_to_pixels(72, 100) == pytest.approx(100.0)
+    assert all_types.points_to_pixels(10, 100) == pytest.approx(13.888888888888889)
+
+
+def test_a_scatter_box_that_is_too_small_would_be_rejected():
+    """Guards the guard: the upper bound must actually bite."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    colour = (150, 40, 160)
+    fig, ax = plt.subplots(figsize=(6, 4), dpi=100)
+    ax.scatter([3.0], [50.0], s=400.0, c=[tuple(c / 255 for c in colour)])
+    ax.set_xlim(0, 6)
+    ax.set_ylim(0, 100)
+    img = all_types.render_rgb(fig)
+    correct = all_types.scatter_point_box(fig, ax, (3.0, 50.0), 400.0)
+    plt.close(fig)
+
+    w = correct[2] - correct[0]
+    h = correct[3] - correct[1]
+    too_small = (correct[0] + 0.3 * w, correct[1] + 0.3 * h,
+                 correct[2] - 0.3 * w, correct[3] - 0.3 * h)
+    assert all_types.fraction_inside(img, too_small, colour) > 0.90, (
+        "a box entirely inside the marker should be ~100% marker colour, "
+        "which is exactly why the scatter check has an upper bound"
+    )
