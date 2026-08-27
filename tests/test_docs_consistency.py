@@ -304,3 +304,67 @@ def test_the_machine_subset_is_the_hardest_to_ground():
     must account for geometry rather than reading it as model weakness."""
     s = FACTS["subtoken"]["by_subset_512"]
     assert s["machine"] > s["human"] > s["pot"]
+
+
+# ------------------------------------------------ the facts file's own consistency
+#
+# `measured_facts.json` is the single source of truth, and the tests above check that the
+# prose agrees with it. That is not enough: a single source of truth can be *consistently
+# wrong*, and it was. `phase2.peak_reserved_gb` carried 1.482 GB — a superseded figure
+# from a sharded run where `max_memory_reserved()` read device 0 alone and understated the
+# footprint ~3.8x (`DECISIONS.md` 0025). Every document agreed with it, so every document
+# was wrong together, and it would have gone into `PREREGISTRATION.md`.
+#
+# The guard is not more agreement. It is checking relationships the numbers must satisfy
+# on physical grounds, which a stale value breaks.
+
+
+def test_more_pixels_cost_more_memory_and_more_time():
+    """A resolution that renders more visual tokens cannot be cheaper on both axes."""
+    p2 = FACTS["phase2"]
+    at_448 = p2.get("_measured_at_448") or {}
+    native = p2.get("_measured_native") or {}
+
+    if at_448:
+        assert p2["peak_reserved_gb"] > at_448["peak_gb"], (
+            f"512 px reports {p2['peak_reserved_gb']} GB against 448 px's "
+            f"{at_448['peak_gb']} GB — a larger image cannot use less memory. This is "
+            f"how the superseded sharded-run figure was found."
+        )
+    if native:
+        assert native["peak_gb"] > p2["peak_reserved_gb"]
+        assert native["seconds_per_step"] > p2["seconds_per_step"]
+        assert native["visual_tokens"] > p2["visual_tokens_512"]
+
+
+def test_projected_hours_follow_from_the_step_time():
+    """3,000 steps at the recorded rate must give the recorded projection."""
+    p2 = FACTS["phase2"]
+    implied = 3000 * p2["seconds_per_step"] / 3600
+    assert implied == pytest.approx(p2["projected_full_run_hours"], rel=0.02), (
+        f"{p2['seconds_per_step']} s/step over 3,000 steps is {implied:.2f} h, "
+        f"but the file records {p2['projected_full_run_hours']} h"
+    )
+
+
+def test_superseded_measurements_are_labelled_not_deleted():
+    """History stays legible, but a superseded number must not sit in a live field."""
+    p2 = FACTS["phase2"]
+    old = p2.get("_superseded_sharded_run")
+    if old is None:
+        pytest.skip("no superseded run recorded")
+    assert "_why" in old, "a superseded number needs the reason it was superseded"
+    for key in ("peak_reserved_gb", "seconds_per_step", "projected_full_run_hours"):
+        assert p2[key] != old[key], f"{key} still carries the superseded value"
+
+
+def test_the_measured_512_sessions_bracket_the_recorded_projection():
+    """Three independent sessions measured this; the headline must sit among them."""
+    p2 = FACTS["phase2"]
+    sessions = p2.get("_measured_at_512_three_sessions_hours")
+    if not sessions:
+        pytest.skip("no per-session measurements recorded")
+    assert min(sessions) <= p2["projected_full_run_hours"] <= max(sessions) + 0.75, (
+        f"projection {p2['projected_full_run_hours']} h sits outside the measured "
+        f"range {min(sessions)}–{max(sessions)} h"
+    )

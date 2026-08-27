@@ -267,6 +267,110 @@ def format_variant_table(table: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def stage_chartqa(args) -> dict[str, Any]:
+    """`PLAN.md` 5.3 — zero-shot ChartQA on validation, structured and plain.
+
+    Both prompts on the same items. The plain arm is the published elicitation, so the
+    gap between them is "what structured output costs" measured against the number the
+    published 79.1 came from, with nothing else varying.
+    """
+    from chartqa_dt.eval.generate import generate_over, write_generations
+    from chartqa_dt.eval.runner import evaluate_predictions, score_item, write_results
+
+    reader = chartqa_reader()
+    rows = attach_images(reader, load_slice("chartqa_val"))
+    if args.limit:
+        rows = rows[:args.limit]
+    loaded = load_model(args.variant)
+
+    report: dict[str, Any] = {"variant": args.variant, "n": len(rows), "arms": {}}
+    for mode in ("structured", "plain"):
+        gens, rep = generate_over(loaded, rows, mode=mode)
+        write_generations(gens, out_dir() / f"chartqa_val_{mode}.jsonl")
+        items = [score_item(r["record_id"], r["answer"], g.answer,
+                            subset=r["question_kind"])
+                 for r, g in zip(rows, gens)]
+        result = evaluate_predictions(items, seeds=[0, 1, 2], ap_resamples=1)
+        write_results(result, out_dir() / f"chartqa_val_{mode}.json",
+                      meta={"variant": args.variant, "mode": mode,
+                            "slice": "chartqa_val",
+                            "valid_json_fraction": rep.parse.valid_fraction})
+        report["arms"][mode] = {
+            "relaxed_accuracy": result.relaxed_accuracy.mean,
+            "ci": [result.relaxed_accuracy.lo, result.relaxed_accuracy.hi],
+            "by_subset": {k: v["relaxed_accuracy"] for k, v in result.by_subset.items()},
+            "valid_json_fraction": rep.parse.valid_fraction if mode == "structured" else 1.0,
+            "median_latency_s": rep.median_latency,
+        }
+        print(f"\n{mode}: {result.relaxed_accuracy.as_percent}", flush=True)
+
+    a, b = report["arms"]["structured"], report["arms"]["plain"]
+    report["structured_output_cost_points"] = 100 * (b["relaxed_accuracy"]
+                                                     - a["relaxed_accuracy"])
+    report["published_plain_reference"] = 79.1
+    (out_dir() / "chartqa_zeroshot.json").write_text(json.dumps(report, indent=2) + "\n")
+    print(f"\nstructured costs {report['structured_output_cost_points']:+.2f} points "
+          f"against the plain prompt")
+    print(f"plain arm {100 * b['relaxed_accuracy']:.2f}% vs published 79.1 "
+          f"(same checkpoint, same prompt — this is a Level B reproduction check)")
+    return report
+
+
+def stage_refchartqa(args) -> dict[str, Any]:
+    """`PLAN.md` 5.4 — zero-shot grounding. The measurement that decides the framing."""
+    from chartqa_dt.eval.generate import generate_over, write_generations
+    from chartqa_dt.eval.metrics import average_precision_coco, p_at_f1
+    from chartqa_dt.eval.runner import evaluate_predictions, score_item, write_results
+    from chartqa_dt.eval.stratified import stratify
+    from chartqa_dt.vision.coords import clamp_for_official_evaluator
+
+    rows = refchartqa_val(args.refchartqa_n)
+    if args.limit:
+        rows = rows[:args.limit]
+    loaded = load_model(args.variant)
+    gens, rep = generate_over(loaded, rows, mode="structured")
+    write_generations(gens, out_dir() / "refchartqa_val.jsonl")
+
+    preds: list[tuple[str, float, list[float]]] = []
+    gts: dict[str, list[list[float]]] = {}
+    pairs = []
+    items = []
+    strat = []
+    for row, gen in zip(rows, gens):
+        key = row["record_id"]
+        boxes = [list(map(float, clamp_for_official_evaluator(b))) for b in gen.boxes]
+        gt = row["gt_boxes"]
+        if gt:
+            gts[key] = gt
+        preds.extend((key, 1.0, b) for b in boxes)
+        pairs.append((boxes, gt))
+        items.append(score_item(key, row["answer"], gen.answer,
+                                pred_boxes=boxes, gt_boxes=gt,
+                                subset=row["question_kind"]))
+        w, h = row["image_size"]
+        scale = 512 / max(w, h)
+        strat.append({"pred_boxes": boxes, "gt_boxes": gt,
+                      "resized_size": (w * scale, h * scale)})
+
+    result = evaluate_predictions(items, seeds=[0, 1, 2], ap_resamples=200)
+    report_strat = stratify(strat)
+    write_results(result, out_dir() / "refchartqa_zeroshot.json",
+                  meta={"variant": args.variant, "n": len(rows),
+                        "valid_json_fraction": rep.parse.valid_fraction,
+                        "published_reference_ap50": 32.83,
+                        "published_reference_note":
+                            "Level C — not independently reproducible, DECISIONS.md 0052"},
+                  stratified=report_strat.to_dict())
+
+    ap = average_precision_coco(preds, gts, 0.5)
+    print("\n" + result.describe())
+    print("\n" + report_strat.describe())
+    print(f"\nAP@0.5 {100 * ap:.2f}%   P@F1 {100 * p_at_f1(pairs):.2f}%   "
+          f"valid JSON {100 * rep.parse.valid_fraction:.1f}%")
+    print("published reference 32.83 (human test subset, Level C)")
+    return {"ap50": ap, "stratified": report_strat.to_dict()}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("stage", choices=["probe", "variant", "chartqa", "refchartqa"])
@@ -274,17 +378,16 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--probe-n", type=int, default=20)
     ap.add_argument("--refchartqa-n", type=int, default=1200)
+    ap.add_argument("--variant", default="instruct",
+                    help="the variant 5.2 selected; used by the 5.3 and 5.4 stages")
     args = ap.parse_args()
 
     started = time.time()
-    {"probe": stage_probe, "variant": stage_variant}[args.stage](args) \
-        if args.stage in ("probe", "variant") else _not_yet(args)
+    stages = {"probe": stage_probe, "variant": stage_variant,
+              "chartqa": stage_chartqa, "refchartqa": stage_refchartqa}
+    stages[args.stage](args)
     print(f"\nstage {args.stage} finished in {(time.time() - started) / 60:.1f} min")
     return 0
-
-
-def _not_yet(args):
-    raise SystemExit(f"stage {args.stage} lands after the probe sizes it")
 
 
 if __name__ == "__main__":

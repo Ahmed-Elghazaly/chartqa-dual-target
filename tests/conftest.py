@@ -1,10 +1,19 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+# `scripts/` is a package of runnable entry points, not part of the installed
+# distribution, so an editable install does not put it on `sys.path`. Tests that exercise
+# a script's decision logic — `scripts.run_zeroshot.decide_variant`, for one — need it
+# importable. The dev venv happened to resolve it and CI's clean install did not, which is
+# exactly the divergence `scripts/preflight.sh` exists to catch (`DECISIONS.md` 0050).
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 
 @pytest.fixture

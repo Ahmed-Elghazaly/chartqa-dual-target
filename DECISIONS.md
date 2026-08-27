@@ -2553,3 +2553,52 @@ predictions that matched them, and keep an unmatched prediction only if its own 
 in the bucket. Targets outside a bucket are *ignored*, not missed.
 `test_perfect_predictions_score_one_in_every_bucket` guards it — the invariant is simply
 that a perfect prediction set scores 100% in *every* stratum, not only overall.
+
+---
+
+## 0055 — A superseded measurement survived in the single source of truth
+
+**Date** 2026-08-27 · **Phase** 5.5 · **Status** adopted
+
+**Context.** `verification/measured_facts.json` exists so that every number the project
+quotes has one canonical home, and `tests/test_docs_consistency.py` enforces that the prose
+agrees with it. Generating `PREREGISTRATION.md` from that file surfaced a problem the whole
+arrangement was supposed to prevent.
+
+`phase2.peak_reserved_gb` read **1.482 GB** for the 512-pixel configuration, while
+`phase2._measured_at_448.peak_gb` read **5.29 GB**. A larger image cannot use less memory.
+
+**What happened.** 1.482 GB came from the sharded run of `DECISIONS.md` 0025:
+`device_map="auto"` split the model across two T4s while
+`torch.cuda.max_memory_reserved()` read device 0 alone, understating the footprint by
+roughly 3.8×. Decision 0027 recorded the corrected figures — **5.572 GB, 11.903 s/step,
+9.92 h** — in its own evidence table, and explicitly said so: *"the 1.482 GB reported
+earlier was a sharded run measuring device 0 alone."* The facts file was never updated to
+match, so the corrected numbers lived in `DECISIONS.md` and the superseded ones lived in
+the file everything else reads.
+
+**Why no test caught it.** Every consistency test asked whether the documents *agree with
+the facts file*. They did. A single source of truth can be consistently wrong, and when it
+is, agreement is exactly the wrong signal — every document was wrong together, and the
+error was about to be published in the pre-registration as a sealed hyperparameter.
+
+**Decision.**
+
+1. The live fields carry the post-fix figures. The superseded ones move to
+   `_superseded_sharded_run` **with the reason attached**, so the history stays legible
+   without anyone quoting them by accident.
+2. `tests/test_docs_consistency.py` gains checks on relationships the numbers must satisfy
+   *on physical grounds*, which agreement cannot supply: a larger image must cost more
+   memory, more time and more visual tokens; the projected hours must follow from the step
+   time over 3,000 steps; the headline projection must sit among the three independently
+   measured sessions; and a superseded value must not appear in a live field.
+
+**Consequences.** Verified by reverting the file to the stale values: the new invariant
+fails with *"512 px reports 1.482 GB against 448 px's 5.29 GB — a larger image cannot use
+less memory"*, and passes once corrected. A test that cannot fail on the bug it was written
+for is not a test.
+
+The generic lesson, and it is the third time this project has met it: **consistency checks
+verify agreement, not truth.** Rule 1 needed a mechanical guard rather than prose (0031);
+deduplication needed pixel identity rather than file identity (0048); and a canonical facts
+file needs internal invariants, not only external agreement.
