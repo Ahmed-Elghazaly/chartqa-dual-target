@@ -1334,3 +1334,57 @@ resume check, because it launched before the RNG-state fix (0026). It did: `delt
 `0.0488` (native) against a `1e-2` tolerance. That the two arms agree so closely is itself evidence for
 the diagnosis — random numerical drift would not produce near-identical deltas on configurations whose
 step times differ by 79%; a systematic cause such as unrestored dropout masks would.
+
+---
+
+## 0030 — 2026-08-27 — Wide gold tables have no defined candidate set, and the choice moves the plan yield
+
+**Context.** Before writing the plan miner, real ChartQA gold tables were inspected. Appendix E's
+`enumerate_plan_ops(values, target)` takes a **flat** `list[tuple[str, float]]`. That is unambiguous
+for a two-column table. It is undefined for a wide one.
+
+**Evidence.** Two table shapes exist in the released data:
+
+```
+00339007006077.csv      Country, "Share of children who are wasted, 2010"
+                        Haiti, 6.12 / Libya, 5.32 / Morocco, 5.11 ...
+
+00795994017065.csv      Entity, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
+                        Myanmar, 59.61, 59.78, 59.36, ...
+                        Zambia,  27.44, 27.31, 26.84, ...
+```
+
+Over a 25-table sample: **18 two-column, 7 wide (3, 4, 6, 8 and 9 columns) — 28% wide.** Numeric
+cells per table ranged from 2 to 32, median 5. The paired QA file is
+`{imgname, query, label}`, with `imgname` keying both `png/` and `tables/`.
+
+**Why this is not cosmetic.** The uniqueness rule is the *only* thing deciding whether a mined plan is
+kept, and the candidate value set determines uniqueness. Flatten a 9-column table into 32 cells and
+many more operation types will coincidentally reproduce the answer, so the example is rejected as
+ambiguous. Restrict to the relevant row or column and fewer coincide, so it is kept. **The flattening
+choice therefore sets the plan yield** — the 16.5% / 1.9% figures that `IDEA.md` §5.1 measured and that
+the whole synthetic-first design rests on.
+
+`IDEA.md` does not state which flattening its measurement used, so our yield is not guaranteed to
+reproduce theirs without matching it.
+
+**Options.** (a) All numeric cells in the table. (b) Each row as an independent series. (c) Each
+column as an independent series. (d) Question-guided: only cells whose labels appear in the question.
+
+**Decision.** Do not pick blind. In Phase 3.6 the yield is **measured under (a), (b) and (c)
+separately** and all three reported, with the strictest — uniqueness required across the union of
+candidate sets — used for the mixture unless the measurement argues otherwise. Measuring this costs
+CPU only, and the alternative is choosing a number that determines how much plan supervision the
+project gets on the basis of an arbitrary flattening.
+
+(d) is attractive and rejected for now: matching table labels to question text is itself a fuzzy
+process, and putting a heuristic inside the filter that decides label quality would make the yield a
+property of that heuristic rather than of the data.
+
+**Consequences.** Phase 3.6 gains one small measurement and reports a yield *range* rather than a
+point. `IDEA.md`'s figures become a reference to compare against rather than a target to reproduce,
+and if ours differ the flattening is the first thing to examine.
+
+Also recorded: the tables are plain CSV with a header row, and `imgname` is the join key between
+`png/`, `tables/` and the QA JSON. Plan mining needs the archive, not the parquet distribution
+(decision 0005), and `ZipFile.open` can read individual members without extracting all 875 MB.
