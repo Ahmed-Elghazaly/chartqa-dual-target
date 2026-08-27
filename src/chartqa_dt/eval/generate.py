@@ -35,7 +35,11 @@ from chartqa_dt.prompting.prompts import build_plain_prompt, build_structured_pr
 #: Greedy. Sealed by the pre-registration; see the module docstring.
 DECODING = {"do_sample": False, "temperature": None, "top_p": None, "top_k": None,
             "num_beams": 1}
-MAX_NEW_TOKENS_STRUCTURED = 512
+#: Raised from 512 after measurement. With the compact prompt the median record is 118
+#: tokens, but 20% still hit 512 — those were records listing every element in the chart.
+#: The prompt now discourages that, and the extra headroom costs nothing for a typical
+#: record because generation stops at the closing brace.
+MAX_NEW_TOKENS_STRUCTURED = 900
 MAX_NEW_TOKENS_PLAIN = 32
 
 

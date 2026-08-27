@@ -330,6 +330,33 @@
         "sha256_prefix": "34e889ed16b6899b",
         "purpose": "PLAN 5.3 zero-shot ChartQA"
       }
+    },
+    "prompt_iteration": {
+      "_method": "Qwen3-VL-2B-Instruct, 4-bit, 512 px, T4, frozen ChartQA validation slice. PLAN 5.1 iterates on validation only.",
+      "v1_pretty_printed": {
+        "n": 12,
+        "median_new_tokens": 308,
+        "hit_cap_pct": 33,
+        "json_valid_pct": 58.3,
+        "_note": "4 of 5 failures were truncation at the 512 cap"
+      },
+      "v2_compact": {
+        "n": 20,
+        "median_new_tokens": 118,
+        "hit_cap_pct": 20,
+        "json_valid_pct": 75.0,
+        "schema_valid_pct": 50.0,
+        "median_latency_s": 6.97,
+        "_note": "compaction cut tokens 2.6x; schema failures then became the binding constraint \u2014 args too long, duplicate labels, unit too long, op 'average'"
+      },
+      "v3_schema_limits_stated": {
+        "_status": "measuring"
+      },
+      "projected_hours_at_v2": {
+        "variant_slice_200": 0.39,
+        "chartqa_val_1920": 3.72,
+        "refchartqa_val_1200": 2.32
+      }
     }
   }
 }

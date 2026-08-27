@@ -27,6 +27,14 @@ import json
 #: `DocVQA | InfoVQA | ChartQA_TEST`. Do not edit: it anchors the 79.1 comparison.
 PLAIN_PROMPT = "{question}\nAnswer the question using a single word or phrase."
 
+#: Read from `OUTPUT_SCHEMA` rather than restated, so the prompt cannot drift from the
+#: schema it is trying to satisfy. The first compact-prompt probe failed on all three of
+#: these limits — args of 5 and 8 elements, a 35-character unit, and duplicate labels —
+#: because the prompt never mentioned them.
+MAX_EVIDENCE = 8
+MAX_ARGS = 4
+MAX_UNIT_CHARS = 32
+
 #: The operations the executor accepts. Listed in the prompt because a model that invents
 #: an operation produces a record the executor must reject, and a rejected record counts
 #: as a failure (non-negotiable rule 3) rather than being silently repaired.
@@ -77,19 +85,25 @@ Example — the chart does not contain the answer:
 
 Rules:
 - All four keys are required every time, including "plan" and "model_answer".
-- "args" is always a LIST. Each element is either a label string naming one of your
-  evidence items, or a nested {{"op":...,"args":[...]}} object. Never an object with
-  "label" or "value" keys.
-- Aggregations over every evidence item take an empty list: {{"op":"sum","args":[]}}.
+- "evidence": at most {max_evidence} items, and FEWER IS BETTER. Include only the chart
+  elements the answer actually depends on, most important first. Do not list every bar or
+  every year.
+- Each "label" appears at most ONCE. Never repeat a label.
+- "unit": at most {max_unit} characters, or null. Use "USD" or "%" rather than a phrase.
+- "args" is always a LIST with at most {max_args} elements. Each element is either a label
+  string naming one of your evidence items, or a nested {{"op":...,"args":[...]}} object.
+  Never an object with "label" or "value" keys.
+- To aggregate over EVERY evidence item, use an empty list — never list the labels:
+  {{"op":"sum","args":[]}} means "sum all the evidence".
 - bbox coordinates are integers 0-999 on the image as you see it; x1,y1 is top-left and
   x2,y2 is bottom-right.
-- Put a box on every chart element the answer depends on and on nothing else, most
-  important first.
-- "op" must be one of: {ops}.
+- "op" must be EXACTLY one of these strings: {ops}.
+  Use "mean" (not "average"), "difference" (not "subtract").
 - "model_answer" is the final answer only: a single word, phrase or number.
 
 Question: {{question}}\
-""".format(ops=", ".join(ALLOWED_OPS))
+""".format(ops=", ".join(ALLOWED_OPS), max_evidence=MAX_EVIDENCE,
+           max_unit=MAX_UNIT_CHARS, max_args=MAX_ARGS)
 
 
 def build_structured_prompt(question: str) -> str:

@@ -328,3 +328,54 @@ def test_schema_validity_and_json_validity_are_measured_separately():
     assert stats.schema_valid_fraction == pytest.approx(0.5)
     assert stats.schema_reasons, "a schema failure must record why"
     assert "the gate that matters" in stats.describe()
+
+
+def test_the_prompt_states_the_schema_limits_it_must_satisfy():
+    """Every limit the first compact probe violated is now named in the prompt.
+
+    Measured schema failures, 5 in 20 parsed records: `args` of 5 and 8 elements (cap 4),
+    a 35-character unit (cap 32), duplicate evidence labels, and `op: "average"` which is
+    not in the enum. None of those limits appeared in the prompt, so the model had no way
+    to respect them.
+    """
+    from chartqa_dt.prompting.prompts import MAX_ARGS, MAX_EVIDENCE, MAX_UNIT_CHARS
+
+    prompt = build_structured_prompt("q")
+    assert f"at most {MAX_EVIDENCE} items" in prompt
+    assert f"at most {MAX_ARGS} elements" in prompt
+    assert f"at most {MAX_UNIT_CHARS} characters" in prompt
+    assert "appears at most ONCE" in prompt
+    assert 'Use "mean" (not "average")' in prompt
+    assert "never list the labels" in prompt
+
+
+def test_the_prompt_limits_are_read_from_the_schema_not_restated():
+    """A prompt that hard-codes a limit drifts from the schema the moment one changes."""
+    from chartqa_dt.plans.schema import OUTPUT_SCHEMA
+    from chartqa_dt.prompting.prompts import MAX_ARGS, MAX_EVIDENCE, MAX_UNIT_CHARS
+
+    evidence = OUTPUT_SCHEMA["properties"]["evidence"]
+    assert evidence["maxItems"] == MAX_EVIDENCE
+    assert evidence["items"]["properties"]["unit"]["maxLength"] == MAX_UNIT_CHARS
+    assert OUTPUT_SCHEMA["$defs"]["node"]["properties"]["args"]["maxItems"] == MAX_ARGS
+
+
+def test_every_operation_the_prompt_offers_is_one_the_executor_accepts():
+    """The reverse of the earlier check: nothing offered that would be rejected."""
+    from chartqa_dt.plans.schema import OUTPUT_SCHEMA
+    from chartqa_dt.prompting.prompts import ALLOWED_OPS
+
+    assert set(ALLOWED_OPS) == set(OUTPUT_SCHEMA["$defs"]["node"]["properties"]["op"]["enum"])
+
+
+def test_the_prompt_discourages_over_emitting_boxes():
+    """`DECISIONS.md` 0014, and it is also why records were truncating.
+
+    Records that hit the token cap were listing every bar in the chart. Extra boxes cost
+    AP (1.00 -> 0.68 for one spurious box per image), cost tokens, and were the direct
+    cause of 4 of 5 parse failures. One instruction addresses all three.
+    """
+    prompt = build_structured_prompt("q")
+    assert "FEWER IS BETTER" in prompt
+    assert "Do not list every bar" in prompt
+    assert "most important first" in prompt
