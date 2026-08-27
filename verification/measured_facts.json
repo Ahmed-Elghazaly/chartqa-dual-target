@@ -239,5 +239,40 @@
     },
     "refchartqa_parquet_bytes_recorded": 2884503702,
     "refchartqa_parquet_files": 9
+  },
+  "phase4": {
+    "_method": "Vendored official evaluate.py (sha256 d0c9f87d\u2026) on vendored filtered_results.jsonl against the pinned RefChartQA test split.",
+    "level_b_reproduction": {
+      "reproduces_32_83": false,
+      "cause": "filtered_results.jsonl is a FORMAT EXAMPLE, not released predictions (RefChartQA README). No per-model prediction files and no checkpoints are published, so 4.4's premise is unsatisfiable.",
+      "official_ap50_on_example_file": {
+        "human": 28.33,
+        "machine": 71.25,
+        "pot": 59.66
+      },
+      "published_ap50": {
+        "human": 32.83,
+        "machine": 59.28,
+        "pot": 39.32
+      },
+      "delta": {
+        "human": -4.5,
+        "machine": 11.97,
+        "pot": 20.34
+      },
+      "claim_level": "C (published, not independently reproduced)"
+    },
+    "crosscheck_vs_official": {
+      "shared_prediction_set_rows": 11690,
+      "ap50_abs_diff_pp": {
+        "human": 0.0,
+        "machine": 0.068,
+        "pot": 0.036
+      },
+      "relaxed_accuracy_disagreements": 0,
+      "relaxed_accuracy_cases": 423,
+      "p_at_f1_disagreements": 0,
+      "synthetic_ap_exact_agreement": "119/120 scenarios < 1e-6; worst 0.0019"
+    }
   }
 }

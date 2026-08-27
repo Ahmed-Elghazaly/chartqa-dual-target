@@ -1,0 +1,23 @@
+{
+  "relaxed_accuracy": {
+    "cases": 423,
+    "disagreements": []
+  },
+  "ap": {
+    "scenarios": 120,
+    "coco_max_abs_err": 0.0019251926225555618,
+    "coco_mean_abs_err": 1.6044170491957037e-05,
+    "appendix_d_max_abs_err": 0.006196641546805395,
+    "appendix_d_mean_abs_err": 0.001637786213878015,
+    "worst_coco": {
+      "seed": 32,
+      "official": 0.02855544164776802,
+      "ours_coco": 0.030480634270323582,
+      "ours_appendix_d": 0.028716475095785444
+    }
+  },
+  "p_at_f1": {
+    "scenarios": 40,
+    "disagreements": []
+  }
+}

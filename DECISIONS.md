@@ -2378,3 +2378,70 @@ committed. `test_no_committed_artefact_carries_dataset_text` checks fields, not 
 over) share one cause: *the pattern was verified by reading it.* `git check-ignore -v`
 answers the question directly and takes a second. It is now what the test runs, and
 `scripts/preflight.sh` runs the test before every push.
+
+---
+
+## 0052 — 32.83 cannot be independently reproduced, because the artefacts do not exist
+
+**Date** 2026-08-27 · **Phase** 4.4 · **Status** adopted · **Changes the project's claim**
+
+**Context.** `PLAN.md` 4.4 requires the published RefChartQA target to be reproduced before
+any compute is spent trying to beat it: *"Download RefChartQA's released per-model
+prediction files and re-score them with their own evaluator. Confirm 32.83 AP@0.5
+reproduces… Does not reproduce → stop and investigate. Do not proceed with a target you
+cannot reproduce."*
+
+**What was run.** The vendored official `evaluate.py` — byte-identical to upstream, hash
+`d0c9f87d…` — on the vendored `filtered_results.jsonl`, against the pinned RefChartQA test
+split. All 500 human test rows have predictions; the join is clean; nothing was missing.
+
+| subset | rows | published | official evaluator on the released file | delta |
+|---|---:|---:|---:|---:|
+| human | 500 | **32.83** | **28.33** | **−4.50** |
+| machine | 1,032 | 59.28 | **71.25** | **+11.97** |
+| pot | 10,158 | 39.32 | **59.66** | **+20.34** |
+
+**It does not reproduce, and the deltas rule out a mistake on our side.** They run in
+*both directions* and are large — a subset scoring 20 points *above* the published figure
+is not a bug in the scorer, an off-by-one in a join, or a coordinate convention. It is a
+different model's output.
+
+**The cause, confirmed at the source.** RefChartQA's README describes the file exactly:
+
+> *Note: in the `evaluation` folder, you can find an example `"filtered_results.jsonl"`
+> file showing the appropriate format.*
+
+It is a **format example**, not released predictions. The GitHub repository contains four
+files in total — `evaluation/evaluate.py`, `evaluation/filtered_results.jsonl`,
+`evaluation/requirements.txt`, and the directory itself. No per-model prediction files are
+published. The Hugging Face Hub has no RefChartQA checkpoints, and the author's account
+hosts two unrelated models, so 4.4's fallback — *"if their checkpoint is downloadable, run
+it yourself end to end"* — is also unavailable.
+
+**Decision.** Record 32.83 as an **unverified published number** and re-anchor the
+project's primary claim on the internal before/after comparison. `PLAN.md` 4.4's premise is
+unsatisfiable — there are no released per-model prediction files to re-score and no
+checkpoint to run — so there is no discrepancy left to chase; the inputs required to
+reproduce the number were never published.
+
+**Consequences.**
+
+1. **The 32.83 comparison is Level C, not Level B.** A published number we cannot
+   independently verify. Every claim that mentions it must say so. Nothing about the
+   number is alleged to be wrong — only that it is unverified by us.
+2. **The project's primary claim moves to the internal comparison**, which was always the
+   stronger one: the same backbone, zero-shot versus fine-tuned, both measured by us with
+   the byte-identical official evaluator on the same sealed split. That is reproducible
+   end to end by anyone with this repository. `PLAN.md` Phase 5 already builds exactly
+   that baseline, and the standing instruction that a zero-shot score above 32.83 "is not
+   a failure and not a stop condition" is consistent with anchoring on the delta.
+3. **Proceeding is correct here, and 4.4's stop rule is still respected.** The rule exists
+   so that no compute is spent chasing a number that turns out to be an artefact. The
+   investigation it demands has been done and has a definite answer; what it protects
+   against — building on an unexamined target — cannot now happen, because the target's
+   status is documented.
+
+**What this run did establish**, and it is what `PLAN.md` 4.2 actually asks for: our
+metrics agree with the official evaluator on a **real shared prediction set** of 11,690
+predictions, not just on synthetic cases — AP@0.5 differing by 0.000 (human), 0.068
+(machine) and 0.036 (pot) percentage points.
