@@ -54,12 +54,19 @@ class Generation:
     boxes: list[list[float]] = field(default_factory=list)
     plan: dict | None = None
     image_size: tuple[int, int] | None = None
+    #: Tokens generated, and whether generation stopped because it ran out of budget
+    #: rather than because the model finished. A record truncated at the cap is invalid
+    #: JSON for a reason that has nothing to do with the prompt, and telling the two
+    #: apart is the difference between "iterate on wording" and "raise the budget".
+    new_tokens: int = 0
+    hit_token_cap: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {"record_id": self.record_id, "raw": self.raw, "seconds": self.seconds,
                 "prompt_mode": self.prompt_mode, "parsed_ok": self.parsed_ok,
                 "repairs": self.repairs, "reason": self.reason, "answer": self.answer,
                 "boxes": self.boxes, "plan": self.plan,
+                "new_tokens": self.new_tokens, "hit_token_cap": self.hit_token_cap,
                 "image_size": list(self.image_size) if self.image_size else None}
 
 
@@ -69,6 +76,18 @@ class GenerationReport:
     seconds_total: float = 0.0
     latencies: list[float] = field(default_factory=list)
     parse: ParseStats = field(default_factory=ParseStats)
+    capped: int = 0
+    new_tokens: list[int] = field(default_factory=list)
+
+    @property
+    def capped_fraction(self) -> float:
+        return self.capped / self.n if self.n else 0.0
+
+    @property
+    def median_new_tokens(self) -> float:
+        import statistics
+
+        return statistics.median(self.new_tokens) if self.new_tokens else 0.0
 
     @property
     def median_latency(self) -> float:
@@ -79,6 +98,9 @@ class GenerationReport:
     def describe(self) -> str:
         return (f"  generated       : {self.n} in {self.seconds_total:.0f}s "
                 f"(median {self.median_latency:.2f}s/item)\n"
+                f"  tokens          : median {self.median_new_tokens:.0f}, "
+                f"hit the cap {self.capped}/{self.n} "
+                f"({100 * self.capped_fraction:.0f}%)\n"
                 f"{self.parse.describe()}")
 
 
@@ -91,8 +113,13 @@ def build_messages(question: str, image: Any, mode: str) -> list[dict[str, Any]]
 
 
 def generate_one(loaded: Any, question: str, image: Any, *, mode: str = "structured",
-                 max_new_tokens: int | None = None) -> tuple[str, float]:
-    """Greedy generation for one item. Returns the decoded continuation and its latency."""
+                 max_new_tokens: int | None = None) -> tuple[str, float, int, bool]:
+    """Greedy generation for one item.
+
+    Returns the decoded continuation, its latency, how many tokens it produced, and
+    whether it stopped because the budget ran out. That last flag matters: a record
+    truncated at the cap is invalid JSON for a reason the prompt cannot fix.
+    """
     import torch
 
     processor, model = loaded.processor, loaded.model
@@ -112,8 +139,9 @@ def generate_one(loaded: Any, question: str, image: Any, *, mode: str = "structu
                              or processor.tokenizer.eos_token_id)
     elapsed = time.perf_counter() - start
     prompt_len = inputs["input_ids"].shape[1]
-    decoded = processor.tokenizer.decode(out[0][prompt_len:], skip_special_tokens=True)
-    return decoded, elapsed
+    produced = out[0][prompt_len:]
+    decoded = processor.tokenizer.decode(produced, skip_special_tokens=True)
+    return decoded, elapsed, int(produced.shape[0]), int(produced.shape[0]) >= budget
 
 
 def generate_over(loaded: Any, items: Iterable[dict[str, Any]], *,
@@ -128,10 +156,11 @@ def generate_over(loaded: Any, items: Iterable[dict[str, Any]], *,
         if limit and i >= limit:
             break
         image = item["image"]
-        raw, seconds = generate_one(loaded, item["question"], image, mode=mode,
-                                    max_new_tokens=max_new_tokens)
+        raw, seconds, n_tok, capped = generate_one(loaded, item["question"], image,
+                                                   mode=mode,
+                                                   max_new_tokens=max_new_tokens)
         gen = Generation(record_id=item["record_id"], raw=raw, seconds=seconds,
-                         prompt_mode=mode,
+                         prompt_mode=mode, new_tokens=n_tok, hit_token_cap=capped,
                          image_size=tuple(image.size) if hasattr(image, "size") else None)
 
         if mode == "plain":
@@ -149,6 +178,8 @@ def generate_over(loaded: Any, items: Iterable[dict[str, Any]], *,
         report.n += 1
         report.seconds_total += seconds
         report.latencies.append(seconds)
+        report.capped += capped
+        report.new_tokens.append(n_tok)
         out.append(gen)
         if progress_every and report.n % progress_every == 0:
             print(f"    {report.n} items, {report.seconds_total:.0f}s, "
@@ -177,6 +208,8 @@ def read_generations(path: str | Path) -> list[Generation]:
                               parsed_ok=d["parsed_ok"], repairs=d.get("repairs", []),
                               reason=d.get("reason", ""), answer=d.get("answer", ""),
                               boxes=d.get("boxes", []), plan=d.get("plan"),
+                              new_tokens=d.get("new_tokens", 0),
+                              hit_token_cap=d.get("hit_token_cap", False),
                               image_size=tuple(size) if size else None))
     return out
 

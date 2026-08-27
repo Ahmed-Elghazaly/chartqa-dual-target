@@ -482,6 +482,7 @@ def main() -> int:
                    help="Phase 5 jobs: which model variants to run")
     p.add_argument("--limit", type=int, default=0)
     p.add_argument("--probe-n", type=int, default=20)
+    p.add_argument("--max-new-tokens", type=int, default=0)
     args = p.parse_args()
 
     api = _api()
@@ -504,6 +505,8 @@ def main() -> int:
             command += ["--limit", str(args.limit)]
         if args.job == "probe":
             command += ["--probe-n", str(args.probe_n)]
+            if args.max_new_tokens:
+                command += ["--max-new-tokens", str(args.max_new_tokens)]
     else:
         command = _smoke_command(args)
 

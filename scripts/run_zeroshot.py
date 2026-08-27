@@ -140,22 +140,38 @@ def load_model(variant: str, *, load_in_4bit: bool = True):
 
 def stage_probe(args) -> dict[str, Any]:
     """20 items per variant, to size everything that follows."""
-    from chartqa_dt.eval.generate import generate_over
+    from chartqa_dt.eval.generate import generate_over, write_generations
 
     reader = chartqa_reader()
     rows = attach_images(reader, load_slice("chartqa_variant_200")[:args.probe_n])
     report: dict[str, Any] = {}
     for variant in args.variants.split(","):
-        loaded = load_model(variant.strip())
+        variant = variant.strip()
+        loaded = load_model(variant)
         for mode in ("structured", "plain"):
-            _gens, rep = generate_over(loaded, rows, mode=mode, progress_every=5)
+            gens, rep = generate_over(loaded, rows, mode=mode, progress_every=5,
+                                      max_new_tokens=args.max_new_tokens or None)
+            # Keep the generations. A probe that reports a failure rate without keeping
+            # the failures gives a number nobody can act on — which is what the first
+            # probe did.
+            write_generations(gens, out_dir() / f"probe_{variant}_{mode}.jsonl")
             report[f"{variant}/{mode}"] = {
                 "n": rep.n, "median_latency_s": rep.median_latency,
+                "median_new_tokens": rep.median_new_tokens,
+                "hit_token_cap_fraction": rep.capped_fraction,
                 "valid_json_fraction": rep.parse.valid_fraction if mode == "structured"
                 else 1.0,
+                "failure_reasons": dict(rep.parse.reasons),
             }
             print(f"  {variant}/{mode}: median {rep.median_latency:.2f}s/item, "
+                  f"{rep.median_new_tokens:.0f} tokens, capped "
+                  f"{100 * rep.capped_fraction:.0f}%, "
                   f"valid {rep.parse.valid}/{rep.parse.total}", flush=True)
+            if mode == "structured":
+                for g in gens:
+                    if not g.parsed_ok:
+                        print(f"      FAIL [{g.reason[:44]}] tokens={g.new_tokens} "
+                              f"capped={g.hit_token_cap} tail={g.raw[-90:]!r}", flush=True)
         del loaded
         _free()
     (out_dir() / "probe.json").write_text(json.dumps(report, indent=2) + "\n")
@@ -377,6 +393,8 @@ def main() -> int:
     ap.add_argument("--variants", default="instruct,thinking")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--probe-n", type=int, default=20)
+    ap.add_argument("--max-new-tokens", type=int, default=0,
+                    help="override the structured budget; 0 keeps the default")
     ap.add_argument("--refchartqa-n", type=int, default=1200)
     ap.add_argument("--variant", default="instruct",
                     help="the variant 5.2 selected; used by the 5.3 and 5.4 stages")
