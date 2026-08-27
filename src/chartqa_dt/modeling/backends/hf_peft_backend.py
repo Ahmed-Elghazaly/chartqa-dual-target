@@ -115,7 +115,18 @@ class HFPeftBackend(Backend):
             dtype=dtype,
             quantization_config=quant_config,
             attn_implementation=attn_impl,
-            device_map="auto" if torch.cuda.is_available() else None,
+            # A SINGLE device, deliberately. Kaggle's "NvidiaTeslaT4" shape
+            # provides TWO T4s, and device_map="auto" shards the model across
+            # cuda:0 and cuda:1. That silently produced three separate problems:
+            # the training loop sends every batch to the first parameter's device
+            # and crashes when a later layer lives on the other one; each forward
+            # pass pays inter-GPU transfers (measured +52% per step); and
+            # torch.cuda.max_memory_reserved() reads device 0 only, so a sharded
+            # run's real footprint was never being measured at all.
+            #
+            # IDEA.md 14's compute budget is for ONE card, so one card is what we
+            # measure. Multi-GPU would be a different experiment.
+            device_map={"": 0} if torch.cuda.is_available() else None,
         )
 
         arch = AutoConfig.from_pretrained(model_id)

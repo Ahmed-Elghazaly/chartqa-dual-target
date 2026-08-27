@@ -300,3 +300,59 @@ def test_a_native_budget_batch_fits_the_sequence_limit():
         assert n <= 1024, f"budget {budget}: sequence length {n} exceeds max_seq_len"
         kept = batch["labels"][0][batch["labels"][0] != -100]
         assert len(kept) > 0, f"budget {budget}: nothing supervised"
+
+
+# ------------------------------------------------- single-card measurement
+
+
+def test_a_sharded_run_cannot_pass_the_gates():
+    """Kaggle's T4 shape provides TWO T4s and device_map='auto' shards across them.
+
+    That silently produced three problems at once: the training loop sends every
+    batch to the first parameter's device and crashes when a later layer is on the
+    other; each forward pays inter-GPU transfers (+52% per step, measured); and
+    torch.cuda.max_memory_reserved() reads device 0 only, so a sharded run reports
+    a fraction of its real footprint.
+
+    IDEA.md 14's compute budget is for one card, so a sharded measurement is not
+    merely worse -- it is not the thing being budgeted.
+    """
+    assert _result().passes_all_gates
+    assert not _result(is_sharded=True).passes_all_gates
+
+
+def test_device_facts_are_recorded(tmp_path):
+    from chartqa_dt.train.smoke import load_report, write_report
+
+    r = _result(visible_devices=2, model_devices={"cuda:0": 500}, is_sharded=False)
+    back = load_report(write_report([r], tmp_path))[0]
+    assert back.visible_devices == 2
+    assert back.model_devices == {"cuda:0": 500}
+    assert back.is_sharded is False
+
+
+def test_backend_pins_to_a_single_device():
+    """device_map must not be 'auto': that is what caused the sharding."""
+    import inspect
+
+    from chartqa_dt.modeling.backends import hf_peft_backend
+
+    src = inspect.getsource(hf_peft_backend.HFPeftBackend.load)
+    # Ignore comments: the explanation of the bug legitimately names the value
+    # that caused it.
+    code = "\n".join(
+        line for line in src.splitlines() if not line.lstrip().startswith("#")
+    )
+    assert 'device_map={"": 0}' in code
+    assert 'device_map="auto"' not in code, "sharding must not be re-enabled"
+
+
+def test_peak_memory_sums_every_visible_device():
+    """max_memory_reserved() defaults to device 0; a sharded run would under-report."""
+    import inspect
+
+    from chartqa_dt.modeling.backends import base
+
+    src = inspect.getsource(base.peak_reserved_gb)
+    assert "device_count()" in src, "peak memory must be summed across devices"
+    assert "sum(" in src

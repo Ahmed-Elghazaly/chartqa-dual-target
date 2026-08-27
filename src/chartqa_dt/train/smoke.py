@@ -45,8 +45,10 @@ from chartqa_dt.modeling.backends.base import (
     Backend,
     LoadedModel,
     get_backend,
+    model_device_summary,
     peak_reserved_gb,
     reset_peak_memory,
+    visible_device_count,
 )
 from chartqa_dt.modeling.lora_assert import (
     assert_lora_on_both_sides,
@@ -215,6 +217,9 @@ class SmokeResult:
     resume_loss_delta: float | None = None
 
     gpu_name: str = "cpu"
+    visible_devices: int = 0
+    model_devices: dict[str, int] = field(default_factory=dict)
+    is_sharded: bool = False
     notes: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -237,6 +242,10 @@ class SmokeResult:
             # zero. Loss then sits flat while nothing errors.
             and self.zero_grad_steps == 0
             and self.nonfinite_grad_steps == 0
+            # IDEA.md 14's budget is for ONE card. A sharded model pays inter-GPU
+            # transfers and reports partial memory, so its numbers cannot be
+            # judged against that budget at all.
+            and not self.is_sharded
             and self.lora.get("vision_params", 0) > 0
             and self.lora.get("language_params", 0) > 0
         )
@@ -377,6 +386,13 @@ def run_smoke(
         # substitution (decision 0017) must appear in the Phase 2 table, not only
         # in stdout that scrolls past.
         result.notes.update(loaded.notes)
+        result.visible_devices = visible_device_count()
+        result.model_devices = model_device_summary(loaded.model)
+        result.is_sharded = len([d for d in result.model_devices if d.startswith("cuda")]) > 1
+        print(f"devices: {result.visible_devices} visible, model on {result.model_devices}")
+        if result.is_sharded:
+            print("  WARNING: model is SHARDED across devices; timings and memory "
+                  "are not comparable to a single-card budget")
         result.dtype_resolved = str(loaded.notes.get("dtype_note", ""))
 
         # Measured on the loaded model, before adapters change the module tree.

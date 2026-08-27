@@ -133,21 +133,50 @@ def list_backends() -> dict[str, tuple[bool, str]]:
 
 
 def peak_reserved_gb() -> float:
-    """Peak reserved VRAM in GiB. 0.0 without CUDA.
+    """Peak reserved VRAM in GiB, summed over **every** visible device.
 
     *Reserved*, not *allocated*: reserved is what the caching allocator has taken
     from the driver, which is what actually decides whether the next allocation
-    OOMs. Reporting allocated would understate how close to the limit a run is,
-    and the Phase 2 gate is 13.5 GiB of reserved memory.
+    OOMs. The Phase 2 gate is 13.5 GiB of reserved memory.
+
+    Summed over all devices, not device 0, because
+    ``torch.cuda.max_memory_reserved()`` defaults to the current device. On a
+    two-GPU host a sharded model reports only half its footprint, and the gate it
+    is checked against becomes meaningless. We now pin to one device
+    (see hf_peft_backend), but the measurement must not depend on that holding.
     """
     try:
         import torch
 
-        if torch.cuda.is_available():
-            return torch.cuda.max_memory_reserved() / 1024**3
+        if not torch.cuda.is_available():
+            return 0.0
+        return sum(
+            torch.cuda.max_memory_reserved(i) for i in range(torch.cuda.device_count())
+        ) / 1024**3
+    except Exception:  # noqa: BLE001
+        return 0.0
+
+
+def visible_device_count() -> int:
+    """How many CUDA devices this process can see. Recorded with every result."""
+    try:
+        import torch
+
+        return torch.cuda.device_count() if torch.cuda.is_available() else 0
+    except Exception:  # noqa: BLE001
+        return 0
+
+
+def model_device_summary(model: Any) -> dict[str, int]:
+    """Parameter counts per device, so sharding is visible rather than inferred."""
+    counts: dict[str, int] = {}
+    try:
+        for _, p in model.named_parameters():
+            key = str(getattr(p, "device", "unknown"))
+            counts[key] = counts.get(key, 0) + 1
     except Exception:  # noqa: BLE001
         pass
-    return 0.0
+    return counts
 
 
 def reset_peak_memory() -> None:
@@ -155,7 +184,8 @@ def reset_peak_memory() -> None:
         import torch
 
         if torch.cuda.is_available():
-            torch.cuda.reset_peak_memory_stats()
+            for i in range(torch.cuda.device_count()):
+                torch.cuda.reset_peak_memory_stats(i)
             torch.cuda.empty_cache()
     except Exception:  # noqa: BLE001
         pass

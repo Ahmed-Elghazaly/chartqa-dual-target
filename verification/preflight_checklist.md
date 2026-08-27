@@ -107,5 +107,9 @@ The three remaining gaps in the table have therefore been re-examined rather tha
 * **fp16 without a `GradScaler`.** No longer merely accepted — it is now *gated*. Gradient norm must
   be non-zero and finite every step, which is the direct symptom of the underflow this gap risks.
   The 100-step run showed loss falling 2.879 → 0.968, which is positive evidence gradients are live.
-* **Single-device assumption.** Verified against the measurement: peak reserved memory is 1.48 GB on
-  a 15 GB card, so the model is not sharded and cannot become so at this size.
+* ~~**Single-device assumption.**~~ **This clearance was wrong, twice.** It reasoned that a 2B model
+  in 4-bit needs 1.48 GB of a 15 GB card and therefore "cannot" shard. But `device_map="auto"` does
+  not ask whether sharding is *needed* — it spreads across whatever devices it is given, and Kaggle's
+  T4 shape gives two. The assumption was tested against the wrong question. Now fixed at the source
+  (`device_map={"": 0}`), measured across all devices, and gated: a sharded run fails outright. See
+  `DECISIONS.md` 0025.

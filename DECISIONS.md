@@ -1026,3 +1026,76 @@ ignored (0020). A dataset version was accepted and superseded by an older one. I
 request succeeded and the effect did not occur. The remedy is always the same shape — observe the
 effect, never the acknowledgement — and it is now applied to the code itself, which is the one place
 it had not occurred to me to check.
+
+---
+
+## 0025 — 2026-08-26 — The model is pinned to a single device, and memory is measured across all of them
+
+**Context.** With the staleness gate confirming current code was running
+(`fingerprint got a55615402228f4a6 | expected a55615402228f4a6`), the Phase 2 measurement produced
+three anomalies at once. All three have one cause.
+
+**Evidence.** The native-resolution arm failed with:
+
+```
+RuntimeError: Expected all tensors to be on the same device,
+but got mat2 is on cuda:1, different from other tensors on cuda:0
+```
+
+Kaggle's `NvidiaTeslaT4` machine shape provides **two** T4s. `device_map="auto"` therefore shards the
+model across `cuda:0` and `cuda:1`, while the training loop does
+`device = next(model.parameters()).device` and sends every batch to the first parameter's device.
+
+That single fact accounts for all three anomalies:
+
+| symptom | explanation |
+|---|---|
+| native arm crashes; 512 arm survives | the split fell differently at the two input sizes |
+| seconds per step **8.664 → 13.128** (+52%) | every forward pass pays inter-GPU transfers |
+| peak memory 1.482 → 1.750 GiB | and, worse, `torch.cuda.max_memory_reserved()` reads **device 0 only** |
+
+The third is the serious one. A sharded run reports a *fraction* of its true footprint, so the
+13.5 GiB gate was being applied to a number that did not mean what it said.
+
+The timing consequence is not academic: the two measurements **straddle the 10-hour ceiling** —
+7.22 h against 10.94 h projected. Whichever were adopted would have been a coin toss dressed as a
+measurement.
+
+**Options.** (a) Make the training loop device-aware and keep the sharding. (b) Pin the model to one
+device. (c) (b) plus measure memory across every device regardless, and refuse to accept a sharded
+measurement.
+
+**Decision.** (c). `device_map={"": 0}`; `peak_reserved_gb()` sums
+`max_memory_reserved(i)` over `device_count()`; every result records `visible_devices`,
+`model_devices` and `is_sharded`; and `is_sharded` is a **gate failure**, not a warning.
+
+(a) is rejected outright. `IDEA.md` §14's entire compute budget — the 30-optimizer-steps-in-215-seconds
+reference, the 13.5 GiB ceiling, the 10-hour projection — is for **one** T4. A two-card run is a
+different experiment, and reporting its numbers against that budget would be an unmatched comparison
+of exactly the kind non-negotiable rule 6 forbids.
+
+**Consequences.** This is the fourth appearance of the project's recurring pattern, and the first
+where the wrong answer was *quantitative rather than binary*. The earlier cases were
+present/absent — a pattern matched nothing, a request was ignored, a stale version was attached.
+Here the measurement succeeded, returned a plausible number, and the number was wrong by 52%.
+
+It also retires a "known gap" that had been examined twice and cleared both times.
+`verification/preflight_checklist.md` recorded the single-device assumption as safe because "a 2B
+model in 4-bit uses 1.48 GB of a 15 GB card; sharding will not occur". That reasoning was about
+whether the model *needed* two cards. `device_map="auto"` does not ask whether it is needed — it
+spreads across whatever it is given. The assumption was tested against the wrong question.
+
+### Gradient health: resolved by measurement
+
+The same run answered the open fp16 question from decision 0017. Over 100 steps:
+`grad_norm_median = 14.28`, `zero_grad_steps = 0`, `nonfinite_grad_steps = 0`, and
+`trainable_dtypes = ['float32']` — `prepare_model_for_kbit_training` upcasts the adapter parameters
+to fp32, so gradients are fp32 and the underflow risk that motivated the gradient-norm gate does not
+arise. The gate stays: it costs nothing and it is the only cheap symptom of that failure.
+
+### Resume: still failing, and now measurable
+
+`resume_verified = False` with `resume_loss_delta = 0.0456` against a tolerance of `1e-2`. This is no
+longer a crash — the optimizer round-trips correctly after 0021 — but the post-resume loss does not
+match closely enough. On a sharded, non-deterministic run that is uninterpretable; it is re-measured
+on the pinned single-device configuration before being treated as a real discrepancy.
