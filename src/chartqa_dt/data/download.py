@@ -169,8 +169,10 @@ def materialise_dev_subset(key: str, *, data_root: Path, rows: int = DEV_ROWS) -
     written as files and referenced by path, matching what the full loaders produce, so
     nothing downstream has to branch on dev versus full.
     """
-    from datasets import load_dataset
-
+    # The refusal comes first, deliberately. `datasets` is an optional dependency, and
+    # importing it above this check turns a clear "this source has no parquet copy" into
+    # a ModuleNotFoundError — a worse message, for a condition that has nothing to do
+    # with whether the library is installed.
     spec = SOURCES[key]
     if not isinstance(spec, ParquetSpec):
         raise DownloadError(
@@ -178,6 +180,9 @@ def materialise_dev_subset(key: str, *, data_root: Path, rows: int = DEV_ROWS) -
             f"{getattr(spec, 'filename', '?')} (phase0.md F6), so --dev cannot supply "
             f"them; run a full download for anything that needs tables."
         )
+
+    from datasets import load_dataset
+
     out = Path(data_root) / "dev" / key
     (out / "images").mkdir(parents=True, exist_ok=True)
 

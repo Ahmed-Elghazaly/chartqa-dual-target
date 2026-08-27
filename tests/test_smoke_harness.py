@@ -10,6 +10,7 @@ ways that still produce a green run:
 
 from __future__ import annotations
 
+import importlib.util
 import random
 
 import pytest
@@ -390,6 +391,8 @@ def test_checkpoint_saves_rng_state():
     assert "load_rng_state(" in src, "RNG states must be restored, not merely saved"
 
 
+@pytest.mark.skipif(importlib.util.find_spec("torch") is None,
+                    reason="torch is not installed in the fast CPU job")
 def test_rng_state_round_trips_through_torch_save(tmp_path):
     """The mechanism itself, independent of the model."""
     import random
