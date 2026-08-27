@@ -51,9 +51,13 @@ MACHINE_TPU = "Tpu1VmV38"
 # Files the kernel needs. Deliberately explicit: a glob would eventually sweep up
 # a `.env`, a dataset archive, or a chart image, and non-negotiable rule 7 says
 # none of those may be redistributed.
-INCLUDE = ["src", "configs", "pyproject.toml", "README.md"]
+# `scripts` carries the Phase 5 runner; `data/slices` carries the frozen slice manifests
+# (ids and hashes only — rule 7). Both were missing on the first attempt, which would have
+# failed on the worker after a full model download rather than here.
+INCLUDE = ["src", "configs", "scripts", "data/slices", "pyproject.toml", "README.md"]
 EXCLUDE_SUFFIXES = {".png", ".jpg", ".jpeg", ".zip", ".parquet", ".arrow", ".safetensors", ".bin", ".pt"}
-EXCLUDE_NAMES = {".env", "kaggle.json", "access_token", "__pycache__", ".git", ".venv"}
+EXCLUDE_NAMES = {".env", "kaggle.json", "access_token", "__pycache__", ".git",
+                 ".venv", ".kaggle_dataset", "outputs"}
 
 
 def _api():
@@ -437,9 +441,28 @@ def fetch_output(api, kernel: str, dest: Path) -> None:
         print(f"  could not fetch output: {type(exc).__name__}: {exc}")
 
 
+def _smoke_command(args) -> list[str]:
+    command = [
+        "cdt-train", "--stage", "smoke",
+        "--config", "configs/model_qwen3vl2b.yaml",
+        "--run-name", "phase2_smoke",
+        "--steps", str(args.steps),
+        "--resolutions", args.resolutions,
+        "--no-wandb",
+    ]
+    if args.backend:
+        command += ["--backend", args.backend]
+    if args.batches:
+        command += ["--batches", args.batches]
+    if args.no_resume_test:
+        command += ["--no-resume-test"]
+    return command
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("job", nargs="?", default="smoke", choices=["smoke"])
+    p.add_argument("job", nargs="?", default="smoke",
+                   choices=["smoke", "probe", "variant"])
     p.add_argument("--steps", type=int, default=100)
     p.add_argument("--resolutions", type=str, default="512,native")
     p.add_argument("--batches", type=str, default=None,
@@ -455,6 +478,10 @@ def main() -> int:
     p.add_argument("--status", action="store_true", help="poll the existing kernel and exit")
     p.add_argument("--logs", action="store_true", help="fetch output of the existing kernel and exit")
     p.add_argument("--timeout-min", type=int, default=240)
+    p.add_argument("--variants", type=str, default="instruct,thinking",
+                   help="Phase 5 jobs: which model variants to run")
+    p.add_argument("--limit", type=int, default=0)
+    p.add_argument("--probe-n", type=int, default=20)
     args = p.parse_args()
 
     api = _api()
@@ -468,20 +495,17 @@ def main() -> int:
         fetch_output(api, kernel, REPO_ROOT / "outputs" / "kaggle")
         return 0
 
-    command = [
-        "cdt-train", "--stage", "smoke",
-        "--config", "configs/model_qwen3vl2b.yaml",
-        "--run-name", "phase2_smoke",
-        "--steps", str(args.steps),
-        "--resolutions", args.resolutions,
-        "--no-wandb",
-    ]
-    if args.backend:
-        command += ["--backend", args.backend]
-    if args.batches:
-        command += ["--batches", args.batches]
-    if args.no_resume_test:
-        command += ["--no-resume-test"]
+    if args.job in ("probe", "variant"):
+        # Phase 5 zero-shot. `-m` so the repo root is on sys.path and the script's own
+        # `from scripts...` imports resolve the same way they do locally.
+        command = ["python", "-m", "scripts.run_zeroshot", args.job,
+                   "--variants", args.variants]
+        if args.limit:
+            command += ["--limit", str(args.limit)]
+        if args.job == "probe":
+            command += ["--probe-n", str(args.probe_n)]
+    else:
+        command = _smoke_command(args)
 
     staging = REPO_ROOT / ".kaggle_dataset"
     if staging.exists():
