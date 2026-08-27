@@ -127,5 +127,35 @@
     "eos_token_id": 151645,
     "_pretty_printing_penalty": "pretty-printed JSON costs 80% more tokens than compact (253 vs 141) for identical content. The prompt must demand compact.",
     "_pad_is_not_eos": "pad 151643 != eos 151645, so masking pad tokens does not mask the stop token - the model must still learn to emit <|im_end|>."
+  },
+  "phase3": {
+    "_method": "2,500 random ChartQA TRAIN annotations read from the pinned archive (sha256 1bf310e5...), boxes normalised through the same code path the loaders use. Chart-type shares from a separate 3,000-chart sample.",
+    "chartqa_archive_sha256": "1bf310e5a51101681495c4a24f4f29d22c4f70b52df24e2e4feb0d79cae3c160",
+    "chartqa_train_images": 18317,
+    "chartqa_type_share_pct": {
+      "v_bar": 54.6,
+      "h_bar": 29.3,
+      "line": 12.9,
+      "pie": 3.2
+    },
+    "element_box_coverage_pct": {
+      "v_bar": 96.8,
+      "h_bar": 91.5,
+      "line": 0.0,
+      "pie": 54.8,
+      "overall": 80.8
+    },
+    "element_boxes_per_covered_chart": 12.7,
+    "box_value_alignment_r2": {
+      "v_bar": 0.9999,
+      "h_bar": 1.0,
+      "_note": "median r^2 of bar extent against the gold table value, 1,290 series. Lines are excluded: their bboxes are segments between points (85.6% have len(bboxes) == len(y) - 1), so a point's box size is not stated anywhere."
+    },
+    "synth_verified_examples": 640,
+    "synth_ink_iou_exact_range": [
+      0.841,
+      0.99
+    ],
+    "synth_ink_iou_wrong_max": 0.377
   }
 }

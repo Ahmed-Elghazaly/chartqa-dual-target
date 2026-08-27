@@ -1910,3 +1910,99 @@ generated example against the schema the model is trained to emit. It also caugh
 generator calling the answer field `answer` where the schema requires `model_answer` —
 `SynthExample.to_record()` is now the single place that maps an example onto the schema, so
 no consumer can disagree about field names.
+
+---
+
+### 0042 — ChartQA carries its own element boxes; real charts can supply grounding supervision
+
+**Date** 2026-08-27 · **Phase** 3.2 · **Status** adopted
+
+**What was found.** `ChartQA Dataset.zip` contains, alongside the gold tables, a
+per-chart `annotations/*.json` holding the chart type, axis tick labels with their boxes,
+and **per-datapoint bounding boxes** in absolute-pixel `{x, y, w, h}` — the same form
+RefChartQA uses. This was established by range-reading the archive's central directory
+and a handful of members over HTTP, before downloading anything (`data/remote_zip.py`).
+
+**Why it matters.** `IDEA.md` and `PLAN.md` treat RefChartQA as the sole source of real
+grounding supervision, with synthetic charts as the fallback if the 3.4 audit gate fails.
+That is no longer the only option. Measured over 2,500 random training charts:
+
+| type | share | charts with boxes | element boxes |
+|---|---:|---:|---:|
+| v_bar | 54.5% | 96.8% | 15,857 |
+| h_bar | 28.6% | 91.5% | 9,528 |
+| line | 13.5% | 0.0% | 0 |
+| pie | 3.4% | 54.8% | 245 |
+| **all** | | **80.8%** | **25,630** |
+
+12.7 element boxes per covered chart. The boxes are exact, not approximate: the bar
+extent is a linear function of the gold table value at median r² = 0.9999 (v_bar) and
+1.0000 (h_bar) across 1,290 series.
+
+**Line charts are excluded deliberately.** Their `bboxes` are the **segments between**
+consecutive points — 85.6% of line series have `len(bboxes) == len(y) - 1`. A point's
+*position* is recoverable from the segment endpoints, but its *box size* is stated
+nowhere; the annotation has no marker size. Inventing one would put fabricated boxes into
+training data, which is exactly what the 3.4 audit gate exists to prevent. Lines are
+12.9% of ChartQA against 83.9% for bars, so little is lost and the alternative is
+unverifiable. If line grounding is wanted later, it needs a measured marker size, not an
+assumed one.
+
+**Consequence for the audit gate.** 3.4 says that if RefChartQA scores below 90% it is
+dropped from training entirely and *not replaced with test data*. That instruction stands.
+What changes is that the fallback is no longer synthetic-only: ChartQA's own training
+annotations remain available, they are gold rather than model-generated, and rule 1 is
+untouched because they are training-split annotations. This is recorded now, before the
+audit runs, so it cannot look like a result-driven change of plan.
+
+---
+
+### 0043 — Remote zip reading, and reading ChartQA without extracting it
+
+**Date** 2026-08-27 · **Phase** 3.1 · **Status** adopted
+
+**Context.** The development machine has 7.2 GiB free on a 460 GiB disk (99% full). The
+ChartQA archive is 875 MB and RefChartQA is 2.88 GB.
+
+**Decisions.**
+
+1. **Learn before downloading.** `data/remote_zip.py` reads a zip's central directory and
+   individual members over HTTP Range requests. The entire ChartQA layout, the annotation
+   schema and the box/value alignment were established for a few megabytes, before Phase
+   3.1 fetched anything. `net.get_range` refuses a 200 response so a server that ignores
+   the range cannot silently download the whole file.
+2. **Never extract.** `chartqa.ArchiveReader` reads members straight out of the zip.
+   Extraction would double 875 MB for no benefit — every consumer wants individual
+   members and `zipfile` seeks directly to them.
+3. **RefChartQA is not downloaded locally.** The 3.4 audit needs 200 rows; those are
+   streamed. The full 2.88 GB stays on Kaggle, where training runs.
+
+The archive is hash-verified and recorded: `data/MANIFEST.json` holds
+`1bf310e5a51101681495c4a24f4f29d22c4f70b52df24e2e4feb0d79cae3c160` at 875,370,872 bytes,
+matching the pinned revision exactly. `record_archive` refuses to overwrite a differing
+hash at the same revision rather than updating it, because that event would make any
+number measured before and after it incomparable.
+
+---
+
+### 0044 — Deduplication merges within a split and only reports across it
+
+**Date** 2026-08-27 · **Phase** 3.3 · **Status** adopted
+
+`PLAN.md` 3.3 requires duplicates to be merged rather than dropped or double-counted. Two
+properties were added on top of the plan's text, both because the obvious implementation
+gets them wrong:
+
+* **A key shared across splits is never merged, and never dropped.** The first
+  implementation dropped the second record — which silently resolves a train/test leak,
+  the precise failure rule 1 exists to make impossible. Deduplication now keys on
+  `(split, dedup_key)`, so records merge within a split, and a cross-split collision is
+  recorded in `DedupReport.cross_split_collisions` and surfaced.
+* **Merging is commutative.** Records arrive from different loaders in whatever order a
+  mixture iterates. If merge order changed the result, two runs of the same pipeline
+  would differ. Every field's winner is chosen by a rule independent of argument order,
+  and the property is tested by shuffling the input eight times.
+
+Answer conflicts are counted, not hidden: when two sources disagree, ChartQA's label wins
+(it is what the official metric scores against) and `DedupReport.answer_conflicts`
+increments.

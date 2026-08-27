@@ -77,5 +77,28 @@ def get_bytes(url: str, *, timeout: int = 90, headers: dict[str, str] | None = N
     return resp.content
 
 
+def get_range(url: str, start: int, end: int, *, timeout: int = 180,
+              headers: dict[str, str] | None = None) -> bytes:
+    """GET bytes ``[start, end]`` inclusive via an HTTP Range request.
+
+    Lets us read a zip's central directory — a few megabytes at the end of the file —
+    to learn its layout without fetching the whole 875 MB archive. Raises if the server
+    ignores the range and returns 200 with the entire body, which would otherwise look
+    like success while silently downloading everything.
+    """
+    import requests
+
+    h = dict(headers or {})
+    h["Range"] = f"bytes={start}-{end}"
+    resp = requests.get(url, timeout=timeout, headers=h)
+    resp.raise_for_status()
+    if resp.status_code != 206:
+        raise RuntimeError(
+            f"server ignored the Range header (status {resp.status_code}); refusing to "
+            f"treat a full-body response as a range read"
+        )
+    return resp.content
+
+
 # Repair TLS on import: any module that imports this gets a working default.
 _INSTALLED = ensure_ca_bundle()
