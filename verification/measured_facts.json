@@ -48,10 +48,17 @@
     "fraction_512": 53.2,
     "fraction_448": 60.5,
     "by_subset_512": {
-      "human": 49.1,
+      "human": 56.5,
       "machine": 73.1,
-      "pot": 49.1
-    }
+      "pot": 48.5
+    },
+    "by_subset_448": {
+      "human": 65.0,
+      "machine": 84.3,
+      "pot": 58.2
+    },
+    "median_visual_tokens_448": 176,
+    "_448_vs_512_cost": "Dropping 512 -> 448 removes 29% of visual tokens and costs +9.5 percentage points of sub-token targets overall, +8.5pp on the human subset that carries the published comparison. Measured on RefChartQA validation only (rule 1), 600 rows across all three subsets."
   },
   "phase2": {
     "_source": "Kaggle Tesla T4, hf_peft backend, 512-pixel budget, 100 optimizer steps (session 8)",

@@ -286,3 +286,21 @@ def test_sequence_budget_matches_the_model_config():
     from chartqa_dt.config import Config
 
     assert Config().model.max_seq_len == FACTS["sequence_budget"]["max_seq_len"]
+
+
+def test_lower_resolution_costs_sub_token_performance_in_every_subset():
+    """The 448-vs-512 trade is a cost on the metric this project exists to move,
+    so it must be visible per subset rather than as one blended figure."""
+    s = FACTS["subtoken"]
+    for subset in ("human", "machine", "pot"):
+        at448 = s["by_subset_448"][subset]
+        at512 = s["by_subset_512"][subset]
+        assert at448 > at512, f"{subset}: 448 should be worse than 512, got {at448} vs {at512}"
+    assert s["median_visual_tokens_448"] < s["median_visual_tokens_512"]
+
+
+def test_the_machine_subset_is_the_hardest_to_ground():
+    """Its boxes are systematically smaller, so a cross-subset score comparison
+    must account for geometry rather than reading it as model weakness."""
+    s = FACTS["subtoken"]["by_subset_512"]
+    assert s["machine"] > s["human"] > s["pot"]
