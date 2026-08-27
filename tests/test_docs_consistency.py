@@ -217,3 +217,37 @@ def test_no_doc_claims_ci_is_green():
         "documentation asserts CI status, which goes stale silently; "
         f"use scripts/check_ci.py instead. Offending lines: {offenders}"
     )
+
+
+# ------------------------------------------------------- pinned Hub revisions
+
+
+def test_every_downloadable_artifact_has_a_pinned_revision():
+    """Rule 6 requires the same dataset VERSION for a matched comparison.
+
+    A dataset re-upload between our baseline run and our trained run would make
+    the comparison unmatched without anything failing, so every download passes
+    revision=<sha>.
+    """
+    pins = FACTS["pinned_revisions"]
+    required = [
+        "ahmed-masry/ChartQA",
+        "omoured/RefChartQA",
+        "ahmed-masry/ChartQAPro",
+        "Qwen/Qwen3-VL-2B-Instruct",
+    ]
+    for repo in required:
+        assert repo in pins, f"{repo} has no pinned revision"
+        sha = pins[repo]
+        assert isinstance(sha, str) and len(sha) == 40 and all(
+            c in "0123456789abcdef" for c in sha
+        ), f"{repo}: {sha!r} is not a 40-character hex commit sha"
+
+
+def test_pinned_model_matches_the_configured_backbone():
+    from chartqa_dt.config import Config
+
+    assert Config().model.hf_id in FACTS["pinned_revisions"], (
+        "the configured backbone must have a pinned revision"
+    )
+    assert Config().model.hf_id == FACTS["model"]["hf_id"]

@@ -1,26 +1,35 @@
 {
   "_purpose": "Single source of truth for every measured or verified number this project quotes. Documentation must agree with this file; tests/test_docs_consistency.py enforces it. If a number changes, change it HERE and let the tests find every place that disagrees.",
   "_verified": "2026-08-26",
-
   "datasets": {
-    "chartqa_splits":        {"train": 28299, "val": 1920, "test": 2500},
-    "refchartqa_splits":     {"train": 55789, "validation": 6223, "test": 11690},
-    "refchartqa_test_by_type": {"human": 500, "machine": 1032, "pot": 10158},
-    "chartqapro_test_rows":  1948,
+    "chartqa_splits": {
+      "train": 28299,
+      "val": 1920,
+      "test": 2500
+    },
+    "refchartqa_splits": {
+      "train": 55789,
+      "validation": 6223,
+      "test": 11690
+    },
+    "refchartqa_test_by_type": {
+      "human": 500,
+      "machine": 1032,
+      "pot": 10158
+    },
+    "chartqapro_test_rows": 1948,
     "chartqa_archive_bytes": 875370872,
-    "chartqapro_bytes":      193053989
+    "chartqapro_bytes": 193053989
   },
-
   "published_targets": {
-    "refchartqa_ap50_human_qwen25vl3b":   32.83,
+    "refchartqa_ap50_human_qwen25vl3b": 32.83,
     "refchartqa_ap50_machine_qwen25vl3b": 59.28,
-    "refchartqa_ap50_pot_qwen25vl3b":     39.32,
-    "refchartqa_answer_without_boxes":    88.80,
-    "refchartqa_answer_with_boxes":       84.80,
-    "chartqa_qwen3vl2b_instruct":         79.1,
-    "chartqa_qwen3vl2b_thinking":         86.6
+    "refchartqa_ap50_pot_qwen25vl3b": 39.32,
+    "refchartqa_answer_without_boxes": 88.8,
+    "refchartqa_answer_with_boxes": 84.8,
+    "chartqa_qwen3vl2b_instruct": 79.1,
+    "chartqa_qwen3vl2b_thinking": 86.6
   },
-
   "model": {
     "hf_id": "Qwen/Qwen3-VL-2B-Instruct",
     "patch_size": 16,
@@ -31,17 +40,19 @@
     "bf16_weights_bytes": 4255140312,
     "unsloth_4bit_bytes": 2406693586
   },
-
   "subtoken": {
     "_method": "800 RefChartQA validation images / 1045 boxes; 'sub-token' = narrower than one visual token on at least one axis",
     "median_visual_tokens_native": 425,
-    "median_visual_tokens_512":    247,
+    "median_visual_tokens_512": 247,
     "fraction_native": 41.3,
-    "fraction_512":    53.2,
-    "fraction_448":    60.5,
-    "by_subset_512": {"human": 49.1, "machine": 73.1, "pot": 49.1}
+    "fraction_512": 53.2,
+    "fraction_448": 60.5,
+    "by_subset_512": {
+      "human": 49.1,
+      "machine": 73.1,
+      "pot": 49.1
+    }
   },
-
   "phase2": {
     "_source": "Kaggle Tesla T4, hf_peft backend, 512-pixel budget, 100 optimizer steps (session 8)",
     "peak_reserved_gb": 1.482,
@@ -58,16 +69,23 @@
     "quantised_vision_full": 104,
     "quantised_language_4bit": 196
   },
-
   "gates": {
     "memory_gb": 13.5,
     "full_run_hours": 10.0,
     "planned_optimizer_steps": 3000,
     "weekly_gpu_quota_hours": 30
   },
-
   "vendored": {
     "refchartqa_evaluate_py_sha256": "d0c9f87d68d999da7963ea655935a7140fc35f245ad2c26c53e28e4f651c0dd8",
     "official_max_coord": 999
+  },
+  "pinned_revisions": {
+    "_purpose": "Exact Hub commit SHAs. Every download passes revision=<sha> so a dataset re-upload cannot silently change what we trained or evaluated on. Non-negotiable rule 6 requires the same dataset VERSION for a matched comparison.",
+    "_resolved": "2026-08-27",
+    "_api_note": "hf_hub_download in huggingface_hub 1.28.0 has NO resume_download parameter - it was removed and downloads always resume. Passing it emits a deprecation warning and is ignored. It DOES take revision, which is what matters here.",
+    "ahmed-masry/ChartQA": "af8b6f5c08c95085271561c2a3f9d15f2b5a9031",
+    "omoured/RefChartQA": "c6b6504adb96cf72f0852a5f73ba4c62b718f843",
+    "ahmed-masry/ChartQAPro": "e27c2874825874d6767d2bbc538ed4f0dc2c64c2",
+    "Qwen/Qwen3-VL-2B-Instruct": "89644892e4d85e24eaac8bacfd4f463576704203"
   }
 }
