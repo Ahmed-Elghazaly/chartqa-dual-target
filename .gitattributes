@@ -6,4 +6,5 @@
 # which changes their hash and therefore what "we ran the official evaluator"
 # means. These paths are marked binary so git never touches a byte.
 verification/refchartqa_eval/**   -text
+verification/chartqa_eval/**      -text
 src/chartqa_dt/eval/official/vendor/**   -text

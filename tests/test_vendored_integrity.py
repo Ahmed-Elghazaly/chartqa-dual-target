@@ -21,6 +21,7 @@ import pytest
 
 VENDOR_DIRS = [
     Path("verification/refchartqa_eval"),
+    Path("verification/chartqa_eval"),
     Path("src/chartqa_dt/eval/official/vendor"),
 ]
 
@@ -72,3 +73,56 @@ def test_official_evaluator_contract_is_present(repo_root, expected):
         encoding="utf-8", errors="replace"
     )
     assert expected in src
+
+
+def test_the_official_chartqa_metric_is_vendored_and_matches_ours(repo_root):
+    """`PLAN.md` 4.2 names *both* official evaluators; this is the ChartQA one.
+
+    The RefChartQA evaluator carries a copy of `relaxed_correctness`, so checking only
+    that one leaves the ChartQA claim resting on the assumption that the copy is faithful.
+    Vendoring the original makes it checkable: the source is compared line for line
+    against our implementation's documented behaviour.
+
+    The file is read as text rather than imported — `pix2struct/metrics.py` pulls in heavy
+    dependencies that this project does not have and does not need.
+    """
+    path = repo_root / "verification/chartqa_eval/metrics.py"
+    if not path.exists():
+        pytest.skip("the ChartQA metric has not been vendored in this checkout")
+    src = path.read_text(encoding="utf-8")
+
+    body = src[src.index("def relaxed_correctness"):]
+    body = body[:body.index("\ndef ", 1)] if "\ndef " in body[1:] else body
+
+    # The three behaviours our implementation reproduces, asserted against the source.
+    assert 'return float(text.rstrip("%")) / 100.0' in body, "percent handling"
+    assert 'return float(text)' in body and '.replace(","' not in body, \
+        "the official parser does NOT strip thousands separators"
+    assert "if prediction_float is not None and target_float:" in body, \
+        "the zero guard is a truthiness test, not `is not None` — see DECISIONS.md 0053"
+    assert "return prediction.lower() == target.lower()" in body, \
+        "the string branch does not strip whitespace"
+
+
+def test_our_relaxed_correctness_agrees_with_the_vendored_chartqa_metric(repo_root):
+    """Execute the official function itself, in isolation, and compare outputs."""
+    path = repo_root / "verification/chartqa_eval/metrics.py"
+    if not path.exists():
+        pytest.skip("the ChartQA metric has not been vendored in this checkout")
+
+    from chartqa_dt.eval.metrics import relaxed_correctness
+
+    src = path.read_text(encoding="utf-8")
+    start = src.index("def relaxed_correctness")
+    end = src.index("\ndef ", start + 1)
+    namespace: dict = {"Optional": object}
+    exec(compile(src[start:end], str(path), "exec"), namespace)
+    official = namespace["relaxed_correctness"]
+
+    cases = [("10", "10.4"), ("10", "10.6"), ("0", "0"), ("0", "0.0"), ("0", "0.1"),
+             ("50%", "0.5"), ("0.5", "50%"), ("Yes", "yes"), ("Yes", "Yes."),
+             ("1,234", "1234"), ("1,234", "1,234"), (" Yes ", "Yes"), ("abc", "ABC"),
+             ("2020", "2020.0"), ("-5", "-5.1"), ("100", "104"), ("100", "106")]
+    bad = [(t, p) for t, p in cases
+           if bool(official(t, p)) != relaxed_correctness(t, p)]
+    assert not bad, f"disagreement with the official ChartQA metric: {bad}"

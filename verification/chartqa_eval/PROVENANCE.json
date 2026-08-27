@@ -1,0 +1,15 @@
+{
+  "purpose": "Official ChartQA metric, vendored verbatim. `relaxed_correctness` here is THE definition every published ChartQA number uses, and the RefChartQA evaluator contains a copy of it. PLAN.md 4.2 requires agreement with both official evaluators; this file is what 'the official ChartQA evaluator' means, so the claim is checkable rather than asserted.",
+  "source_repo": "https://github.com/google-research/pix2struct",
+  "source_path": "pix2struct/metrics.py",
+  "downloaded": "2026-08-27",
+  "repo_license": "Apache-2.0",
+  "note": "Only `relaxed_correctness` and its nested `_to_float` are used. The file is vendored whole so the hash covers exactly what upstream serves; it is never imported (it pulls in heavy deps), it is read as text and compared.",
+  "files": {
+    "metrics.py": {
+      "sha256": "375d5970dd3c05f71b27934eabfa3e0a400c0eb459ba540a387e5c7ec6e8cecd",
+      "bytes": 7117,
+      "url": "https://raw.githubusercontent.com/google-research/pix2struct/main/pix2struct/metrics.py"
+    }
+  }
+}
