@@ -1791,3 +1791,122 @@ Nothing downstream is built on the choice yet.
 This entry exists because a decision that changes an outcome in the decider's favour needs its
 reasoning exposed, not summarised. The project's own standard — never change a decision after seeing
 the result, and if you must, report both — applies to gates as much as to results.
+
+---
+
+### 0038 — Synthetic box verification checks the box against the ink's own extent
+
+**Date** 2026-08-27 · **Phase** 3.5 · **Status** adopted
+
+**Context.** `PLAN.md` 3.5 requires every synthetic example to carry an exact box, and
+requires the generator to prove it. Boxes come from matplotlib artist geometry; the proof
+has to be independent of that geometry, or it proves nothing. Three designs were tried and
+two were rejected **by measurement**, not by argument.
+
+**Rejected — displacement.** Slide the box sideways by 1.6x its width and require the fill
+to collapse. On a bar chart the displaced box lands on the *adjacent bar* and scores
+highly: bars 0 and 1 of an exact set reported `ok=False` at 74.2% and 45.9%. False failures
+on perfect boxes.
+
+**Rejected — relative tightness.** Expand the box by `f` and require the fill to drop by a
+fraction of itself. Elegant: expanding multiplies the box area by `(1 + 2f)^2` while the
+ink is unchanged, so an exact box loses `1 - 1/(1 + 2f)^2` = 65.4% at f = 0.35 whatever its
+shape — and measurement agreed across bars, wedges and markers (60.6–65.6%). But it is
+scale-invariant for exactly that reason, so it cannot see an **oversized** box: a pie wedge
+box grown 1.8x passed.
+
+**Adopted — `ink_bbox_iou` plus `containment`.** Compare the box to the tight extent of the
+element's own ink within `expand(box)`. Measured across all eight chart types: exact boxes
+0.841–0.990; shifted by half a width 0.365–0.377; shrunk to 0.6x 0.315–0.359; grown to 1.8x
+0.312–0.352. The floor of 0.70 has roughly 2x margin either side. `containment` — the
+fraction of the element's ink inside the box — is kept as a second, independent signal
+wherever the colour identifies the element uniquely.
+
+Absolute fill is measured and reported but **never gated**. It is shape-dependent in a way
+no single threshold survives: a bar reaches ~100%, a disc inscribed in its square reaches
+pi/4 = 78.5%, and a circular sector's tight bbox reaches only 21–78% depending on span. A
+10-degree pie sliver measured 21.0% — correct geometry, not a bad box, and the first
+version of the threshold table rejected it.
+
+**Consequence.** 640/640 examples verified across 8 chart types x 4 levels x 20 seeds, and
+`tests/test_synth_geometry.py` pairs every acceptance test with an adversarial one: shifted,
+shrunk, grown and far-away boxes must all be rejected. A verifier that accepts everything
+would certify wrong boxes and we would train on them.
+
+---
+
+### 0039 — Boxes are verified on a recoloured render, not the delivered image
+
+**Date** 2026-08-27 · **Phase** 3.5 · **Status** adopted
+
+**Context.** Verification matches pixels against an element's colour within a tolerance of
+12 per channel. A *style* colour can fall inside that tolerance of something else on the
+chart. The near-greyscale palette produced element colour (94, 94, 119), and 48 of its 686
+matched pixels were not the element at all but antialiased text at (102, 105, 110) — enough
+to drop containment to 93% and reject an exact box.
+
+**Decision.** Before verifying, recolour every element to a `SENTINEL` — fully saturated,
+mutually distant, and drawn nowhere else on a chart — render, verify, then restore the real
+colours before saving. Colour moves no artist, so the geometry verified is exactly the
+geometry shipped. A line's markers get a sentinel while the line itself gets another, so
+the line's own ink stops counting toward its markers' boxes.
+
+**Alternative rejected.** Restricting palettes to saturated colours would have removed the
+muted palettes that real charts actually use, to work around a measurement artefact.
+
+**Consequence.** One extra render per example (~74 ms total, from ~54 ms). Failures fell
+from 49/384 to 9/384, and pie, line, multi-line and area went to zero.
+`test_saved_image_never_contains_sentinel_colours` guards the restore step, since a missed
+restore would silently ship magenta charts.
+
+---
+
+### 0040 — Three generator defects the pixel verifier caught
+
+**Date** 2026-08-27 · **Phase** 3.5 · **Status** adopted
+
+Each was found by verification failing, and each was a real defect rather than a bad
+threshold. Recorded because all three are invisible to code review.
+
+1. **Palette wrap gave two elements the same colour.** Palettes hold five colours and a
+   series may have seven categories; `palette[i % len(palette)]` collided, and
+   `containment` — which counts every pixel of that colour — then split between two
+   elements and read ~50% for a perfect box. `element_colours` now shifts lightness by
+   `COLOUR_SHIFT = 60` on each wrap, far beyond the matching tolerance of 12.
+2. **Marker boxes omitted the stroke.** matplotlib centres a stroke on its path, and
+   scatter's `edgecolor` defaults to `"face"`, so half the linewidth is the element's own
+   colour lying *outside* the nominal marker. Measured: containment 100% at `linewidths=0`,
+   97.2% at the 1.5pt default. `point_box` and `scatter_point_box` now take the stroke
+   width and pad by half of it.
+3. **`fill_between` was drawn over the markers.** On area charts the translucent fill
+   overlaid the lower half of each marker, changing its colour so those pixels no longer
+   matched — read as spurious tightness failures. The fill now carries an explicit lower
+   `zorder`.
+
+Two further changes were measurement fixes rather than defects: `containment` now floors
+the near box edges and ceils the far ones (rounding both ways dropped a boundary row, a few
+percent of a thin bar's ink), and `sample_series` bounds the dynamic range at
+`MAX_VALUE_RATIO = 8` because a value of 1 against a maximum of 89 drew a bar one pixel
+tall — unverifiable, and useless as a grounding target regardless. `MIN_BOX_SIDE_PX = 4`
+rejects such boxes explicitly rather than as a threshold artefact.
+
+---
+
+### 0041 — Synthetic aggregates use the executor's fold-over-evidence form
+
+**Date** 2026-08-27 · **Phase** 3.5 · **Status** adopted
+
+**Context.** L3 questions aggregate over every category. The first implementation listed
+every label in `args`, which fails `OUTPUT_SCHEMA` as soon as a chart has five categories:
+`args` is capped at `maxItems: 4`.
+
+**Decision.** Emit `{"op": "sum", "args": []}`. `PLAN.md` Appendix B already specifies that
+`sum`, `mean`, `median`, `min`, `max`, `count`, `argmin` and `argmax` fold over the whole
+evidence set when `args` is empty — the evidence list *is* the argument. The cap was never
+in conflict with the curriculum; the curriculum was not using the plan's own idiom.
+
+**How it was found.** `test_generated_records_pass_the_output_schema` validates every
+generated example against the schema the model is trained to emit. It also caught the
+generator calling the answer field `answer` where the schema requires `model_answer` —
+`SynthExample.to_record()` is now the single place that maps an example onto the schema, so
+no consumer can disagree about field names.
