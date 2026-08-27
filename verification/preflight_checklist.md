@@ -62,6 +62,21 @@ remotely**. Nothing below requires a GPU except where marked.
 
 ---
 
+## Rule 1: sealed splits (enforced, not asked)
+
+Refusing to touch a sealed split is no longer a matter of remembering. `chartqa_dt.splits`
+refuses by default; opening a seal requires explicit authorisation **and** a committed, clean
+`PREREGISTRATION.md`, and every opening is logged with a reason. See `DECISIONS.md` 0031 for the
+incident that prompted it.
+
+| dataset | sealed splits |
+|---|---|
+| ChartQA | `test` |
+| RefChartQA | `test` |
+| ChartQAPro | **all** — it is a test-only stress set |
+
+---
+
 ## Known gaps, carried forward deliberately
 
 Recorded here so they are not rediscovered as surprises.
