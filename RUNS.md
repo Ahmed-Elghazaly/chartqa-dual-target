@@ -19,7 +19,7 @@ times in this table to track consumption against Kaggle's ~30 GPU-hours per week
 | 11 | 2026-08-27 | Kaggle T4 (pinned) | 100 steps @512 + @native, with resume | 59 min | 5.57 / 6.72 | **COMPLETE** | First clean single-card measurement. 512px 11.90 s/step → 9.92 h; native 21.27 s/step → 17.72 h (77% over gate). Resume failed as predicted — launched before the RNG fix. |
 | 12 | 2026-08-27 | Kaggle T4 (pinned) | 60 steps @512 × batch{2,4,8}, with resume | 42 min | 5.65–10.87 | **COMPLETE** | **Resume now passes** (deltas 0.0053/0.0018/0.0014 vs 0.0438 before the RNG fix). Micro-batch grouping buys only 5.5% time for 92% more memory. |
 
-**Total GPU time so far: ~3.3 h** of the ~30 h weekly quota.
+GPU hours are **not** totalled here — Kaggle is the authority. Run `python scripts/gpu_budget.py` for the live figure.
 
 Runs 1–3 and 6 cost under a minute each because the failure was caught by a cheap gate rather than
 discovered after a download. That is the entire argument for
@@ -31,7 +31,7 @@ run 8 cost twenty-five for two bugs that local tests now catch in milliseconds.
 | Item | Spent | Cap |
 |---|---:|---:|
 | Paid compute | **USD 0.00** | USD 20.00 (interruption contingency only — rule 9) |
-| Kaggle GPU hours this week | **~3.3 h** | ~30 h |
+| Kaggle GPU hours this week | see `scripts/gpu_budget.py` (live) | 30 h |
 | Committed ahead (Phases 5–7) | ~17 h | — |
 
 ## Phase 2 gates (IDEA.md §14, PLAN.md Appendix F)

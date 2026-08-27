@@ -57,7 +57,7 @@ remotely**. Nothing below requires a GPU except where marked.
 | E1 | A ≤100-step run of the **exact same config** has passed A–D | the only reliable evidence is a rehearsal of the real thing |
 | E2 | Kill-and-resume verified by comparing post-resume loss | a resume that has never been tested does not work |
 | E2a | The checkpoint contains **all five** components `PLAN.md` 6.3 lists — adapter weights, optimizer state, scheduler state, **RNG states**, dataloader position — and each is **restored** | saving a subset makes the comparison unfair rather than failing loudly; with dropout active it produced a believable `delta = 0.0456` that invited widening the tolerance (decision 0026) |
-| E3 | Projected wall time inside the gate **and** the weekly quota | `scripts/gpu_budget.py` |
+| E3 | Projected wall time inside the gate **and** the weekly quota | `scripts/gpu_budget.py` (live from Kaggle's quota API) |
 | E4 | Checkpoints push to the Hub on every save | a killed session loses nothing |
 
 ---
