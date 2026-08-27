@@ -2718,3 +2718,56 @@ data, which is exactly what 5.1 authorises.
 
 Recorded now, before the re-probe, so the change is not confused with fitting to whatever
 the next measurement happens to show.
+
+---
+
+## 0059 — Plan/answer round-trip is a headline number, measured from the first baseline
+
+**Date** 2026-08-27 · **Phase** 5.1 · **Status** adopted
+
+**Context.** `IDEA.md`'s premise is that the model emits a typed expression tree beside its
+answer and a deterministic CPU executor recomputes that answer, making the arithmetic
+checkable rather than asserted. Nothing in the project was measuring whether that actually
+holds. Parse validity and schema validity were tracked; both can be 100% while every plan
+computes something other than the stated answer, in which case the plan is decoration.
+
+**Measured on the zero-shot probe** (Qwen3-VL-2B-Instruct, schema-valid records only):
+
+| | |
+|---|---:|
+| the plan reproduces the answer | **4/10 (40%)** |
+| the plan executes at all | 8/10 (80%) |
+| runs but disagrees | 4 |
+| refuses to run | 2 |
+
+**Decision.** Measure it as a headline number, and fix in the prompt what the prompt can
+fix.
+
+The disagreements have one dominant cause, and it is a confusion about what an operation
+returns. For *"which player gained the most yards?"* the model emitted
+`{"op":"lookup","args":["Jamaal Charles"]}` and answered `"Jamaal Charles"`. `lookup`
+returns the **value** (7260.0); the answer is the **label**. `argmax` returns the label —
+it is the right operation, and the model never reached for it. Same shape for
+`compare(["Namibia","Paraguay"])` answered `"Namibia"`: `compare` returns
+`"greater"`/`"less"`, not the winning label. The two refusals were arity violations —
+`lookup` with three arguments, `compare` with three.
+
+**How.**
+
+1. `chartqa_dt.plans.roundtrip` measures this, with four outcomes kept deliberately
+   distinct: **agrees**, **disagrees** (a reasoning error — training's job), **raises** (a
+   format error — the prompt's job), and **no plan**. Collapsing them would hide which
+   half of the project a failure belongs to. Comparison uses the official relaxed
+   tolerance, not exact equality, so a stated `"35"` against a computed `35.0001` is not
+   recorded as a reasoning failure.
+2. The prompt now says how to choose an operation **by what the answer is** — a category
+   name means `argmax`/`argmin`, a number read off the chart means `lookup` — and states
+   every arity. It also states the invariant directly: *the plan must produce
+   `model_answer` when run against your evidence.*
+
+**Consequences.** A 40% zero-shot round-trip
+is real headroom, and headroom is what the project needs. But a baseline crippled by a
+*fixable prompt bug* would inflate the eventual improvement, and `PLAN.md` 5.1 explicitly
+allows prompt iteration on validation data. Fixing what prompting can fix is therefore
+required for the comparison to be honest, not optional — the trained model should have to
+beat the best baseline we can fairly elicit, not the first one we happened to write.

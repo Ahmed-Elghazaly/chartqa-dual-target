@@ -172,6 +172,20 @@ def stage_probe(args) -> dict[str, Any]:
                   f"json {rep.parse.valid}/{rep.parse.total}, "
                   f"schema {rep.parse.schema_valid}/{rep.parse.total}", flush=True)
             if mode == "structured":
+                # The project's central claim, measured from the first baseline onward.
+                from chartqa_dt.plans.roundtrip import check_many
+                from chartqa_dt.prompting.parsing import parse_record, schema_ok
+
+                recs = []
+                for g in gens:
+                    res = parse_record(g.raw)
+                    if res.ok and schema_ok(res.record)[0]:
+                        recs.append(res.record)
+                _, rt = check_many(recs)
+                report[f"{variant}/{mode}"]["roundtrip_agreement"] = rt.agreement
+                report[f"{variant}/{mode}"]["roundtrip_executable"] = rt.executable
+                report[f"{variant}/{mode}"]["roundtrip_counts"] = dict(rt.counts)
+                print(rt.describe(), flush=True)
                 for g in gens:
                     if not g.parsed_ok:
                         print(f"      FAIL [{g.reason[:44]}] tokens={g.new_tokens} "
@@ -221,6 +235,12 @@ def stage_variant(args) -> dict[str, Any]:
         write_generations(gens, out_dir() / f"variant_{variant}.jsonl")
         correct = sum(relaxed_correctness(r["answer"], g.answer)
                       for r, g in zip(rows, gens))
+        from chartqa_dt.plans.roundtrip import check_many
+        from chartqa_dt.prompting.parsing import parse_record, schema_ok
+
+        recs = [res.record for g in gens
+                if (res := parse_record(g.raw)).ok and schema_ok(res.record)[0]]
+        _, rt = check_many(recs)
         table[variant] = {
             "n": len(gens),
             "relaxed_accuracy": correct / max(1, len(gens)),
@@ -234,9 +254,12 @@ def stage_variant(args) -> dict[str, Any]:
             "hit_token_cap_fraction": rep.capped_fraction,
             "failure_reasons": dict(rep.parse.reasons),
             "schema_failure_reasons": dict(rep.parse.schema_reasons),
+            "roundtrip_agreement": rt.agreement,
+            "roundtrip_executable": rt.executable,
         }
         print(f"\n{variant}: accuracy {100 * table[variant]['relaxed_accuracy']:.2f}%  "
-              f"valid JSON {100 * rep.parse.valid_fraction:.1f}%  "
+              f"schema-valid {100 * rep.parse.schema_valid_fraction:.1f}%  "
+              f"round-trip {100 * rt.agreement:.1f}%  "
               f"median {rep.median_latency:.2f}s", flush=True)
         del loaded
         _free()

@@ -99,6 +99,18 @@ Rules:
   x2,y2 is bottom-right.
 - "op" must be EXACTLY one of these strings: {ops}.
   Use "mean" (not "average"), "difference" (not "subtract").
+- Choose the op by WHAT THE ANSWER IS:
+  * the answer is a category name ("which year", "which country") -> "argmax" or
+    "argmin" over the evidence, NOT "lookup". {{"op":"argmax","args":[]}} returns the
+    label of the largest evidence item.
+  * the answer is a number read straight off the chart -> "lookup" with ONE label.
+  * the answer is a computed number -> "difference", "ratio", "sum", "mean", ...
+  * the answer is "yes"/"no" -> "boolean"; "greater"/"less" -> "compare".
+- Argument counts are fixed: "lookup" takes exactly 1 label; "compare", "difference",
+  "ratio" and "percent_change" take exactly 2; "sum", "mean", "median", "min", "max",
+  "count", "argmax" and "argmin" take either an explicit list or [] for all evidence.
+- The plan must PRODUCE "model_answer" when run against your evidence. If running your
+  own plan would give a different value, the plan is wrong — fix it before answering.
 - "model_answer" is the final answer only: a single word, phrase or number.
 
 Question: {{question}}\
