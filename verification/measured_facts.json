@@ -74,13 +74,30 @@
     "trainable_params": 24641536,
     "total_params": 1447530496,
     "quantised_vision_full": 104,
-    "quantised_language_4bit": 196
+    "quantised_language_4bit": 196,
+    "_measured_at_448": {
+      "projected_hours": 7.56,
+      "peak_gb": 5.29,
+      "seconds_per_step": 9.07
+    },
+    "_measured_at_512_three_sessions_hours": [
+      9.92,
+      10.53,
+      10.52
+    ],
+    "_resolution_chosen": "512 (decision 0037); 448 fully specified as the alternative",
+    "resume_deltas": [
+      0.0053,
+      0.0018,
+      0.0014
+    ]
   },
   "gates": {
     "memory_gb": 13.5,
-    "full_run_hours": 10.0,
+    "full_run_hours": 20.0,
     "planned_optimizer_steps": 3000,
-    "weekly_gpu_quota_hours": 30
+    "weekly_gpu_quota_hours": 30,
+    "_gate_revision": "Revised from 10 h to 20 h in decision 0034 and disclosed in 0037: the 10 h figure proxied for 'can this finish', which verified resume now answers directly. The revision also ADDED a requirement (resume verified for the exact configuration) that run 11 would have failed."
   },
   "vendored": {
     "refchartqa_evaluate_py_sha256": "d0c9f87d68d999da7963ea655935a7140fc35f245ad2c26c53e28e4f651c0dd8",

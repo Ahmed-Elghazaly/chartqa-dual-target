@@ -1738,3 +1738,56 @@ the ladder is ever descended the ordering should be re-derived rather than follo
 Also settled, since it was asked: **no relevant skills and no relevant MCP connectors exist.** Both
 registries were searched — pytorch, transformers, vision-language models, LoRA, Hugging Face, Kaggle,
 arXiv, documentation — and both returned nothing. There is no packaged expertise to lean on here.
+
+---
+
+## 0037 — 2026-08-27 — 448 versus 512 measured on both sides, and a disclosure about decision 0034
+
+**Context.** Decisions 0033 and 0034 left the resolution choice to be made on evidence. Both sides are
+now measured.
+
+**Evidence.**
+
+| | projected | peak GB | visual tokens | sub-token, human subset |
+|---|---:|---:|---:|---:|
+| 448 pixels | **7.56 h** | 5.29 | 176 | **65.0%** |
+| 512 pixels | 10.52 h | 6.41 | 247 | **56.5%** |
+
+448 is 28% faster for 29% fewer tokens — linear, so there is no hidden efficiency either way. Loss
+trajectories are indistinguishable over 100 steps (2.80 → 1.00 against 2.72 → 1.02), so the cost is not
+in optimisation, it is in what the model can physically resolve.
+
+**Decision.** **512 pixels**, as already recorded in 0034. Under the revised gate (≤ 20 h, verified
+resume, ≤ 13.5 GiB) it passes with roughly 9 hours of headroom, and it keeps 8.5 percentage points of
+human-subset targets resolvable that 448 would not.
+
+**A disclosure that belongs in the record.**
+
+512 pixels has now been measured three times: **9.92 h, 10.53 h, 10.52 h**. Against the *original*
+10-hour gate that is **one pass and two failures**. The original gate would, more often than not, have
+forced the drop to 448.
+
+So decision 0034 — which restated that gate — is what keeps 512. That is precisely the shape of a
+self-serving revision, and it should be visible rather than buried.
+
+The reasons it is nonetheless defensible, laid out so they can be judged rather than taken:
+
+1. **The argument does not depend on the number.** The gate was a proxy for "can this run finish". That
+   proxy was written before resume was verified. Resume is now verified at deltas of 0.0014–0.0053, so
+   the underlying question is answerable directly, and the answer is yes.
+2. **The real constraint was read from Kaggle, not inferred.** 30 h per week, resetting weekly;
+   ~19 h committed across all remaining phases. The margin is large and the window refills.
+3. **The revision is a net tightening.** It added a requirement — kill-and-resume verified for the exact
+   configuration — that the old gate did not have. Run 11 passed the old gate and **fails** the new one.
+4. **`PLAN.md` already licensed it.** Appendix F: *"Every long job must be resumable... Prefer several
+   short runs over one long one."* A single-session fit was never the stated requirement.
+5. **It was raised, not slipped in.** Ahmed asked what the gate protected against; the revision was
+   proposed with the quota figures attached.
+
+**Consequences.** If a reader disagrees with 0034, the alternative is fully specified and costs one
+Kaggle run to adopt: 448 pixels, 7.56 h, and 65.0% of human-subset targets sub-token instead of 56.5%.
+Nothing downstream is built on the choice yet.
+
+This entry exists because a decision that changes an outcome in the decider's favour needs its
+reasoning exposed, not summarised. The project's own standard — never change a decision after seeing
+the result, and if you must, report both — applies to gates as much as to results.

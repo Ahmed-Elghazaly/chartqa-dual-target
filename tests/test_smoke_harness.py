@@ -106,7 +106,7 @@ def test_a_healthy_configuration_passes():
     ("field", "value"),
     [
         ("peak_reserved_gb", 13.6),               # over the memory gate
-        ("projected_full_run_hours", 10.1),       # over the time gate
+        ("projected_full_run_hours", 20.1),       # over the time gate
         ("any_nan", True),
         ("loss_decreased", False),
         ("ok", False),

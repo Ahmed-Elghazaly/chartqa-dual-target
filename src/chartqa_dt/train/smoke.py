@@ -71,7 +71,10 @@ SOURCE_IMAGE_W = 800
 SOURCE_IMAGE_H = 557
 
 MEMORY_GATE_GB = 13.5
-FULL_RUN_GATE_HOURS = 10.0
+# Revised from 10.0 in decision 0034, disclosed in 0037: the 10-hour figure proxied
+# for 'can this run finish', which verified kill-and-resume now answers directly.
+# The binding constraint is Kaggle's 30 h weekly quota against ~19 h committed.
+FULL_RUN_GATE_HOURS = 20.0
 # Pre-registered budget: 24,000 example presentations at effective batch 8.
 PLANNED_OPTIMIZER_STEPS = 3000
 
