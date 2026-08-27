@@ -42,6 +42,10 @@ SEALED_SPLITS: dict[str, frozenset[str]] = {
 
 PREREGISTRATION = "PREREGISTRATION.md"
 
+#: Markers `scripts/write_prereg.py` leaves where a Phase 5 measurement is still missing.
+#: Their presence means the file is a template, not a record.
+PREREGISTRATION_PLACEHOLDERS = ("TBD", "has not run yet", "has not run")
+
 
 class SealedSplitError(RuntimeError):
     """Raised when sealed data is touched without authorisation. Never caught and logged away."""
@@ -103,6 +107,19 @@ def seal_status(repo_root: Path | None = None) -> SealStatus:
     dirty = git("status", "--porcelain", "--", PREREGISTRATION)
     if dirty is None or dirty.strip():
         return SealStatus(True, True, False, f"{PREREGISTRATION} has uncommitted changes")
+
+    # Committed and clean is still not enough. `scripts/write_prereg.py` can generate the
+    # file before Phase 5.2 has produced its numbers — it has to, because the file must
+    # exist before any test split opens — and that draft carries placeholders. Committing
+    # a draft would open the seal on a document that does not yet record the decisions it
+    # exists to record, which is the failure `PLAN.md` 5.5 is written to prevent.
+    text = path.read_text(encoding="utf-8", errors="replace")
+    placeholders = [marker for marker in PREREGISTRATION_PLACEHOLDERS if marker in text]
+    if placeholders:
+        return SealStatus(
+            True, True, False,
+            f"{PREREGISTRATION} is still a draft: it contains {placeholders[0]!r}. "
+            f"Complete Phase 5 and regenerate it before opening a sealed split.")
 
     return SealStatus(True, True, True, "")
 

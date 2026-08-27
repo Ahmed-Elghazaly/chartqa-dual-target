@@ -33,3 +33,7 @@ echo "== 4/4 documentation consistency =="
 
 echo
 echo "preflight passed — safe to push."
+echo
+echo "NOTE: run this WITHOUT a pipe. \`preflight.sh | tail -3\` reports tail's exit"
+echo "status, not preflight's, so a failure chained with && is silently skipped."
+echo "That is how a red commit reached main once already."

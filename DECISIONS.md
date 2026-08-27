@@ -2602,3 +2602,64 @@ The generic lesson, and it is the third time this project has met it: **consiste
 verify agreement, not truth.** Rule 1 needed a mechanical guard rather than prose (0031);
 deduplication needed pixel identity rather than file identity (0048); and a canonical facts
 file needs internal invariants, not only external agreement.
+
+---
+
+## 0056 — A draft pre-registration must not open the sealed split
+
+**Date** 2026-08-27 · **Phase** 5.5 · **Status** adopted
+
+**Context.** `PLAN.md` 5.5: *"After this file is committed, test splits may be opened. Not
+before."* `chartqa_dt.splits.seal_status` implemented that literally — exists, committed,
+clean — and `assert_split_allowed` refuses until all three hold.
+
+`scripts/write_prereg.py` has to be able to generate the file *before* Phase 5.2 has
+produced its numbers, because the file must be committed before any test split opens. That
+draft carries placeholders: `variant selected: **TBD — 5.2 has not run**`. Committing it
+satisfied all three conditions and **opened the seal on a document that recorded none of
+the decisions it exists to record**.
+
+`tests/test_sealed_splits.py::test_the_repository_seal_is_currently_closed` caught it
+immediately, which is what that test is for.
+
+**Decision.** `seal_status` additionally rejects a pre-registration containing any
+`PREREGISTRATION_PLACEHOLDERS` marker, with a reason naming the marker found. A template
+is not a pre-registration. Both directions are tested: a committed draft does **not** open
+the seal, and a committed complete file does — a guard that only ever refuses is not a
+guard.
+
+**Consequences.** The rule this project keeps rediscovering, now in its fourth form:
+*mechanical conditions must encode the intent, not its most literal reading.* Rule 1 needed
+a guard rather than prose (0031); dataset identity needed pixels rather than file bytes
+(0048); contamination needed image-level checking rather than split labels (0049); and
+"committed" needed to mean "complete", not "the file exists".
+
+---
+
+## 0057 — A pipe masked a failing check, and a red commit reached main
+
+**Date** 2026-08-27 · **Phase** 5 · **Status** adopted
+
+**Context.** `scripts/preflight.sh` exists so CI's environment is reproduced before a push
+(`DECISIONS.md` 0050). It was invoked as:
+
+```
+bash scripts/preflight.sh 2>&1 | tail -3 && pytest -q | tail -1 && git commit … && git push
+```
+
+A pipeline's exit status is the **last** command's. `tail` succeeds whatever preflight
+does, so the `&&` chain continued through a failing preflight and pushed a commit whose
+test suite was red — the same class of failure as the eight silent CI failures in 0050,
+reintroduced by the way the check was *called* rather than by the check itself.
+
+**Decision.** `preflight.sh` prints the hazard in its own success output, and
+`WORKING_AGREEMENT.md` records the habit: run a gating check bare, read it, then commit as
+a separate step. Never chain a piped check with `&&`.
+
+**Consequences.** The failing test was `test_the_repository_seal_is_currently_closed` — the
+seal opened by 0056 — so the push was red for a real reason and not a flake. Both are fixed
+in the same commit as this entry, and the CI run on the pushed commit is checked rather
+than assumed.
+
+A tool that reports a failure nobody reads is no tool (0050's lesson). This is its
+sibling: a tool whose failure is discarded by the shell is no tool either.

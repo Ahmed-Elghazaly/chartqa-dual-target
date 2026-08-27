@@ -96,3 +96,16 @@ Every one of these produced a plausible, wrong result rather than an error.
 `STATUS.md` has the current phase state. `verification/measured_facts.json` is the single source of
 truth for every measured number — change it there and the tests will find every document that
 disagrees.
+
+## Two shell habits that have each caused a wrong report
+
+1. **Never pipe a check whose exit status you then rely on.**
+   `bash scripts/preflight.sh | tail -3 && git commit …` runs the commit even when
+   preflight fails, because a pipeline's status is the *last* command's. That is how a
+   red commit reached `main`. Run the check bare, read its output, then commit as a
+   separate step.
+2. **`git status` is silent about ignored files.** A source file excluded by
+   `.gitignore` shows nothing at all — not "untracked", not "modified" — so a whole
+   package can be missing from the repository while every local run passes
+   (`DECISIONS.md` 0050, 0051). `tests/test_repo_completeness.py` runs `git check-ignore`
+   over every source file and required artefact, and it is step 1 of preflight.

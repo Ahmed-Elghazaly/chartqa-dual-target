@@ -155,9 +155,48 @@ def test_opening_the_seal_is_logged(tmp_path, capsys):
 
 
 def test_the_repository_seal_is_currently_closed():
-    """Until Phase 5.5 commits the pre-registration, this must stay closed."""
+    """Until Phase 5 finishes and the pre-registration records real numbers, closed.
+
+    Deliberately not "until the file exists". `scripts/write_prereg.py` generates the
+    file before 5.2 has run, because `PLAN.md` 5.5 requires it committed before any test
+    split opens — so existence alone would open the seal on a draft. Committing that
+    draft did open it, once, which is why `seal_status` now rejects placeholders.
+    """
     status = seal_status()
     assert not status.may_open, (
-        "the seal reports open, but PREREGISTRATION.md should not exist yet — "
-        "if Phase 5 has completed, update this test deliberately"
+        "the seal reports open. If Phase 5 has genuinely completed and the "
+        "pre-registration records the selected variant and both zero-shot numbers, "
+        "update this test deliberately — do not delete it."
     )
+
+
+def test_a_draft_preregistration_does_not_open_the_seal(tmp_path):
+    """A template is not a pre-registration."""
+    import subprocess
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    path = tmp_path / "PREREGISTRATION.md"
+    path.write_text("# Pre-registration\n\n| variant | **TBD — 5.2 has not run** |\n")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "PREREGISTRATION.md"], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "-c", "user.email=t@t", "-c",
+                    "user.name=t", "commit", "-qm", "draft"], check=True)
+
+    status = seal_status(tmp_path)
+    assert status.preregistration_exists and status.preregistration_committed
+    assert not status.may_open
+    assert "draft" in status.reason and "TBD" in status.reason
+
+
+def test_a_completed_preregistration_opens_the_seal(tmp_path):
+    """The positive case, so the guard is not simply refusing everything."""
+    import subprocess
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    path = tmp_path / "PREREGISTRATION.md"
+    path.write_text("# Pre-registration\n\n| variant selected | **instruct** |\n")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "PREREGISTRATION.md"], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "-c", "user.email=t@t", "-c",
+                    "user.name=t", "commit", "-qm", "final"], check=True)
+
+    status = seal_status(tmp_path)
+    assert status.may_open, status.reason
