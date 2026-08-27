@@ -1626,3 +1626,51 @@ fails is not a relaxation.
 
 The revision is recorded here and must be reflected in `PREREGISTRATION.md` before any test split is
 opened, so the standard the results are judged against is fixed in advance and not adjusted afterwards.
+
+---
+
+## 0035 — 2026-08-27 — Phase 2 complete: backbone, backend and configuration selected
+
+**Context.** `PLAN.md` 2.4 requires the backbone to be chosen on recorded evidence, with a table of
+measurements for every candidate tried. This closes Phase 2 and opens the Phase 3 gate.
+
+**Options.** The fallback ladder in `IDEA.md` §7: Qwen3-VL-2B-Instruct, then Qwen2.5-VL-3B-Instruct,
+then Qwen3-VL-8B in 4-bit, then Qwen3.5-2B-Vision. Backends: `hf_peft` and `unsloth`.
+
+**Decision.** **`Qwen/Qwen3-VL-2B-Instruct`** at revision `89644892e4d85e24eaac8bacfd4f463576704203`,
+loaded by the **`hf_peft`** backend in 4-bit with the vision tower excluded from quantisation, at a
+**512-pixel** budget, LoRA rank 16 on both sides, per-device batch **2** × accumulation **4**, pinned
+to a single device.
+
+**Evidence.** Measured on a Kaggle Tesla T4, 100 optimizer steps, single device:
+
+| gate | threshold | measured | |
+|---|---|---:|---|
+| peak reserved memory | ≤ 13.5 GiB | **5.572** | pass |
+| projected full run (3,000 steps) | ≤ 20 h (0034) | **~9.9–10.5 h** | pass |
+| kill-and-resume verified | delta < 1e-2 | **0.0053 / 0.0018 / 0.0014** | pass |
+| LoRA vision / language | both non-zero, by name | **7,208,960 / 17,432,576**, 0 unclassified | pass |
+| loss over 100 steps | must fall, finite | 2.72 → 1.14, no NaN | pass |
+| gradient norm | non-zero, finite | median 13.3, **0** dead steps | pass |
+| vision tower unquantised | — | 104 full / **0** 4-bit | pass |
+| single device | not sharded | `{'cuda:0': 625}` | pass |
+
+Rejected alternatives, with the measurement that rejected each:
+
+| candidate | outcome |
+|---|---|
+| `unsloth` backend | **unavailable at this model size** — `available=False, missing dependency`, exactly the risk `IDEA.md` §7 recorded and Phase 0 re-confirmed (no Unsloth vision notebook exists for Qwen3-VL-2B) |
+| native resolution | 21.27 s/step → **17.72 h**, 77% over even the revised gate |
+| 448 pixels | not needed once 0034 removed the artificial time pressure; costs **+8.5pp** of human-subset targets becoming sub-token |
+| batch 4×2 / 8×1 | 5.5% faster for **92%** more memory; the effect is smaller than run-to-run variance |
+| Qwen2.5-VL-3B fallback | never reached — the primary passed every gate |
+
+**Consequences.** Phase 3's entry gate is met. The trainable fraction is 24,641,536 of 1,447,530,496
+parameters (**1.70%**), with the vision side holding 29.3% of it, so the "CV depth" of the project is
+real rather than nominal — which is precisely what non-negotiable rule 3 exists to guarantee and what
+`assert_lora_on_both_sides` now checks on every run.
+
+Two figures deserve emphasis because they invert the plan's expectations. **Memory is abundant**
+(5.6 GiB of 13.5) and **time is what binds** — the Phase 2 fallback ladder's first two rungs are both
+memory levers and neither was ever the right tool. And the sharded measurements taken earlier
+understated memory by 3.8×, so any figure from before decision 0025 is not comparable.
