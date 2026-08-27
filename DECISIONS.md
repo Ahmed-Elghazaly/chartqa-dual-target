@@ -1451,3 +1451,51 @@ One earlier test-split access is retained deliberately and is defensible: the le
 contain them. Verifying that training data excludes test data cannot be done without knowing what the
 test data is, that use tunes nothing, and skipping it would risk the far larger failure rule 1 exists
 to prevent.
+
+---
+
+## 0032 — 2026-08-27 — The RefChartQA audit gets an objective pre-screen alongside the human judgement
+
+**Context.** `PLAN.md` 3.4 gates RefChartQA training data on a manual audit: 200 boxes, each judged
+acceptable if it "plausibly contains evidence a person would use to answer that question", with a 90%
+threshold deciding whether the source is used at all or dropped without replacement. That is a
+consequential gate resting entirely on 200 human judgements made in one sitting.
+
+**Options.** (a) Perform the audit exactly as specified. (b) Replace the judgement with an automatic
+metric. (c) Keep the human judgement as the decision, and add one objective signal computable for
+every box in the dataset, not just the 200.
+
+**Decision.** (c). "Does this box plausibly contain the evidence for *this question*" genuinely
+requires a human — it depends on the question. But one necessary condition does not: **a box
+containing no chart ink contains no evidence, whatever the question was.** `ink_fraction` measures the
+proportion of non-background pixels in a box and is computed for all 55,789 training rows, which the
+manual audit cannot be.
+
+**Evidence.** Validated against synthetic charts whose correct boxes come from the artist geometry
+already proven in `prove_box_extraction.py`, so the detector is verified on ground truth known by
+construction *before* being pointed at labels whose quality is the open question:
+
+| case | ink |
+|---|---:|
+| true boxes (all four bars) | **100.0%** |
+| blank band above every bar | **2.2%** |
+| separation margin | **97.8 points** |
+| box half on, half off a bar | 66.0% |
+| true box on a **dark-themed** chart | 100.0% |
+
+Background is taken as the image's **modal colour** rather than assumed white, because RefChartQA
+contains dark and tinted charts and assuming white would invert the signal on every one of them. The
+graded response on a half-overlapping box matters too: a binary signal could not rank borderline
+annotations, which is where the audit's judgement is actually needed.
+
+**Consequences.** The audit keeps its human decision and its 90% threshold exactly as the plan
+specifies. What changes is that the 200 rows are no longer sampled blind: rows can be stratified by
+ink fraction so the sample deliberately includes the suspicious tail, and any dataset-wide pattern —
+a systematically empty region for one question type, say — becomes visible rather than depending on
+whether it happened to land in the sample.
+
+One process note worth keeping. The first version of this proof hard-coded a "blank" region by eye,
+and it reported 6% ink. The detector was right: the box clipped the top of the tallest bar. The test
+case was wrong. The blank region is now **derived from the bar geometry** rather than chosen by
+inspection — which is the same lesson as everywhere else in this project, applied to a test rather
+than to production code: **do not eyeball a value you can compute.**
