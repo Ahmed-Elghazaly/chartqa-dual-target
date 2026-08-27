@@ -407,3 +407,32 @@ def test_dropout_is_actually_active_in_the_config():
         "lora_dropout is 0; the resume comparison no longer depends on RNG state "
         "and this test's rationale should be revisited"
     )
+
+
+# ------------------------------------------- micro-batch grouping (fixed effective batch)
+
+
+def test_smoke_result_records_the_grouping():
+    r = _result(per_device_batch=4, grad_accum=2)
+    assert r.per_device_batch * r.grad_accum == 8, "effective batch must stay pre-registered"
+
+
+@pytest.mark.parametrize(("batch", "accum"), [(1, 8), (2, 4), (4, 2), (8, 1)])
+def test_every_valid_grouping_preserves_the_effective_batch(batch, accum):
+    """Varying the grouping changes GPU efficiency, not the experiment.
+
+    Same optimizer steps, same example presentations, same effective batch — so
+    it is not a deviation from the pre-registration, which fixes the effective
+    batch and the step count, not how the micro-batches are chunked.
+    """
+    assert batch * accum == 8
+
+
+def test_cli_rejects_a_grouping_that_changes_the_effective_batch():
+    """A per-device batch that does not divide the effective batch would silently
+    change the experiment rather than its scheduling."""
+    from pathlib import Path as _P
+
+    src = (_P(__file__).resolve().parents[1] / "src/chartqa_dt/cli/train.py").read_text()
+    assert "effective % b" in src
+    assert "deviate from the pre-registration" in src

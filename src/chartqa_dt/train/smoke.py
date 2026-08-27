@@ -188,6 +188,8 @@ class SmokeResult:
     model_id: str
     image_max_pixels: int
     label: str
+    per_device_batch: int = 0
+    grad_accum: int = 0
     ok: bool = False
     error: str = ""
 
@@ -355,22 +357,38 @@ def run_smoke(
     image_max_pixels: int,
     label: str,
     steps: int = 100,
+    per_device_batch: int | None = None,
+    grad_accum: int | None = None,
     out_dir: Path | None = None,
     logger: Any = None,
     test_resume: bool = True,
 ) -> SmokeResult:
-    """One configuration: load, assert LoRA, train ``steps``, measure, test resume."""
+    """One configuration: load, assert LoRA, train ``steps``, measure, test resume.
+
+    ``per_device_batch`` and ``grad_accum`` default to the config. Varying them
+    while holding their PRODUCT fixed changes only how the pre-registered
+    effective batch of 8 is grouped into micro-batches — not the number of
+    optimizer steps, not the number of example presentations, and therefore not
+    anything the pre-registration fixes. It is purely a GPU-efficiency question:
+    batch 2 x accum 4 issues four forward/backward passes per step where batch 8
+    x accum 1 issues one.
+    """
     import copy
 
     model_cfg = copy.deepcopy(cfg.model)
     model_cfg.backend = backend_name
     model_cfg.image_max_pixels = image_max_pixels
 
+    batch = per_device_batch if per_device_batch is not None else cfg.train.per_device_batch
+    accum = grad_accum if grad_accum is not None else cfg.train.grad_accum
+
     result = SmokeResult(
         backend=backend_name,
         model_id=model_cfg.hf_id,
         image_max_pixels=image_max_pixels,
         label=label,
+        per_device_batch=batch,
+        grad_accum=accum,
     )
 
     try:
@@ -416,8 +434,8 @@ def run_smoke(
         losses, optimizer, grad_norms = _train_steps(
             loaded,
             steps=steps,
-            batch_size=cfg.train.per_device_batch,
-            grad_accum=cfg.train.grad_accum,
+            batch_size=batch,
+            grad_accum=accum,
             lr=cfg.train.lr,
             max_len=model_cfg.max_seq_len,
             seed=cfg.seed,
@@ -450,7 +468,8 @@ def run_smoke(
         # the 13.5 GiB gate is judged on.
         if test_resume and out_dir is not None:
             result.resume_verified, result.resume_loss_delta = _verify_resume(
-                backend, loaded, model_cfg, cfg, out_dir / f"ckpt_{label}", optimizer
+                backend, loaded, model_cfg, cfg, out_dir / f"ckpt_{label}", optimizer,
+                batch=batch,
             )
 
         if result.peak_reserved_gb == 0.0:
@@ -475,6 +494,7 @@ def _verify_resume(
     cfg: Config,
     ckpt_dir: Path,
     optimizer: Any,
+    batch: int = 1,
 ) -> tuple[bool, float]:
     """Save, reload into a fresh model, and check the next steps agree.
 
@@ -499,7 +519,7 @@ def _verify_resume(
 
     seed = cfg.seed + 12345
     live_losses, _, _ = _train_steps(
-        loaded, steps=3, batch_size=cfg.train.per_device_batch, grad_accum=1,
+        loaded, steps=3, batch_size=batch, grad_accum=1,
         lr=cfg.train.lr, max_len=model_cfg.max_seq_len,
         seed=seed, optimizer=optimizer,
     )
@@ -527,7 +547,7 @@ def _verify_resume(
     load_rng_state(torch.load(ckpt_dir / "rng_state.pt", map_location="cpu", weights_only=False))
 
     resumed_losses, _, _ = _train_steps(
-        fresh, steps=3, batch_size=cfg.train.per_device_batch, grad_accum=1,
+        fresh, steps=3, batch_size=batch, grad_accum=1,
         lr=cfg.train.lr, max_len=model_cfg.max_seq_len,
         seed=seed, optimizer=opt2,
     )

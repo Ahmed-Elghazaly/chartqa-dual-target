@@ -1273,3 +1273,64 @@ An attempt to resolve the three cases immediately, by fetching both images and c
 abandoned after the public dataset endpoint returned HTTP 429. Spending more of a shared rate limit on
 a proxy measurement, when the exact measurement is a scheduled part of the next phase, is not a good
 trade.
+
+---
+
+## 0029 — 2026-08-27 — Phase 2 measured on a single card: 512-pixel passes, native does not, and the margin is thin
+
+**Context.** Run 11 is the first Phase 2 measurement taken with the model pinned to one device
+(decision 0025) and the code staleness gate confirming current source (decision 0024). Both arms
+completed 100 optimizer steps.
+
+**Evidence.**
+
+| arm | peak GB | s/step | projected 3,000 steps | visual tokens | verdict |
+|---|---:|---:|---:|---:|---|
+| 512-pixel | **5.572** | 11.903 | **9.92 h** | 247 | inside both gates |
+| native | **6.723** | 21.267 | **17.72 h** | 425 | **77% over the 10 h gate** |
+
+Everything else was healthy and identical across both arms: `is_sharded: False` with
+`model_devices {'cuda:0': 625}` (the pinning held, on a host reporting `visible_devices: 2`),
+gradient-norm medians 13.3 and 14.1 with **zero** dead or non-finite steps, adapter parameters in
+`float32`, LoRA at 7,208,960 vision / 17,432,576 language, and the vision tower at 104 full-precision
+Linear layers with **0** quantised.
+
+The real peak of **5.572 GB** also settles decision 0025 empirically: the 1.482 GB reported earlier was
+a sharded run measuring device 0 alone, understating the footprint by roughly 3.8×.
+
+**Decision on resolution (resolving 0010).** The 512-pixel budget is retained. Native costs
+`21.267 / 11.903 = 1.79×` the step time for `425 / 247 = 1.72×` the visual tokens — almost exactly
+linear, so there is no efficiency to be recovered — and lands at 17.72 h against a 10 h ceiling. The
+sub-token benefit native offers (53.2% → 41.3% of targets unresolvable) is real and is exactly what
+`IDEA.md` §5.2 predicts, but it cannot be bought within the compute budget. It is recorded as the
+Phase 8.3 resolution ablation, run inference-only where the cost is a fraction of training.
+
+**The open problem: 9.92 h against a 10 h gate is a 0.8% margin.** Reporting that as "passes" would
+be reporting a coin toss. Kaggle T4 throughput varies with host contention, and this project has
+already observed 8.664, 11.903 and 13.128 s/step on nominally identical configurations (the first two
+sharded, so not strictly comparable — but the variance is real).
+
+**Options for margin.** (a) Accept 9.92 h. (b) Drop to 448 pixels, the plan's own next fallback rung.
+(c) Change how the effective batch is grouped into micro-batches.
+
+**Decision.** Measure (c) before spending (b). Peak memory is 5.572 GB of a 13.5 GB ceiling, so there
+is ample room, and the plan's fallback ladder contains only *memory* levers (`batch 2→1`,
+`image 512→448`) because it was written expecting memory to bind. It does not: **time binds and
+memory is abundant**, which inverts the ladder's assumption.
+
+Holding the effective batch at its pre-registered 8 while regrouping it — `2×4` today, versus `4×2` or
+`8×1` — changes the number of forward/backward passes per optimizer step from four to two or one. Same
+optimizer steps, same example presentations, same effective batch: **this is not a deviation from the
+pre-registration**, which fixes the effective batch and the step count, not the chunking. The CLI
+refuses any per-device batch that does not divide the effective batch, so the distinction cannot be
+blurred by accident.
+
+**Consequences.** If regrouping buys meaningful margin, 512 pixels is retained with confidence. If it
+does not, 448 pixels is the next rung and costs sub-token performance on the metric this project
+exists to move — a trade that would then be made explicitly and reported.
+
+**Resume, and a prediction that held.** Before run 11 completed I recorded that it would still fail the
+resume check, because it launched before the RNG-state fix (0026). It did: `delta = 0.0438` (512px) and
+`0.0488` (native) against a `1e-2` tolerance. That the two arms agree so closely is itself evidence for
+the diagnosis — random numerical drift would not produce near-identical deltas on configurations whose
+step times differ by 79%; a systematic cause such as unrestored dropout masks would.

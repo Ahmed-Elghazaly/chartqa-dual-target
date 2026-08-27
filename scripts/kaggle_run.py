@@ -442,6 +442,8 @@ def main() -> int:
     p.add_argument("job", nargs="?", default="smoke", choices=["smoke"])
     p.add_argument("--steps", type=int, default=100)
     p.add_argument("--resolutions", type=str, default="512,native")
+    p.add_argument("--batches", type=str, default=None,
+                   help="per-device batch sizes to compare; effective batch stays fixed")
     p.add_argument("--backend", type=str, default=None)
     p.add_argument("--no-gpu", action="store_true")
     p.add_argument("--machine-shape", type=str, default=MACHINE_T4,
@@ -476,6 +478,8 @@ def main() -> int:
     ]
     if args.backend:
         command += ["--backend", args.backend]
+    if args.batches:
+        command += ["--batches", args.batches]
     if args.no_resume_test:
         command += ["--no-resume-test"]
 

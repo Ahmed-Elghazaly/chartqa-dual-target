@@ -22,6 +22,10 @@ def main() -> None:
                    help="backends to try; default tries every available one")
     p.add_argument("--resume", type=str, default=None, help="checkpoint dir or hub path")
     p.add_argument("--steps", type=int, default=100, help="optimizer steps for the smoke test")
+    p.add_argument("--batches", type=str, default=None,
+                   help="comma-separated per-device batch sizes to compare, e.g. 2,4,8. "
+                        "grad_accum is set so the EFFECTIVE batch stays at the "
+                        "pre-registered value, so only micro-batch grouping changes.")
     p.add_argument("--resolutions", type=str, default="512,native",
                    help="comma-separated input budgets to measure (decision 0010). "
                         "'native' means the model's own max_pixels; a number R means R^2 pixels.")
@@ -66,12 +70,31 @@ def _run_smoke(ctx) -> None:
             r = int(token)
             budgets.append((f"{r}px", r * r))
 
+    # Effective batch is fixed by the pre-registration; only its grouping varies.
+    effective = ctx.cfg.train.per_device_batch * ctx.cfg.train.grad_accum
+    if ctx.args.batches:
+        groupings = []
+        for token in (t.strip() for t in ctx.args.batches.split(",") if t.strip()):
+            b = int(token)
+            if effective % b:
+                raise SystemExit(
+                    f"per-device batch {b} does not divide the effective batch {effective}; "
+                    "changing the effective batch would deviate from the pre-registration"
+                )
+            groupings.append((b, effective // b))
+    else:
+        groupings = [(ctx.cfg.train.per_device_batch, ctx.cfg.train.grad_accum)]
+    print(f"effective batch fixed at {effective}; groupings: "
+          + ", ".join(f"{b}x{a}" for b, a in groupings))
+
     logger = ctx.logger()
     results = []
     try:
         for backend_name in wanted:
+          for batch, accum in groupings:
             for res_label, max_px in budgets:
-                label = f"{backend_name}/{res_label}"
+                label = (f"{backend_name}/{res_label}" if len(groupings) == 1
+                         else f"{backend_name}/{res_label}/b{batch}x{accum}")
                 print(f"\n{'=' * 78}\n  {label}\n{'=' * 78}")
                 r = run_smoke(
                     ctx.cfg,
@@ -79,6 +102,8 @@ def _run_smoke(ctx) -> None:
                     image_max_pixels=max_px,
                     label=label,
                     steps=ctx.args.steps,
+                    per_device_batch=batch,
+                    grad_accum=accum,
                     out_dir=ctx.out_dir,
                     logger=logger,
                     test_resume=not ctx.args.no_resume_test,
