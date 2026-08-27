@@ -55,6 +55,7 @@ from chartqa_dt.modeling.lora_assert import (
     describe_quantisation,
     summarise_quantisation,
 )
+from chartqa_dt.seeding import load_rng_state, rng_state
 
 # Phase 2 hard gates (IDEA.md 14, PLAN.md Appendix F).
 # The modal RefChartQA image size, measured across all three question subsets
@@ -487,6 +488,14 @@ def _verify_resume(
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     loaded.model.save_pretrained(str(ckpt_dir))
     torch.save(optimizer.state_dict(), ckpt_dir / "optimizer.pt")
+    # PLAN.md 6.3 requires RNG states in every checkpoint, and they matter here
+    # for a concrete reason: lora_dropout is 0.05 and active in train mode, so a
+    # resumed model that draws different dropout masks diverges from the live one
+    # by an amount indistinguishable from numerical noise. Saving two of the five
+    # required pieces produced resume_loss_delta = 0.0456 against a 1e-2
+    # tolerance, which reads as "resume is slightly broken" rather than "the
+    # comparison was never fair".
+    torch.save(rng_state(), ckpt_dir / "rng_state.pt")
 
     seed = cfg.seed + 12345
     live_losses, _, _ = _train_steps(
@@ -513,6 +522,9 @@ def _verify_resume(
     # Same class as the optimizer that was saved -- see build_optimizer.
     opt2 = build_optimizer(fresh.model, cfg.train.lr)
     opt2.load_state_dict(torch.load(ckpt_dir / "optimizer.pt", map_location="cpu"))
+    # Restore the RNG state saved with the checkpoint, so dropout draws the same
+    # masks the live continuation drew.
+    load_rng_state(torch.load(ckpt_dir / "rng_state.pt", map_location="cpu", weights_only=False))
 
     resumed_losses, _, _ = _train_steps(
         fresh, steps=3, batch_size=cfg.train.per_device_batch, grad_accum=1,

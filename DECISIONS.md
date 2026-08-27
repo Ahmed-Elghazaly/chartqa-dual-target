@@ -1099,3 +1099,51 @@ arise. The gate stays: it costs nothing and it is the only cheap symptom of that
 longer a crash — the optimizer round-trips correctly after 0021 — but the post-resume loss does not
 match closely enough. On a sharded, non-deterministic run that is uninterpretable; it is re-measured
 on the pinned single-device configuration before being treated as a real discrepancy.
+
+---
+
+## 0026 — 2026-08-27 — Checkpoints save RNG state, because dropout makes resume unverifiable without it
+
+**Context.** Run 10 reported `resume_verified = False` with `resume_loss_delta = 0.0456` against a
+`1e-2` tolerance. After decision 0021 the optimizer round-trips correctly, so this was no longer a
+crash — it looked like a small, genuine numerical discrepancy in the resume path.
+
+It was not. The comparison was never fair.
+
+**Evidence.** `PLAN.md` 6.3 specifies what a checkpoint must contain:
+
+> adapter weights, optimizer state, scheduler state, **RNG states**, and the dataloader position
+
+We were saving **two of the five**. `lora_dropout` is `0.05` and dropout is active in training mode,
+so the live model and the resumed model draw *different dropout masks* on their next steps and
+diverge — by an amount that looks exactly like accumulated floating-point noise.
+
+`seeding.py` already contained `rng_state()` and `load_rng_state()`, written in Phase 1 for precisely
+this purpose. They had never been wired into the checkpoint.
+
+**Options.** (a) Widen the tolerance until the check passes. (b) Disable dropout during the resume
+comparison. (c) Save and restore RNG state, as the plan requires.
+
+**Decision.** (c). (a) is the worst option available and worth naming as such: a tolerance chosen to
+make a failing check pass is not a check, and it would have silently absorbed a real resume bug later.
+(b) would make the *test* pass while leaving real training resumes non-reproducible, which is the
+opposite of what the test exists to establish.
+
+**Consequences.** Two general points, both of which this project has now hit more than once.
+
+**First: a plausible failure is more dangerous than an implausible one.** `delta = 0.0456` against a
+tolerance of `0.01` is a *believable* number. It invites exactly the response of nudging the tolerance
+to `0.05` and moving on — and the reasoning would even have sounded principled ("fp16 is
+non-deterministic, some drift is expected"). The actual cause was a missing checkpoint component.
+
+**Second: the plan said so.** This is the second time a `PLAN.md` requirement was implemented
+partially and the shortfall surfaced as a mysterious symptom rather than an obvious omission — the
+first being the resume optimizer class in 0021, also flagged in the plan and also written down as
+acceptable. Both cases share a shape: the requirement was read, an abbreviated version was
+implemented, and nothing compared the two.
+
+The checklist item is therefore now specific rather than general: not "resume is tested" but
+"the checkpoint contains all five components the plan lists, and each is restored".
+
+The current run (11) was launched before this fix and will still report a resume failure if the
+diagnosis is right. That is useful rather than wasteful: it is a prediction, and the next run tests it.

@@ -356,3 +356,54 @@ def test_peak_memory_sums_every_visible_device():
     src = inspect.getsource(base.peak_reserved_gb)
     assert "device_count()" in src, "peak memory must be summed across devices"
     assert "sum(" in src
+
+
+# ------------------------------------------- checkpoint completeness (PLAN 6.3)
+
+
+def test_checkpoint_saves_rng_state():
+    """PLAN.md 6.3 lists five things a checkpoint must contain; we saved two.
+
+    The omission mattered concretely: lora_dropout is 0.05 and active in train
+    mode, so a resumed model that draws different dropout masks diverges from the
+    live one. That produced resume_loss_delta = 0.0456 against a 1e-2 tolerance —
+    which reads as "resume is slightly broken" rather than "the comparison was
+    never fair".
+    """
+    import inspect
+
+    from chartqa_dt.train.smoke import _verify_resume
+
+    src = inspect.getsource(_verify_resume)
+    assert "save_pretrained" in src, "adapter weights"
+    assert "optimizer.pt" in src, "optimizer state"
+    assert "rng_state.pt" in src, "RNG states"
+    assert "load_rng_state(" in src, "RNG states must be restored, not merely saved"
+
+
+def test_rng_state_round_trips_through_torch_save(tmp_path):
+    """The mechanism itself, independent of the model."""
+    import random
+
+    import torch
+
+    from chartqa_dt.seeding import load_rng_state, rng_state, set_seed
+
+    set_seed(11)
+    state = rng_state()
+    torch.save(state, tmp_path / "rng.pt")
+    expected = [random.random() for _ in range(4)]
+
+    set_seed(999)  # move the RNG somewhere else entirely
+    load_rng_state(torch.load(tmp_path / "rng.pt", map_location="cpu", weights_only=False))
+    assert [random.random() for _ in range(4)] == expected
+
+
+def test_dropout_is_actually_active_in_the_config():
+    """If this ever becomes 0, the RNG-state reasoning above changes."""
+    from chartqa_dt.config import Config
+
+    assert Config().model.lora_dropout > 0, (
+        "lora_dropout is 0; the resume comparison no longer depends on RNG state "
+        "and this test's rationale should be revisited"
+    )
