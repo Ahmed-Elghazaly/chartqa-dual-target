@@ -37,31 +37,55 @@ ALLOWED_OPS = (
     "unanswerable",
 )
 
+# Iterated on validation data only (`PLAN.md` 5.1), from what the first probe measured:
+#
+# * The model **imitates the example's formatting**. A pretty-printed example produced
+#   pretty-printed records with a median of 308 tokens, 33% of which hit the 512-token cap
+#   mid-record. Four of five parse failures were pure truncation — well-formed JSON that
+#   simply ran out of budget. The example is now compact, and `PLAN.md` 5.2's own wording
+#   asks for "valid **compact** JSON".
+# * `plan.args` came back as an object — `{"label": "Zara", "value": 99}` — where the
+#   schema requires an array. That record parses as JSON and the executor still rejects
+#   it, so the prompt now shows args as a list in every example and says so.
+# * One failure emitted `{"answerable": false, "evidence": []}` with no `plan` and no
+#   `model_answer`, so the unanswerable case gets a complete worked example rather than a
+#   description.
 STRUCTURED_PROMPT = """\
 Read the chart and answer the question.
 
-Reply with ONE JSON object and nothing else. No markdown, no code fence, no explanation.
+Reply with ONE compact JSON object on a single line. No markdown, no code fence, no
+newlines, no indentation, no explanation.
 
-{{
-  "answerable": true or false,
-  "evidence": [{{"label": "<axis or series label>", "value": <number or string or null>,
-                "unit": "<unit or null>", "bbox": [x1, y1, x2, y2]}}],
-  "plan": {{"op": "<operation>", "args": [...]}},
-  "model_answer": "<the answer>"
-}}
+Format:
+{{"answerable":true,"evidence":[{{"label":"<label>","value":<number|string|null>,\
+"unit":"<unit|null>","bbox":[x1,y1,x2,y2]}}],"plan":{{"op":"<operation>","args":[...]}},\
+"model_answer":"<answer>"}}
+
+Example — "How many stores does Zara have?":
+{{"answerable":true,"evidence":[{{"label":"Zara","value":99,"unit":"stores",\
+"bbox":[340,180,650,200]}}],"plan":{{"op":"lookup","args":["Zara"]}},"model_answer":"99"}}
+
+Example — "What is the difference between 2019 and 2018?":
+{{"answerable":true,"evidence":[{{"label":"2019","value":245,"unit":null,\
+"bbox":[412,180,468,640]}},{{"label":"2018","value":210,"unit":null,\
+"bbox":[330,240,386,640]}}],"plan":{{"op":"difference","args":["2019","2018"]}},\
+"model_answer":"35"}}
+
+Example — the chart does not contain the answer:
+{{"answerable":false,"evidence":[],"plan":{{"op":"unanswerable","args":[]}},\
+"model_answer":""}}
 
 Rules:
-- bbox coordinates are integers from 0 to 999, measured on the image as you see it:
-  x1,y1 is the top-left corner and x2,y2 the bottom-right.
-- Put a box on every chart element the answer depends on, and on nothing else.
-  Order them most important first.
+- All four keys are required every time, including "plan" and "model_answer".
+- "args" is always a LIST. Each element is either a label string naming one of your
+  evidence items, or a nested {{"op":...,"args":[...]}} object. Never an object with
+  "label" or "value" keys.
+- Aggregations over every evidence item take an empty list: {{"op":"sum","args":[]}}.
+- bbox coordinates are integers 0-999 on the image as you see it; x1,y1 is top-left and
+  x2,y2 is bottom-right.
+- Put a box on every chart element the answer depends on and on nothing else, most
+  important first.
 - "op" must be one of: {ops}.
-- An argument is either a label string naming one of your evidence items, or a nested
-  {{"op": ..., "args": [...]}} object.
-- Aggregations over every evidence item take an empty args list, e.g.
-  {{"op": "sum", "args": []}}.
-- If the chart does not contain the answer, set "answerable" to false, use
-  {{"op": "unanswerable", "args": []}}, and leave "model_answer" empty.
 - "model_answer" is the final answer only: a single word, phrase or number.
 
 Question: {{question}}\

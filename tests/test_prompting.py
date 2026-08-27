@@ -52,8 +52,46 @@ def test_the_structured_prompt_names_every_allowed_operation():
 
 def test_the_structured_prompt_states_the_coordinate_convention():
     prompt = build_structured_prompt("q")
-    assert "0 to 999" in prompt
+    assert "0-999" in prompt or "0 to 999" in prompt
     assert "top-left" in prompt and "bottom-right" in prompt
+
+
+def test_the_structured_prompt_asks_for_compact_output():
+    """Iterated on measurement: the model imitates the example's formatting.
+
+    A pretty-printed example produced 308-token records, a third of which hit the
+    512-token cap mid-JSON. Four of five parse failures were pure truncation.
+    """
+    prompt = build_structured_prompt("q")
+    assert "compact" in prompt and "single line" in prompt
+    assert "no indentation" in prompt or "no newlines" in prompt
+    # Every worked example must itself be compact, or the instruction is contradicted
+    # by the demonstration and the demonstration wins.
+    for line in prompt.splitlines():
+        if line.startswith('{"answerable"'):
+            assert ", " not in line and line.strip() == line
+            assert len(line) > 60, "an example that short is not a real record"
+
+
+def test_the_prompt_shows_plan_args_as_a_list():
+    """The probe produced `"args": {"label": "Zara", "value": 99}` — an object.
+
+    That parses as JSON and the executor rejects it, so the prompt states the rule and
+    every example demonstrates it.
+    """
+    prompt = build_structured_prompt("q")
+    assert '"args":["Zara"]' in prompt
+    assert '"args":["2019","2018"]' in prompt
+    assert '"args" is always a LIST' in prompt
+    assert '"args":[]' in prompt, "the unanswerable and aggregate forms need an example"
+
+
+def test_the_prompt_gives_the_unanswerable_case_a_complete_example():
+    """One failure emitted only `answerable` and `evidence`, dropping two required keys."""
+    prompt = build_structured_prompt("q")
+    assert '{"answerable":false,"evidence":[],"plan":{"op":"unanswerable","args":[]},' \
+        '"model_answer":""}' in prompt
+    assert "All four keys are required" in prompt
 
 
 def test_the_prompt_carries_the_question_exactly_once():
@@ -257,3 +295,36 @@ def test_the_frozen_slices_are_recorded_by_id_and_hash():
     assert data["split"] == "val", "rule 1: never the test split"
     for forbidden in ("question", "answer", "questions", "answers"):
         assert forbidden not in data, "rule 7: no dataset content in the repository"
+
+
+def test_schema_validity_and_json_validity_are_measured_separately():
+    """They come apart, and the gap is what `PLAN.md` 5.2 should gate on.
+
+    The first probe's "successful" record used `"args": {"label": ..., "value": ...}`.
+    It parses. The executor rejects it. Counting it as a success reports a rate the
+    pipeline cannot act on, and rule 3 makes it a failure.
+    """
+    from chartqa_dt.prompting.parsing import ParseStats, schema_ok
+
+    args_as_object = {
+        "answerable": True,
+        "evidence": [{"label": "Zara", "value": 99, "unit": "stores",
+                      "bbox": [340, 180, 650, 200]}],
+        "plan": {"op": "lookup", "args": {"label": "Zara", "value": 99}},
+        "model_answer": "99",
+    }
+    ok, why = schema_ok(args_as_object)
+    assert ok is False and "args" in why
+
+    fixed = {**args_as_object, "plan": {"op": "lookup", "args": ["Zara"]}}
+    assert schema_ok(fixed)[0] is True
+
+    stats = ParseStats()
+    stats.add(parse_record(json.dumps(args_as_object)))
+    stats.add(parse_record(json.dumps(fixed)))
+    assert stats.valid == 2, "both parse"
+    assert stats.schema_valid == 1, "only one is usable"
+    assert stats.valid_fraction == pytest.approx(1.0)
+    assert stats.schema_valid_fraction == pytest.approx(0.5)
+    assert stats.schema_reasons, "a schema failure must record why"
+    assert "the gate that matters" in stats.describe()

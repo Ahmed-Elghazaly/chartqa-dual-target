@@ -133,23 +133,58 @@ def answer_of(record: dict[str, Any]) -> str:
     return "" if value is None else str(value)
 
 
+def schema_ok(record: dict[str, Any]) -> tuple[bool, str]:
+    """Does the record satisfy `OUTPUT_SCHEMA`, not merely parse as JSON?
+
+    These come apart, and the gap is not academic. A probe produced this, which parses
+    cleanly and is still unusable::
+
+        {"plan": {"op": "lookup", "args": {"label": "Zara", "value": 99}}}
+
+    `args` must be an array; the executor rejects an object. Counting that as a success
+    would report a validity rate the pipeline cannot actually act on — and non-negotiable
+    rule 3 makes a record the executor rejects a **failure**.
+    """
+    from chartqa_dt.plans.schema import validate_record
+
+    result = validate_record(record)
+    return result.ok, "; ".join(result.errors[:2])
+
+
 @dataclass
 class ParseStats:
-    """Aggregate parse health, which `PLAN.md` 5.2 gates the variant choice on."""
+    """Aggregate parse health, which `PLAN.md` 5.2 gates the variant choice on.
+
+    Tracks two rates, because they measure different things: `valid` is "this is JSON
+    with the right keys", `schema_valid` is "the executor will accept it". The second is
+    the one that matters.
+    """
 
     total: int = 0
     valid: int = 0
+    schema_valid: int = 0
     repaired: int = 0
     reasons: dict[str, int] = field(default_factory=dict)
+    schema_reasons: dict[str, int] = field(default_factory=dict)
 
     def add(self, result: ParseResult) -> None:
         self.total += 1
         if result.ok:
             self.valid += 1
             self.repaired += result.repaired
+            ok, why = schema_ok(result.record or {})
+            if ok:
+                self.schema_valid += 1
+            else:
+                key = (why or "schema").split(":")[0][:60]
+                self.schema_reasons[key] = self.schema_reasons.get(key, 0) + 1
         else:
             key = result.reason.split(":")[0]
             self.reasons[key] = self.reasons.get(key, 0) + 1
+
+    @property
+    def schema_valid_fraction(self) -> float:
+        return self.schema_valid / self.total if self.total else 0.0
 
     @property
     def valid_fraction(self) -> float:
@@ -162,12 +197,16 @@ class ParseStats:
     def describe(self) -> str:
         lines = [f"  valid JSON      : {self.valid}/{self.total} "
                  f"({100 * self.valid_fraction:.1f}%)",
+                 f"  schema-valid    : {self.schema_valid}/{self.total} "
+                 f"({100 * self.schema_valid_fraction:.1f}%)  <- the gate that matters",
                  f"  needed a repair : {self.repaired} "
                  f"({100 * self.repaired_fraction:.1f}% of valid)"]
         for reason, n in sorted(self.reasons.items(), key=lambda kv: -kv[1]):
-            lines.append(f"    {n:>5}  {reason}")
+            lines.append(f"    parse   {n:>5}  {reason}")
+        for reason, n in sorted(self.schema_reasons.items(), key=lambda kv: -kv[1]):
+            lines.append(f"    schema  {n:>5}  {reason}")
         return "\n".join(lines)
 
 
-__all__ = ["REQUIRED_FIELDS", "ParseResult", "ParseStats", "answer_of", "coerce_boxes",
-           "parse_record"]
+__all__ = ["REQUIRED_FIELDS", "ParseResult", "ParseStats", "answer_of",
+           "coerce_boxes", "parse_record", "schema_ok"]

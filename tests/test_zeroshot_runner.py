@@ -24,12 +24,32 @@ from scripts.run_zeroshot import (
 
 def table(*, inst_acc=0.70, think_acc=0.75, inst_lat=1.0, think_lat=1.5,
           think_valid=0.95, inst_valid=0.95):
+    """`think_valid` is the SCHEMA-valid fraction — the rate the gate uses.
+
+    JSON validity and schema validity come apart: the first probe produced a record with
+    `"args": {"label": "Zara", "value": 99}`, which parses cleanly and the executor
+    rejects. Rule 3 makes that a failure, so the gate is on the stricter number.
+    """
     return {
         "instruct": {"relaxed_accuracy": inst_acc, "valid_json_fraction": inst_valid,
-                     "repaired_fraction": 0.02, "median_latency_s": inst_lat},
+                     "schema_valid_fraction": inst_valid, "repaired_fraction": 0.02,
+                     "median_latency_s": inst_lat, "median_new_tokens": 120,
+                     "hit_token_cap_fraction": 0.0},
         "thinking": {"relaxed_accuracy": think_acc, "valid_json_fraction": think_valid,
-                     "repaired_fraction": 0.05, "median_latency_s": think_lat},
+                     "schema_valid_fraction": think_valid, "repaired_fraction": 0.05,
+                     "median_latency_s": think_lat, "median_new_tokens": 300,
+                     "hit_token_cap_fraction": 0.1},
     }
+
+
+def test_the_gate_uses_schema_validity_not_merely_json_validity():
+    """A record the executor rejects is a failure, whatever its syntax (rule 3)."""
+    t = table()
+    t["thinking"]["valid_json_fraction"] = 1.00      # parses every time
+    t["thinking"]["schema_valid_fraction"] = 0.55    # ... and half are unusable
+    d = decide_variant(t)
+    assert d["choice"] == "instruct"
+    assert d["checks"]["schema_valid_fraction"]["value"] == pytest.approx(0.55)
 
 
 def test_the_gate_thresholds_are_the_ones_the_plan_states():
@@ -48,7 +68,7 @@ def test_thinking_wins_only_when_all_three_conditions_hold():
 @pytest.mark.parametrize(("name", "kwargs"), [
     ("gain too small", {"think_acc": 0.71}),          # +1 point, needs +2
     ("gain exactly at the boundary minus epsilon", {"think_acc": 0.7199}),
-    ("invalid JSON", {"think_valid": 0.89}),
+    ("schema-invalid records", {"think_valid": 0.89}),
     ("too slow", {"think_lat": 2.01}),
     ("worse accuracy", {"think_acc": 0.60}),
 ])
@@ -85,7 +105,8 @@ def test_the_decision_records_every_measured_value_not_just_the_verdict():
     """A verdict without its inputs cannot be checked by a reader later."""
     d = decide_variant(table(think_acc=0.78, think_valid=0.80, think_lat=3.0))
     checks = d["checks"]
-    assert set(checks) == {"accuracy_gain_points", "valid_json_fraction", "latency_ratio"}
+    assert set(checks) == {"accuracy_gain_points", "schema_valid_fraction",
+                           "latency_ratio"}
     assert checks["accuracy_gain_points"]["value"] == pytest.approx(8.0)
     assert checks["latency_ratio"]["value"] == pytest.approx(3.0)
     for c in checks.values():
@@ -97,7 +118,9 @@ def test_the_table_renders_the_verdict_and_its_reasons():
     t["decision"] = decide_variant(t)
     text = format_variant_table(t)
     assert "instruct" in text and "FAIL" in text and "PASS" in text
-    assert "valid_json_fraction" in text
+    assert "schema_valid_fraction" in text
+    assert "schema" in text and "capped" in text, \
+        "the table must show what actually drove the verdict"
 
 
 def test_the_decision_is_json_serialisable():

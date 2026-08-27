@@ -161,12 +161,16 @@ def stage_probe(args) -> dict[str, Any]:
                 "hit_token_cap_fraction": rep.capped_fraction,
                 "valid_json_fraction": rep.parse.valid_fraction if mode == "structured"
                 else 1.0,
+                "schema_valid_fraction": rep.parse.schema_valid_fraction
+                if mode == "structured" else 1.0,
                 "failure_reasons": dict(rep.parse.reasons),
+                "schema_failure_reasons": dict(rep.parse.schema_reasons),
             }
             print(f"  {variant}/{mode}: median {rep.median_latency:.2f}s/item, "
                   f"{rep.median_new_tokens:.0f} tokens, capped "
                   f"{100 * rep.capped_fraction:.0f}%, "
-                  f"valid {rep.parse.valid}/{rep.parse.total}", flush=True)
+                  f"json {rep.parse.valid}/{rep.parse.total}, "
+                  f"schema {rep.parse.schema_valid}/{rep.parse.total}", flush=True)
             if mode == "structured":
                 for g in gens:
                     if not g.parsed_ok:
@@ -221,9 +225,15 @@ def stage_variant(args) -> dict[str, Any]:
             "n": len(gens),
             "relaxed_accuracy": correct / max(1, len(gens)),
             "valid_json_fraction": rep.parse.valid_fraction,
+            # The gate uses this one: a record the executor rejects is a failure
+            # (non-negotiable rule 3), whatever its JSON syntax.
+            "schema_valid_fraction": rep.parse.schema_valid_fraction,
             "repaired_fraction": rep.parse.repaired_fraction,
             "median_latency_s": rep.median_latency,
+            "median_new_tokens": rep.median_new_tokens,
+            "hit_token_cap_fraction": rep.capped_fraction,
             "failure_reasons": dict(rep.parse.reasons),
+            "schema_failure_reasons": dict(rep.parse.schema_reasons),
         }
         print(f"\n{variant}: accuracy {100 * table[variant]['relaxed_accuracy']:.2f}%  "
               f"valid JSON {100 * rep.parse.valid_fraction:.1f}%  "
@@ -250,10 +260,12 @@ def decide_variant(table: dict[str, Any]) -> dict[str, Any]:
         "accuracy_gain_points": {"value": gain,
                                  "required": f">= {VARIANT_GATE['min_accuracy_gain_points']}",
                                  "pass": gain >= VARIANT_GATE["min_accuracy_gain_points"]},
-        "valid_json_fraction": {"value": think["valid_json_fraction"],
-                                "required": f">= {VARIANT_GATE['min_valid_json_fraction']}",
-                                "pass": think["valid_json_fraction"]
-                                >= VARIANT_GATE["min_valid_json_fraction"]},
+        "schema_valid_fraction": {"value": think.get("schema_valid_fraction",
+                                                     think["valid_json_fraction"]),
+                                  "required": f">= {VARIANT_GATE['min_valid_json_fraction']}",
+                                  "pass": think.get("schema_valid_fraction",
+                                                    think["valid_json_fraction"])
+                                  >= VARIANT_GATE["min_valid_json_fraction"]},
         "latency_ratio": {"value": ratio,
                           "required": f"<= {VARIANT_GATE['max_latency_ratio']}",
                           "pass": ratio <= VARIANT_GATE["max_latency_ratio"]},
@@ -265,15 +277,17 @@ def decide_variant(table: dict[str, Any]) -> dict[str, Any]:
 
 
 def format_variant_table(table: dict[str, Any]) -> str:
-    lines = [f"{'variant':<12}{'accuracy':>10}{'valid JSON':>12}{'repaired':>10}"
-             f"{'median s':>10}"]
+    lines = [f"{'variant':<12}{'accuracy':>10}{'json':>8}{'schema':>9}{'capped':>9}"
+             f"{'tokens':>8}{'median s':>10}"]
     for name in ("instruct", "thinking"):
         m = table.get(name)
         if not m:
             continue
         lines.append(f"  {name:<10}{100 * m['relaxed_accuracy']:>9.2f}%"
-                     f"{100 * m['valid_json_fraction']:>11.1f}%"
-                     f"{100 * m['repaired_fraction']:>9.1f}%"
+                     f"{100 * m['valid_json_fraction']:>7.1f}%"
+                     f"{100 * m.get('schema_valid_fraction', 0):>8.1f}%"
+                     f"{100 * m.get('hit_token_cap_fraction', 0):>8.1f}%"
+                     f"{m.get('median_new_tokens', 0):>8.0f}"
                      f"{m['median_latency_s']:>10.2f}")
     d = table.get("decision", {})
     lines.append(f"\n  decision: {d.get('choice')}  ({d.get('reason')})")

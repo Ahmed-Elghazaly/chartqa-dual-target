@@ -2663,3 +2663,58 @@ than assumed.
 
 A tool that reports a failure nobody reads is no tool (0050's lesson). This is its
 sibling: a tool whose failure is discarded by the shell is no tool either.
+
+---
+
+## 0058 — The prompt was iterated on measured failures, and the gate moved to schema validity
+
+**Date** 2026-08-27 · **Phase** 5.1 · **Status** adopted
+
+**Context.** `PLAN.md` 5.1 says to design the prompt that elicits the strict JSON record
+and iterate **on validation data only**. The first GPU probe gave the numbers to iterate
+against — but it reported a failure *rate* while keeping none of the failing generations,
+so it said "something is wrong" and nothing about what. That was fixed first: `Generation`
+now records how many tokens it produced and whether it stopped because the budget ran out,
+and the probe writes every generation to disk.
+
+**What the instrumented probe measured** (Qwen3-VL-2B-Instruct, 12 validation items):
+
+| | |
+|---|---:|
+| median tokens generated | 308 |
+| hit the 512-token cap | 33% |
+| valid JSON | 7/12 |
+| of the 5 failures, **pure truncation** | **4** |
+
+The four truncated records were well-formed JSON that simply ran out of budget — tails
+like `"bbox": [12, 638, 100, 714]\n    },\n    {\n      "`. That is a **cheap** problem:
+the prompt was fine and the format was wasteful.
+
+**Two defects, both in the prompt.**
+
+1. **The model imitates the example's formatting.** A pretty-printed example produced
+   pretty-printed records — one successful record spent ~150 tokens on what compact JSON
+   expresses in ~55. `PLAN.md` 5.2's own wording asks for "valid **compact** JSON". Every
+   example is now compact and single-line, and the instruction says so; a contradiction
+   between an instruction and a demonstration is won by the demonstration.
+2. **`plan.args` came back as an object** — `{"label": "Zara", "value": 99}` — where
+   `OUTPUT_SCHEMA` requires an array. This was in a record the probe **counted as a
+   success**. It parses as JSON and the executor rejects it.
+
+**Decision.** The prompt states that `args` is always a list and demonstrates it in every
+example, and the unanswerable case gets a complete worked example rather than a
+description (one failure emitted only `answerable` and `evidence`).
+
+More importantly: **`ParseStats` now measures schema validity separately from JSON
+validity, and the 5.2 gate uses the schema number.** Non-negotiable rule 3 makes a record
+the executor rejects a failure, whatever its syntax; gating on JSON validity would report a
+rate the pipeline cannot act on. Both rates are reported so the gap stays visible.
+
+**Consequences.** Compact output should cut generation roughly threefold, which addresses
+truncation *and* the 5.13 h projection for ChartQA validation at 9.63 s/item — the change
+buys accuracy and budget at once. The prompt hash changes, which is expected: `PLAN.md` 5.5
+seals the prompt at pre-registration, and this iteration is before that, on validation
+data, which is exactly what 5.1 authorises.
+
+Recorded now, before the re-probe, so the change is not confused with fitting to whatever
+the next measurement happens to show.

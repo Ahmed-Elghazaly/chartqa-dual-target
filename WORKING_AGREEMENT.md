@@ -21,6 +21,21 @@ decision entry is cited.
 | **The plan may be edited.** | `PLAN.md` and `IDEA.md` contain errors; when one is found, say so with evidence and propose the change rather than silently working around it. |
 | **Recover from mistakes properly.** | Find them, fix them, record them — but the goal is not to generate corrections. |
 
+### Reporting (added 2026-08-27, standing)
+
+Every report must say, in plain language:
+
+1. **Is this good or bad for us?** Label each finding explicitly. A measurement is not
+   self-explanatory — "AP is 0.68" means nothing to a reader until it is "worse than we
+   hoped and here is what it costs us". Never leave the judgement implicit.
+2. **What was done, simply.** Progress, in the fewest words that stay accurate.
+3. **What was decided**, and why it went that way.
+4. **What is needed from Ahmed**, or explicitly "nothing".
+5. **Anything else worth knowing** — surprises, risks, wasted effort, cost.
+
+Brief and concrete. The failure to avoid is a technically complete report that leaves the
+reader unable to tell whether the project is going well.
+
 ## Standing facts about the environment
 
 * **Kaggle** — account `nanonanite`. Token is a `KGAT_` **bearer** token in `~/.kaggle/access_token`,
