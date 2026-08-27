@@ -1,13 +1,19 @@
 % tab_variant_selection — populated by: cdt-report --what variant_selection
 \begin{table}[t]
 \centering
-\caption{\TODO{caption for variant_selection}}
+\caption{Instruct versus Thinking on a frozen 200-question ChartQA validation slice, balanced
+between human and machine questions. Thinking is selected only if it is at least two relaxed-accuracy
+points better, produces at least 90\% valid compact JSON under the planned prompt, and has no more
+than twice the median latency. The choice is frozen before any test split is opened.}
 \label{tab:variant_selection}
-\begin{tabular}{lccc}
+\begin{tabular}{lrrr}
 \toprule
-\TODO{columns} \\
+Variant & Relaxed accuracy & Valid JSON (\%) & Median latency (s) \\
 \midrule
-\TODO{rows -- generated, never typed by hand} \\
+\TODO{Instruct} & & & \\
+\TODO{Thinking} & & & \\
+\midrule
+Threshold to switch & $+2.0$ & $\geq 90$ & $\leq 2\times$ \\
 \bottomrule
 \end{tabular}
 \end{table}

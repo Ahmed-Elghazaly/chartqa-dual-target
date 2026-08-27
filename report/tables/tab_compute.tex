@@ -1,13 +1,20 @@
 % tab_compute — populated by: cdt-report --what compute
+% Source of record: verification/measured_facts.json and RUNS.md.
 \begin{table}[t]
 \centering
-\caption{\TODO{caption for compute}}
+\caption{Compute characterisation on free-tier hardware. All figures are for a
+\emph{single} NVIDIA T4; a run whose model is sharded across two cards is rejected rather than
+reported, because the budget these gates encode is a one-card budget
+(Section~\ref{sec:setup:compute}).}
 \label{tab:compute}
-\begin{tabular}{lccc}
+\begin{tabular}{lrrr}
 \toprule
-\TODO{columns} \\
+Configuration & Peak reserved (GiB) & s / optimizer step & Projected 3{,}000 steps (h) \\
 \midrule
-\TODO{rows -- generated, never typed by hand} \\
+\TODO{512px, single card} & & & \\
+\TODO{native, single card} & & & \\
+\midrule
+Gate & $\leq 13.5$ & --- & $\leq 10$ \\
 \bottomrule
 \end{tabular}
 \end{table}
