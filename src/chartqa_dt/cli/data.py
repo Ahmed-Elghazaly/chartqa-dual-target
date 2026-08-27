@@ -25,6 +25,7 @@ def main() -> None:
         load_manifest,
         materialise_dev_subset,
         verify_manifest,
+        verify_parquet,
     )
     from chartqa_dt.data.sources import SOURCES, ArchiveSpec
 
@@ -63,8 +64,20 @@ def main() -> None:
         status = verify_manifest(data_root=root)
         for key, state in sorted(status.items()):
             print(f"  {key:<12} {state}")
-        if any(v == "MISMATCH" for v in status.values()):
-            raise SystemExit("a recorded archive no longer hashes to its manifest entry")
+        bad = [k for k, v in status.items() if v == "MISMATCH"]
+        for key in keys:
+            try:
+                shards = verify_parquet(key, data_root=root)
+            except Exception:  # noqa: BLE001 - no recorded hashes for this source
+                continue
+            counts: dict[str, int] = {}
+            for state in shards.values():
+                counts[state] = counts.get(state, 0) + 1
+            print(f"  {key:<12} parquet: " +
+                  ", ".join(f"{v} {k}" for k, v in sorted(counts.items())))
+            bad += [f"{key}/{n}" for n, v in shards.items() if v == "MISMATCH"]
+        if bad:
+            raise SystemExit(f"hash mismatch: {bad}")
         return
 
     if command == "dev":

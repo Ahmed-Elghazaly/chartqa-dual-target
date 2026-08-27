@@ -100,3 +100,51 @@ def test_the_two_source_kinds_are_distinguishable():
     assert isinstance(SOURCES["chartqa"], ArchiveSpec)
     assert isinstance(SOURCES["refchartqa"], ParquetSpec)
     assert SOURCES["chartqa"].filename == "ChartQA Dataset.zip"
+
+
+def test_parquet_hashes_are_recorded_before_anything_is_downloaded():
+    """`PLAN.md` 3.1 wants hash-verified downloads; RefChartQA is streamed, not downloaded.
+
+    The expected hashes come from the Hugging Face API at the pinned revision and are
+    committed *before* the files exist locally. That ordering is the whole value: a hash
+    taken after downloading proves only that the file has not changed since you fetched
+    it, while one taken from the pinned revision proves you got the file the project was
+    designed against.
+    """
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    manifest = json.loads((root / "data/MANIFEST.json").read_text())
+    entry = manifest.get("parquet", {}).get("refchartqa")
+    assert entry, "RefChartQA parquet hashes are not recorded"
+    assert entry["revision"] == SOURCES["refchartqa"].revision
+    assert len(entry["files"]) == 9
+    assert all(len(f["sha256"]) == 64 for f in entry["files"].values())
+
+
+def test_the_recorded_parquet_total_matches_the_phase_zero_measurement():
+    """Two independent routes to the same number is what makes it trustworthy.
+
+    Phase 0 summed the datasets-server size endpoint; this sums per-file LFS sizes from
+    the repository API at the pinned revision.
+    """
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    manifest = json.loads((root / "data/MANIFEST.json").read_text())
+    assert manifest["parquet"]["refchartqa"]["total_bytes"] == 2_884_503_702
+
+
+def test_absent_parquet_shards_are_reported_absent_not_failed(tmp_path):
+    """Streaming during development must not read as corruption."""
+    from chartqa_dt.data.download import verify_parquet
+
+    status = verify_parquet("refchartqa", data_root=tmp_path)
+    assert status and set(status.values()) == {"absent"}
+
+
+def test_verifying_a_source_with_no_recorded_hashes_raises(tmp_path):
+    from chartqa_dt.data.download import verify_parquet
+
+    with pytest.raises(DownloadError, match="no recorded parquet hashes"):
+        verify_parquet("chartqapro", data_root=tmp_path)

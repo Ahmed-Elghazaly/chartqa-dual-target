@@ -162,6 +162,51 @@ def verify_manifest(*, data_root: Path, path: str | Path = MANIFEST_PATH) -> dic
     return out
 
 
+def verify_parquet(key: str, *, data_root: Path,
+                   path: str | Path = MANIFEST_PATH) -> dict[str, str]:
+    """Check downloaded parquet shards against hashes recorded from the pinned revision.
+
+    The expected hashes come from the Hugging Face API and are committed **before** the
+    files are fetched (`scripts/record_parquet_hashes.py`). That ordering is what makes
+    this worth doing: a hash recorded after downloading only proves the file has not
+    changed since you fetched it, while one recorded from the pinned revision proves you
+    got the file the project was designed against.
+
+    Files that are not present locally are reported as ``absent``, not as failures —
+    RefChartQA is streamed during development and only fully downloaded where training
+    runs.
+    """
+    manifest = load_manifest(path)
+    entry = (manifest.get("parquet") or {}).get(key)
+    if not entry:
+        raise DownloadError(
+            f"no recorded parquet hashes for {key!r}; run "
+            f"scripts/record_parquet_hashes.py --datasets {key}"
+        )
+    cache = Path(data_root) / "hf"
+    out: dict[str, str] = {}
+    for name, expected in entry["files"].items():
+        local = _cached_dataset_file(entry["repo_id"], name, entry["revision"], cache)
+        if local is None or not local.exists():
+            out[name] = "absent"
+        elif sha256_file(local) != expected["sha256"]:
+            out[name] = "MISMATCH"
+        else:
+            out[name] = "ok"
+    return out
+
+
+def _cached_dataset_file(repo_id: str, filename: str, revision: str,
+                         cache: Path) -> Path | None:
+    try:
+        from huggingface_hub import try_to_load_from_cache
+    except ImportError:  # pragma: no cover - huggingface_hub is a hard dependency
+        return None
+    hit = try_to_load_from_cache(repo_id=repo_id, filename=filename, revision=revision,
+                                 repo_type="dataset", cache_dir=str(cache))
+    return Path(hit) if isinstance(hit, str) else None
+
+
 def materialise_dev_subset(key: str, *, data_root: Path, rows: int = DEV_ROWS) -> Path:
     """Write a ~`rows`-example subset so downstream work needs no full download.
 
@@ -221,6 +266,17 @@ def _jsonable(obj: Any) -> Any:
     return str(obj)
 
 
-__all__ = ["DEV_ROWS", "MANIFEST_PATH", "ArchiveResult", "DownloadError", "fetch_archive",
-           "load_manifest", "materialise_dev_subset", "record_archive", "save_manifest",
-           "sha256_file", "verify_manifest"]
+__all__ = [
+    "DEV_ROWS",
+    "MANIFEST_PATH",
+    "ArchiveResult",
+    "DownloadError",
+    "fetch_archive",
+    "load_manifest",
+    "materialise_dev_subset",
+    "record_archive",
+    "save_manifest",
+    "sha256_file",
+    "verify_manifest",
+    "verify_parquet",
+]

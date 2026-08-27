@@ -6,7 +6,7 @@
 
 | criterion (`PLAN.md` 3) | status | evidence |
 |---|---|---|
-| Archives downloaded and hash-verified; `MANIFEST.json` written | **pass** | ChartQA 875,370,872 B, sha256 `1bf310e5a5110168…`, revision `af8b6f5c08c9` |
+| Archives downloaded and hash-verified; `MANIFEST.json` written | **pass** | ChartQA 875,370,872 B, sha256 `1bf310e5a5110168…`. RefChartQA is **streamed, not downloaded** (disk); its 9 parquet SHA-256s are recorded from the pinned revision *before* any fetch, so verification happens on Kaggle against a hash committed beforehand. Recorded total 2,884,503,702 B matches Phase 0's independent measurement exactly. |
 | `--dev` mode works end to end without the full download | **pass** | `cdt-data dev`; RefChartQA streamed, never downloaded in full |
 | Dedup merge count reported | **pass** | 628 merges, **609 of them ChartQA↔RefChartQA** — zero before the pixel-hash fix (0048) |
 | Audit complete, decision recorded, `refchartqa_audit.jsonl` written | **pass** | **200/200 acceptable, gate PASSED** (0047) |
@@ -15,7 +15,7 @@
 | Both mixture files written with composition breakdowns | **pass** | `data/mixture_stage1.json`, `data/mixture_stage2.json`, 12,000 each |
 | **Zero val/test records in either mixture**, asserted in code | **pass** | plus an image-level guard (0049) and an end-to-end check on the written files |
 
-**548 tests pass**; `ruff check src tests scripts` clean.
+**567 tests pass**; `ruff check src tests scripts` clean; **CI green**.
 
 ### Mixtures
 
@@ -43,6 +43,19 @@
 4. **Held-out charts reach training through the split label** (0049). 4 RefChartQA rows labelled `train` use
    ChartQA val/test charts, and **15 of ChartQA's own train images are pixel-identical to held-out ones**.
    Every `split` field reads "train". Guarded at ingest with a count, and asserted at mixture time.
+
+## One process failure worth stating plainly
+
+`src/chartqa_dt/data/` — the entire loaders package, nine files — was matched by an unanchored `data/`
+rule in `.gitignore` and **never committed**. Local tests passed throughout because the files were on
+disk; CI failed eight consecutive pushes with `ModuleNotFoundError`, and `check_ci.py` had been
+reporting it the whole time. Kaggle pulls from GitHub, so Phase 5 training would have failed on a clean
+checkout, and losing this machine would have lost the Phase 3 data layer (0050).
+
+Fixed by anchoring the rule to `/data/`, adding `tests/test_repo_completeness.py` (which would have
+failed on the first commit), and `scripts/preflight.sh`, which rebuilds CI's own torch-free venv and
+runs all four CI steps before a push. The measurements and artefacts are unaffected — they came from
+real code that was correct and present locally. What was wrong was the claim that it was in the repo.
 
 ## Open items carried into Phase 4
 

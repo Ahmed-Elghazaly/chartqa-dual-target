@@ -236,6 +236,8 @@
       "dedup_merges": 628,
       "dedup_chartqa_refchartqa_merges": 609,
       "_note": "609 cross-dataset merges. With file-byte hashing this was 0 \u2014 see 0048."
-    }
+    },
+    "refchartqa_parquet_bytes_recorded": 2884503702,
+    "refchartqa_parquet_files": 9
   }
 }
