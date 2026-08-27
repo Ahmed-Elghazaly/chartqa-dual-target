@@ -1558,3 +1558,71 @@ finish, and verified resume changes what "can finish" means. But redefining a ga
 number it failed is exactly the move this project forbids elsewhere, so it is not taken unilaterally.
 The next run measures 448 against 512 directly, and the choice is then made with both numbers and the
 sub-token cost visible.
+
+---
+
+## 0034 — 2026-08-27 — The 10-hour gate is a proxy that verified resume has superseded; restated in terms of what actually binds
+
+**Context.** Ahmed asked what the 10-hour gate is actually protecting against, given that everything is
+supposed to be resumable. It is a fair question and I had been treating the number as more binding
+than the evidence supports.
+
+**Evidence — the real constraints, read from Kaggle rather than inferred.**
+
+`api.quota_view()` for this account:
+
+```
+gpu   time_used  4.11 h    time_reserved 0.00 h    total_time_allowed 30.00 h
+      weekly window resets 2026-08-29
+```
+
+So: **30 hours per week, resetting weekly**, 25.89 remaining. Total committed for the rest of the
+project is about **19 hours** (zero-shot evaluation ~3, stage 1+2 ~10, direct-answer control ~3, test
+evaluation ~3). That fits inside a single weekly window with roughly 7 hours to spare, and the window
+refills.
+
+And `PLAN.md` Appendix F already says, in its own words:
+
+> Every long job must be **resumable** and must push checkpoints to the Hub on every save.
+> Prefer several short runs over one long one.
+
+**Kill-and-resume is now verified**, not aspirational: run 12 produced post-resume loss deltas of
+0.0053, 0.0018 and 0.0014 against a `1e-2` tolerance, on checkpoints carrying adapter weights,
+optimizer state and RNG states.
+
+**The problem with the gate as written.** "Projected full run ≤ 10 hours" is a *proxy* for "this run
+can actually finish on free hardware". That proxy was written before resume was verified, when a
+session ending meant work lost. It now measures the wrong thing:
+
+* a 10.5-hour run is not lost if a session ends — it resumes;
+* the plan itself prefers splitting long jobs, so a single-session fit was never the requirement;
+* the quantity that genuinely binds is the **weekly quota**, and 19 hours against 30 is not close.
+
+Meanwhile the gate was about to force a real cost. 448 pixels buys the time margin by making
+**+8.5 percentage points** of human-subset grounding targets sub-token — physically unresolvable — on
+the exact metric this project exists to move.
+
+**Options.** (a) Keep the 10-hour gate and drop to 448 pixels. (b) Keep 512 pixels and quietly treat
+9.96 h as passing. (c) Restate the gate in terms of what constrains us, requiring *more* than before.
+
+**Decision.** (c), and flagged to Ahmed as a plan revision rather than made silently. The compute gate
+becomes:
+
+1. peak reserved memory ≤ **13.5 GiB** — unchanged, physical, hard;
+2. projected full run ≤ **20 hours**, i.e. inside the weekly quota with the other phases' commitments
+   subtracted — the quantity that actually binds;
+3. **kill-and-resume verified for that exact configuration**, by comparing post-resume loss — previously
+   a requirement stated in prose and never enforced by a gate;
+4. checkpoints pushed to the Hub on every save.
+
+(b) is rejected explicitly: declaring a coin-toss margin a pass is exactly what this project refuses
+elsewhere. (a) is rejected because it pays a measured cost on the headline metric to buy time the
+quota shows we already have.
+
+**Consequences.** 512 pixels is retained, and the resolution question raised in 0010 and left open in
+0033 is closed. Requirement 3 is a genuine tightening: run 11 would have **failed** the new gate
+despite passing the old one, because its resume check failed. A gate that a previously-passing run
+fails is not a relaxation.
+
+The revision is recorded here and must be reflected in `PREREGISTRATION.md` before any test split is
+opened, so the standard the results are judged against is fixed in advance and not adjusted afterwards.

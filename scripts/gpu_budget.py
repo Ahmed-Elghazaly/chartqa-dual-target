@@ -21,29 +21,37 @@ WEEKLY_QUOTA_HOURS = 30.0
 RUNS_MD = Path(__file__).resolve().parents[1] / "RUNS.md"
 
 
-def from_kaggle_api() -> tuple[float, float] | None:
-    """(used_hours, quota_hours) from Kaggle, or None if unavailable."""
+def from_kaggle_api() -> dict | None:
+    """Authoritative quota for THIS account, straight from Kaggle.
+
+    The method is `quota_view()`. An earlier version of this function guessed at
+    `get_accelerator_quota_statistics` and silently reported "endpoint
+    unavailable" for days — the same read-the-API-first lesson as everywhere else,
+    and a reminder that a fallback path hides a bug rather than reporting it.
+    """
     os.environ.setdefault("KAGGLE_CONFIG_DIR", str(Path.home() / ".kaggle"))
     try:
         from kaggle.api.kaggle_api_extended import KaggleApi
 
         api = KaggleApi()
         api.authenticate()
+        q = api.quota_view()
     except Exception:  # noqa: BLE001
         return None
-    for name in ("get_accelerator_quota_statistics", "accelerator_quota_statistics"):
-        fn = getattr(api, name, None)
-        if fn is None:
-            continue
-        try:
-            stats = fn()
-        except Exception:  # noqa: BLE001
-            continue
-        used = getattr(stats, "used_seconds", None) or getattr(stats, "usedSeconds", None)
-        quota = getattr(stats, "quota_seconds", None) or getattr(stats, "quotaSeconds", None)
-        if used is not None and quota:
-            return float(used) / 3600.0, float(quota) / 3600.0
-    return None
+
+    gpu = getattr(q, "gpu_quota", None)
+    if gpu is None:
+        return None
+
+    def hours(value) -> float:
+        return value.total_seconds() / 3600.0 if hasattr(value, "total_seconds") else float(value or 0)
+
+    return {
+        "used": hours(getattr(gpu, "time_used", 0)),
+        "reserved": hours(getattr(gpu, "time_reserved", 0)),
+        "total": hours(getattr(gpu, "total_time_allowed", 0)),
+        "refresh": getattr(q, "quota_refresh_time", None),
+    }
 
 
 def parse_duration(cell: str) -> float | None:
@@ -90,29 +98,37 @@ def main() -> int:
     logged, sessions = from_runs_md()
 
     print("Kaggle GPU budget")
-    print("-" * 56)
+    print("-" * 60)
     if api:
-        used, quota = api
-        print(f"  reported by Kaggle : {used:6.2f} h used of {quota:.0f} h")
-        remaining = quota - used
+        remaining = api["total"] - api["used"] - api["reserved"]
+        reserved_note = f", {api['reserved']:.2f} h reserved by running sessions" if api["reserved"] else ""
+        print(f"  reported by Kaggle : {api['used']:6.2f} h used{reserved_note} of {api['total']:.0f} h")
+        if api["refresh"]:
+            print(f"  weekly window resets: {api['refresh']}")
+        quota = api["total"]
     else:
-        print("  reported by Kaggle : (quota endpoint unavailable)")
-        used, quota = logged, WEEKLY_QUOTA_HOURS
-        remaining = quota - used
+        print("  reported by Kaggle : (unavailable — falling back to RUNS.md)")
+        remaining = WEEKLY_QUOTA_HOURS - logged
+        quota = WEEKLY_QUOTA_HOURS
     print(f"  logged in RUNS.md  : {logged:6.2f} h across {sessions} session(s)")
-    print(f"  remaining (est.)   : {remaining:6.2f} h of {quota:.0f} h weekly")
-    print()
-    print("  committed ahead:")
-    for name, hours in (("Phase 2 measurement (running)", 1.0),
-                        ("Phase 5 zero-shot, both protocols", 3.0),
-                        ("Phase 6 stage 1 + stage 2", 8.0),
-                        ("Phase 6 direct-answer control", 3.0),
-                        ("Phase 7 test evaluation", 3.0)):
-        print(f"    {name:<36} ~{hours:4.1f} h")
-    print(f"    {'total':<36} ~{18.0:4.1f} h")
-    if remaining < 18.0:
-        print("\n  WARNING: less remaining than the committed plan needs.")
-        print("  Long runs must be resumable and must not be repeated for avoidable reasons.")
+    print(f"  remaining          : {remaining:6.2f} h of {quota:.0f} h")
+
+    committed = [
+        ("Phase 5 zero-shot, both protocols", 3.0),
+        ("Phase 6 stage 1 + stage 2", 10.0),
+        ("Phase 6 direct-answer control", 3.0),
+        ("Phase 7 test evaluation", 3.0),
+    ]
+    print("\n  committed ahead:")
+    for name, h in committed:
+        print(f"    {name:<36} ~{h:4.1f} h")
+    total_ahead = sum(h for _, h in committed)
+    print(f"    {'total':<36} ~{total_ahead:4.1f} h")
+
+    if remaining < total_ahead:
+        print(f"\n  NOTE: {remaining:.1f} h remain this window against ~{total_ahead:.1f} h committed.")
+        print("  The window resets weekly, and every long job is resumable and pushes")
+        print("  checkpoints on save, so work spans windows rather than being lost.")
     return 0
 
 
