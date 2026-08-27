@@ -1223,3 +1223,53 @@ corrections, and the aim is to stop generating them.
 Also checked, since it was asked: **no relevant skills exist**. A search across
 pytorch / transformers / vision-language models / LoRA / Hugging Face / Kaggle / deep learning
 returned nothing, so no packaged expertise is available to lean on.
+
+---
+
+## 0028 — 2026-08-27 — Question text is not identity: the leakage check must key on `(image_hash, question)`
+
+**Context.** RefChartQA is derived from ChartQA. If the derivation did not preserve splits, training on
+RefChartQA train would leak ChartQA **test** data and invalidate the headline answer-accuracy result —
+non-negotiable rule 1. The id scheme (`RefChartQA_human_train_324`) *suggests* splits were preserved.
+That is not evidence, so it was checked.
+
+**Evidence.** Against all 2,500 ChartQA test rows (2,458 distinct normalised questions) and a 200-row
+sample of RefChartQA train, **three** question-text matches appeared:
+
+| RefChartQA train id | question | ChartQA test charts with that same text |
+|---|---|---:|
+| `RefChartQA_human_train_324` | "what does the green bar represent" | 1 |
+| `RefChartQA_human_train_5243` | "what is the average of all the bars" | **3** |
+| `RefChartQA_human_train_5286` | "what is the median value" | 1 |
+
+The middle row settles the interpretation on its own: the *same wording* appears on **three different
+ChartQA test charts**. These are generic questions that any bar chart can be asked, so a text match is
+not evidence that the same example appears in both splits.
+
+Two supporting checks: every sampled RefChartQA train id was correctly `*_train_*` (0 anomalies), and
+23 of 200 sampled RefChartQA train questions matched a small sample of ChartQA **train** — a positive
+control confirming the derivation is visible at all, so the method can detect overlap when it exists.
+
+**Options.** (a) Treat the three matches as leakage and drop RefChartQA from training.
+(b) Dismiss them as generic and move on. (c) Record that text alone cannot decide it, and make the
+definitive check part of Phase 3 where real image hashes are available.
+
+**Decision.** (c). Neither (a) nor (b) is supportable from text matching. The definitive test computes
+`dedup_key = sha256(image_bytes)[:16] + ":" + sha256(normalised_question)[:16]` over **every** row of
+both datasets — not a sample, and not a JPEG-similarity proxy over re-encoded preview images. That is
+Phase 3.3's job and it now has a precise specification and a reason.
+
+**Consequences.** The main value here is that it **validates `PLAN.md` 3.3's key design with evidence
+rather than by assertion**. The plan specifies `dedup_key(image_sha256, question)`; this shows the
+image half is load-bearing, because a text-only key produces at least three false positives in a
+200-row sample and would have produced them across the whole 55,789-row split.
+
+It also sets the acceptance bar for the Phase 3 test: it must fail on a genuine `(image, question)`
+duplicate and **pass** in the presence of a shared generic question on different charts. A test that
+cannot tell those apart would either block training on RefChartQA for no reason or wave through real
+leakage, and both failure directions are now demonstrable with concrete examples to test against.
+
+An attempt to resolve the three cases immediately, by fetching both images and comparing them, was
+abandoned after the public dataset endpoint returned HTTP 429. Spending more of a shared rate limit on
+a proxy measurement, when the exact measurement is a scheduled part of the next phase, is not a good
+trade.
