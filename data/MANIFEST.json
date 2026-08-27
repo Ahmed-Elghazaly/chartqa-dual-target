@@ -1,0 +1,59 @@
+{
+  "_purpose": "SHA-256 of every dataset archive this project downloaded. Committed so a changed file is detectable; the data itself is never committed (rule 7).",
+  "archives": {
+    "chartqa": {
+      "filename": "ChartQA Dataset.zip",
+      "recorded_utc": "2026-08-27T09:36:11+00:00",
+      "repo_id": "ahmed-masry/ChartQA",
+      "revision": "af8b6f5c08c95085271561c2a3f9d15f2b5a9031",
+      "sha256": "1bf310e5a51101681495c4a24f4f29d22c4f70b52df24e2e4feb0d79cae3c160",
+      "size_bytes": 875370872
+    }
+  },
+  "parquet": {
+    "refchartqa": {
+      "_note": "Expected hashes read from the Hugging Face API at the pinned revision. Nothing was downloaded; verification happens wherever the download does, against a hash committed beforehand.",
+      "files": {
+        "data/test-00000-of-00002.parquet": {
+          "sha256": "95e66f8fb3664e4143d640155fd8fec3e66a2a35290e5e21f22fd109f70b31fa",
+          "size_bytes": 232555180
+        },
+        "data/test-00001-of-00002.parquet": {
+          "sha256": "f34b8cb62f5e112cb7180d0feb61d5aa239164df05e05410ea61135784527504",
+          "size_bytes": 243602980
+        },
+        "data/train-00000-of-00006.parquet": {
+          "sha256": "8850dd31e9c4475d274e57bc5a0f0b1a324a776bf653ffe9b8b58840bf6a0bd8",
+          "size_bytes": 320781181
+        },
+        "data/train-00001-of-00006.parquet": {
+          "sha256": "95e4261182c207fbc9584f1f092bd8a715b2a1e5c45a5b9efbcd70d387b8a121",
+          "size_bytes": 308105627
+        },
+        "data/train-00002-of-00006.parquet": {
+          "sha256": "19f833cd2d07ccd15c646507e19bf7228243a4ca1d1b725a649c0ed5e8afd820",
+          "size_bytes": 376132920
+        },
+        "data/train-00003-of-00006.parquet": {
+          "sha256": "356d3e1c871d4e7ceb12317604fa6c5a094179350acefa6700126ffc181cdf61",
+          "size_bytes": 384849357
+        },
+        "data/train-00004-of-00006.parquet": {
+          "sha256": "25c99a84eb59a9115996571fdb29234147e3fd1181c6489f7a78aa98a4ffc941",
+          "size_bytes": 382958084
+        },
+        "data/train-00005-of-00006.parquet": {
+          "sha256": "01bc85fc3c28b77d7e9a90c2dcafad1962552018c77a65bbf391bdbaa4011d1b",
+          "size_bytes": 384259570
+        },
+        "data/validation-00000-of-00001.parquet": {
+          "sha256": "557a079795d87d776fffbeb2c77771b2d009b9ddd4267be20eb2425f4b20dd61",
+          "size_bytes": 251258803
+        }
+      },
+      "repo_id": "omoured/RefChartQA",
+      "revision": "c6b6504adb96cf72f0852a5f73ba4c62b718f843",
+      "total_bytes": 2884503702
+    }
+  }
+}

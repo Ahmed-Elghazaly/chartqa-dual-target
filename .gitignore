@@ -3,10 +3,17 @@
 # ChartQA is GPL-3.0, RefChartQA is AGPL-3.0. Scripts, IDs, hashes, adapters
 # and derived statistics only.
 # ---------------------------------------------------------------------------
-# ANCHORED to the repo root with a leading slash. An unanchored `data/` also matches
+# Two things are load-bearing in these four lines.
+#
+# ANCHORED with a leading slash: an unanchored `data/` also matches
 # `src/chartqa_dt/data/` — the loaders package — which was silently untracked for nine
-# commits while every local test passed and CI failed on ModuleNotFoundError.
-/data/
+# commits while every local test passed and CI failed on ModuleNotFoundError (0050).
+#
+# `/data/*` and NOT `/data/`: git cannot re-include a file whose parent DIRECTORY is
+# excluded, so `!/data/MANIFEST.json` under a `/data/` rule is silently a no-op. Excluding
+# the directory's *contents* leaves the directory itself visible, which is what makes the
+# exceptions work at all. Verified with `git check-ignore -v`, not by reading.
+/data/*
 !/data/MANIFEST.json
 !/data/*.json
 !/data/refchartqa_audit.jsonl

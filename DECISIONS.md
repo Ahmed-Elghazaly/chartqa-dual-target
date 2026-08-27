@@ -2323,3 +2323,58 @@ that reports a failure nobody reads is indistinguishable from no tool.
 **Consequence for the earlier phase reports.** Phase 3's tests, numbers and artefacts are
 unaffected — they were produced from the real code, which was correct and present locally.
 What was wrong was the claim that the work was *in the repository*.
+
+---
+
+## 0051 — Git cannot re-include a file from inside an excluded directory
+
+**Date** 2026-08-27 · **Phase** 3 · **Status** adopted
+
+**Context.** `DECISIONS.md` 0050 anchored the rule-7 pattern to `/data/` so it would stop
+matching `src/chartqa_dt/data/`. The four lines then read:
+
+```
+/data/
+!/data/MANIFEST.json
+!/data/*.json
+!/data/refchartqa_audit.jsonl
+```
+
+Those exceptions are **no-ops**. Git does not descend into an excluded directory, so it
+never sees the files a `!` rule would rescue. Every artefact Phase 3 produces —
+`MANIFEST.json`, `sealed_images.json`, both mixture files, the audit judgements — was
+excluded, and CI failed with `FileNotFoundError: data/MANIFEST.json` while every local
+test passed, because the files were on disk.
+
+The same shape of error as 0050, one layer deeper, and it survived the fix *for* 0050
+because that fix was verified by reading the pattern rather than by asking git.
+
+**Decision.** Exclude the directory's **contents**, not the directory:
+
+```
+/data/*
+!/data/MANIFEST.json
+!/data/*.json
+!/data/refchartqa_audit.jsonl
+```
+
+`tests/test_repo_completeness.py` now asserts, via `git check-ignore`, that (a) no source
+file is ignored, (b) no required artefact is ignored, (c) the pattern is `/data/*` and is
+neither `data/` nor `/data/`, and (d) rule 7 still covers `data/**.png`, nested image
+directories, parquet and CSV — so the exceptions cannot have opened a hole.
+
+**A second finding, from checking rule 7 properly.** `data/refchartqa_audit.jsonl` carried
+the `question` and `answer` of every audited row — RefChartQA text, AGPL-3.0. That is
+dataset content, and `assert_no_dataset_content` did not catch it because that helper
+screens **file types** (png, zip, parquet), not what is inside a JSONL.
+
+The committed file now holds id, type, image size, box counts, normalised boxes, verdict,
+reason and measurements — no text. Auditability is unaffected: `id` identifies each row, so
+anyone with the dataset can recover the question and re-judge, which is the "IDs and derived
+statistics" pattern rule 7 prescribes. `--with-text` writes a local copy that is not
+committed. `test_no_committed_artefact_carries_dataset_text` checks fields, not extensions.
+
+**Consequences.** Three gitignore-shaped failures in one session (0050, this entry twice
+over) share one cause: *the pattern was verified by reading it.* `git check-ignore -v`
+answers the question directly and takes a second. It is now what the test runs, and
+`scripts/preflight.sh` runs the test before every push.

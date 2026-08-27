@@ -113,6 +113,9 @@ def main() -> None:
     ap.add_argument("--render-dir", type=Path,
                     default=Path("outputs/refchartqa_audit_renders"))
     ap.add_argument("--out", type=Path, default=AUDIT_PATH)
+    ap.add_argument("--with-text", action="store_true",
+                    help="include question and answer text — LOCAL INSPECTION ONLY, "
+                         "never for the committed file (rule 7)")
     args = ap.parse_args()
 
     from datasets import load_dataset
@@ -150,11 +153,18 @@ def main() -> None:
         ok, reason, measured = judge(arr, boxes_px)
         taken[kind] += 1
 
-        rec = {"id": row.get("id"), "type": kind, "question": row.get("query"),
-               "answer": row.get("label"), "image_size": [w, h],
+        # Rule 7: no dataset content in the repository. The question and the gold answer
+        # are RefChartQA's (AGPL-3.0), so they are not written. `id` identifies the row
+        # uniquely, so anyone with the dataset can recover them and re-judge — which is
+        # what "auditable" requires. Question text goes only to `--with-text`, for local
+        # inspection, and that file is not committed.
+        rec = {"id": row.get("id"), "type": kind, "image_size": [w, h],
                "n_boxes_raw": len(row.get("grounding_bboxes") or []),
                "boxes_norm1000": [[round(v, 2) for v in b] for b in norm],
                "acceptable": ok, "reason": reason, "measured": measured}
+        if args.with_text:
+            rec["question"] = row.get("query")
+            rec["answer"] = row.get("label")
 
         if rendered < args.render and (not args.render_rejected or not ok):
             drawn = image.copy()
