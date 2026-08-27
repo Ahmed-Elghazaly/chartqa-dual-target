@@ -93,8 +93,17 @@ def _result(**kw) -> SmokeResult:
 
 
 def test_gate_constants_match_the_plan():
-    assert MEMORY_GATE_GB == 13.5           # IDEA.md 14
-    assert FULL_RUN_GATE_HOURS == 10.0
+    """The memory gate is IDEA.md 14's, unchanged and physical.
+
+    The wall-time gate was revised from 10 h to 20 h in DECISIONS.md 0034, with
+    the revision disclosed in 0037 because it changed an outcome: the 10-hour
+    figure proxied for "can this run finish", which verified kill-and-resume now
+    answers directly, and the binding constraint is Kaggle's 30 h weekly quota
+    against ~19 h committed. The revision also ADDED a requirement the old gate
+    lacked, which run 11 would have failed.
+    """
+    assert MEMORY_GATE_GB == 13.5           # IDEA.md 14, unchanged
+    assert FULL_RUN_GATE_HOURS == 20.0      # revised: DECISIONS.md 0034, disclosed in 0037
     assert PLANNED_OPTIMIZER_STEPS == 3000  # 24,000 presentations at effective batch 8
 
 

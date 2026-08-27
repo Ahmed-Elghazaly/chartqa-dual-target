@@ -20,6 +20,7 @@ remotely**. Nothing below requires a GPU except where marked.
 | A4 | Accelerator request uses a value the SDK documents | `test_machine_shape_values_match_the_sdk_contract` | automated |
 | A5 | `torchao`, `peft`, `bitsandbytes` pinned before the model download | `test_torchao_is_pinned_before_the_model_download` | automated |
 | A6 | Full test suite green, lint clean | `pytest -q && ruff check src tests scripts` | manual gate |
+| A7 | **Never `git push` before A6 passes in the same breath** | chain them: `pytest -q && ruff check src tests scripts && git commit ... && git push` | pushed twice while red; a commit that fails CI wastes a runner and misreports the project's state |
 
 ## B. In the first 60 seconds of the kernel (fail fast, before the 4.2 GB download)
 
