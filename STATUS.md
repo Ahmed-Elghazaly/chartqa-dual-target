@@ -1,62 +1,45 @@
-# Where the project stands
+# Status
 
-Updated 2026-08-27. Read this after any interruption; read `WORKING_AGREEMENT.md` for how to work.
+**Phase 3 — Data. Complete except for the two mixture files, which are building.**
+Phases 0, 1 and 2 are done. Cost so far: **USD 0** (everything local or free-tier Kaggle).
 
-## Is anything running? Does anything need stopping?
+## Phase 3 results against its acceptance criteria
 
-**No.** Kaggle kernels terminate themselves, nothing costs money (USD 0.00 spent, USD 20 contingency
-untouched), and everything is committed and pushed. Local watcher processes only poll — killing them
-does not stop the Kaggle job, and leaving them costs nothing.
+| criterion (`PLAN.md` 3) | status | evidence |
+|---|---|---|
+| Archives downloaded and hash-verified; `MANIFEST.json` written | **pass** | ChartQA 875,370,872 B, sha256 `1bf310e5a5110168…`, pinned revision `af8b6f5c08c9` |
+| `--dev` mode works end to end without the full download | **pass** | `cdt-data dev`; RefChartQA streamed, never downloaded in full |
+| Dedup merge count reported | **pass** | `DedupReport.summary()`; merges within a split, cross-split collisions reported not resolved |
+| Audit complete, decision recorded, `refchartqa_audit.jsonl` written | **pass** | **200/200 acceptable, gate PASSED**; `DECISIONS.md` 0047 |
+| Generator produces all chart types; box-verification test passes | **pass** | 8 types × 4 levels × 20 seeds = **640/640** verified; adversarial tests paired with every acceptance test |
+| Plan yield reported by chart source, with the two rates | **pass** | human **15.41%**, machine **13.60%**, all **14.07%** over the full 28,299-question training split |
+| Both mixture files written with composition breakdowns | **building** | sources cached: synthetic 6,000 generating, ChartQA local, RefChartQA 4,000 |
+| **Zero val/test records in either mixture**, asserted in code | **pass** | `tests/test_mixture.py`; the check runs on the *inputs*, not the survivors |
 
-```bash
-python scripts/gpu_budget.py        # live GPU quota from Kaggle
-python scripts/check_ci.py          # CI status for the CURRENT commit
-python scripts/check_credentials.py # all three credentials, with a negative control
-python scripts/kaggle_run.py --status   # poll a running kernel
-python scripts/kaggle_run.py --logs     # fetch a finished kernel's output
-```
+530 tests pass; `ruff check src tests scripts` clean.
 
-## Phase status
+## The three findings that change what comes next
 
-| Phase | State |
-|---|---|
-| 0 — Re-verification | **complete** — ten claims verified, eleven further findings |
-| 1 — Environment and repository | **complete** — all six acceptance criteria met |
-| 2 — Backbone smoke test | **essentially complete** — see below; one confirmation run outstanding |
-| 3 — Data | not started (gated on Phase 2), but heavily pre-verified |
-| 4+ | not started |
+1. **ChartQA carries its own element boxes** (`DECISIONS.md` 0042). 80.8% of training charts, 12.7 boxes
+   each, bar extent linear in the gold value at r² = 0.9999. The plan treats RefChartQA as the only source of
+   real grounding supervision; it is not. Recorded *before* the audit ran.
+2. **Mining yields 14.07%, not the estimated 5.7%** — but 73.6% of those plans are bare `lookup`, and every
+   machine-generated one is. Compositional plans are ~3.7% of all questions, close to the original estimate,
+   so the plan's conclusion (synthetic as primary plan supervision) stands (`DECISIONS.md` 0046).
+3. **The plan's expected yield split is backwards, and the reason is informative.** It predicts human 1.9% /
+   machine 16.5% from gold-table corruption. The corruption is real — human questions find no matching
+   operation 5.3× as often — but human questions are also far less ambiguous, and the effects cancel.
 
-## Phase 2 result
+## Open items carried into Phase 4
 
-Measured on a single pinned Tesla T4, 100 optimizer steps, `hf_peft`, 512-pixel budget:
+- **RefChartQA scaling ladder** (`PLAN.md` 3.4): the audit decides *whether* to use RefChartQA training rows;
+  the ladder at 4,000 / 10,000 / 25,000 decides *how many*. It needs validation grounding measurements, so it
+  runs once Phase 4's evaluators exist.
+- **Line-chart grounding from ChartQA** is deliberately unimplemented: the annotations give segment boxes, so
+  a point's position is recoverable but its box size is not. Revisit only with a measured marker size.
+- **Disk**: 17 GiB free. ChartQA is read from the zip and never extracted; RefChartQA is streamed.
 
-| gate | threshold | measured | |
-|---|---|---|---|
-| peak reserved memory | ≤ 13.5 GiB | **5.57 GiB** | pass |
-| projected full run | ≤ 20 h (revised, 0034) | **~10 h** | pass |
-| kill-and-resume verified | post-resume loss matches | **delta 0.0014–0.0053** vs 1e-2 | pass |
-| LoRA on both sides | non-zero each | **7,208,960 / 17,432,576**, 0 unclassified | pass |
-| loss decreasing, no NaN | — | 2.72 → 1.14, none | pass |
-| vision tower unquantised | — | 104 full / 0 4-bit | pass |
-| gradients alive | non-zero, finite | median 13.3, zero dead steps | pass |
-| not sharded | single device | `{'cuda:0': 625}` | pass |
+## Next: Phase 4 — evaluation, built before training
 
-**Backbone selected: `Qwen/Qwen3-VL-2B-Instruct`, `hf_peft` backend, 512-pixel budget, batch 2 × accum 4.**
-`unsloth` is unavailable at this model size, as `IDEA.md` §7 predicted.
-
-## What Phase 3 already has, before it starts
-
-* exact box extraction **proven against pixels** for bar, line, pie and scatter — each a different
-  matplotlib path, each adversarially tested
-* an objective ink pre-screen for the RefChartQA audit, validated on known ground truth
-* pinned Hub commit SHAs for all four artifacts
-* the gold-table formats read, and the wide-table flattening problem measured (it moves plan yield 3.4×)
-* the leakage question analysed: question text is not identity, so the dedup key must be
-  `(image_sha256, question)`
-* download, `datasets` and `zipfile` APIs read rather than assumed
-
-## Open items
-
-1. One confirmation run (448 vs 512 timing) — does not change any decision, only confirms the model.
-2. `PREREGISTRATION.md` does not exist yet; until it does, every test split is refused by code.
-3. The revised compute gate (0034) must be written into `PREREGISTRATION.md` before Phase 7.
+The zero-shot baseline is the "before" number the whole project is measured against. `PLAN.md` is explicit
+that evaluation is built first, so it cannot be shaped to flatter a result that already exists.
