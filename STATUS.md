@@ -1,82 +1,62 @@
 # Where the project stands
 
-Updated 2026-08-26. Read this first after any interruption.
+Updated 2026-08-27. Read this after any interruption; read `WORKING_AGREEMENT.md` for how to work.
 
-## Is anything running right now?
+## Is anything running? Does anything need stopping?
 
-Possibly a Kaggle kernel. **Nothing needs to be stopped, and nothing costs money.**
-
-* Kaggle kernels terminate themselves. A run of this project's kind takes 20–45 minutes and stops on
-  its own; Kaggle's own hard ceiling is 12 hours.
-* No paid compute is used anywhere in this project by design. **USD 0.00 spent**, and the USD 20
-  contingency is untouched.
-* Everything is committed and pushed. Closing the laptop loses nothing.
-
-If you *want* to stop a running kernel: kaggle.com/code → your notebook → Stop. It is never
-necessary — the only thing it saves is a few minutes of the weekly GPU quota.
-
-To see what is happening at any time:
+**No.** Kaggle kernels terminate themselves, nothing costs money (USD 0.00 spent, USD 20 contingency
+untouched), and everything is committed and pushed. Local watcher processes only poll — killing them
+does not stop the Kaggle job, and leaving them costs nothing.
 
 ```bash
-cd chartqa-dual-target
-python scripts/gpu_budget.py      # GPU hours used and remaining
-python scripts/check_ci.py        # CI status for the current commit
-python scripts/check_credentials.py
+python scripts/gpu_budget.py        # live GPU quota from Kaggle
+python scripts/check_ci.py          # CI status for the CURRENT commit
+python scripts/check_credentials.py # all three credentials, with a negative control
+python scripts/kaggle_run.py --status   # poll a running kernel
+python scripts/kaggle_run.py --logs     # fetch a finished kernel's output
 ```
 
 ## Phase status
 
 | Phase | State |
 |---|---|
-| 0 — Re-verification | **complete** — all ten claims verified; eleven further findings recorded |
+| 0 — Re-verification | **complete** — ten claims verified, eleven further findings |
 | 1 — Environment and repository | **complete** — all six acceptance criteria met |
-| 2 — Backbone smoke test | **measurement in progress**; 512-pixel arm already passes every gate |
-| 3 — Data | not started (gated on Phase 2) |
+| 2 — Backbone smoke test | **essentially complete** — see below; one confirmation run outstanding |
+| 3 — Data | not started (gated on Phase 2), but heavily pre-verified |
 | 4+ | not started |
 
-## What Phase 2 has already established
+## Phase 2 result
 
-Measured on a Kaggle Tesla T4, 100 optimizer steps, `hf_peft` backend, 512-pixel budget:
+Measured on a single pinned Tesla T4, 100 optimizer steps, `hf_peft`, 512-pixel budget:
 
-| Gate | Threshold | Measured | |
+| gate | threshold | measured | |
 |---|---|---|---|
-| Peak reserved memory | ≤ 13.5 GiB | **1.482 GiB** | pass |
-| Projected full run (3,000 steps) | ≤ 10 h | **7.22 h** | pass |
-| LoRA on both sides | non-zero each | **7,208,960** vision / **17,432,576** language | pass |
-| Loss over 100 steps | must fall | **2.879 → 0.968** | pass |
-| NaN | none | none | pass |
-| Vision tower excluded from 4-bit | — | 104 full / 0 quantised | pass |
+| peak reserved memory | ≤ 13.5 GiB | **5.57 GiB** | pass |
+| projected full run | ≤ 20 h (revised, 0034) | **~10 h** | pass |
+| kill-and-resume verified | post-resume loss matches | **delta 0.0014–0.0053** vs 1e-2 | pass |
+| LoRA on both sides | non-zero each | **7,208,960 / 17,432,576**, 0 unclassified | pass |
+| loss decreasing, no NaN | — | 2.72 → 1.14, none | pass |
+| vision tower unquantised | — | 104 full / 0 4-bit | pass |
+| gradients alive | non-zero, finite | median 13.3, zero dead steps | pass |
+| not sharded | single device | `{'cuda:0': 625}` | pass |
 
-Outstanding for Phase 2: the checkpoint kill-and-resume verification, and the native-resolution arm.
-Both are what the current run is for.
+**Backbone selected: `Qwen/Qwen3-VL-2B-Instruct`, `hf_peft` backend, 512-pixel budget, batch 2 × accum 4.**
+`unsloth` is unavailable at this model size, as `IDEA.md` §7 predicted.
 
-## Budget
+## What Phase 3 already has, before it starts
 
-| | |
-|---|---|
-| Paid compute | **USD 0.00** of USD 20 contingency |
-| Kaggle GPU hours used | **~0.9 h** of ~30 h per week (resets weekly) |
-| Committed ahead (Phases 5–7) | ~17 h |
+* exact box extraction **proven against pixels** for bar, line, pie and scatter — each a different
+  matplotlib path, each adversarially tested
+* an objective ink pre-screen for the RefChartQA audit, validated on known ground truth
+* pinned Hub commit SHAs for all four artifacts
+* the gold-table formats read, and the wide-table flattening problem measured (it moves plan yield 3.4×)
+* the leakage question analysed: question text is not identity, so the dedup key must be
+  `(image_sha256, question)`
+* download, `datasets` and `zipfile` APIs read rather than assumed
 
-## If work stops unexpectedly
+## Open items
 
-Nothing is in a fragile state. Concretely:
-
-1. **No action required.** Close everything.
-2. All work is in git and pushed to the private repository. `git log` is the record.
-3. `DECISIONS.md` explains every choice made and why, in order.
-4. `RUNS.md` records every GPU session and what it cost.
-5. `verification/preflight_checklist.md` is what any long run must clear before starting.
-6. `verification/measured_facts.json` is the single source of truth for every measured number.
-
-To resume, the next task is whatever the Phase table above says is in progress.
-
-## Known-good commands
-
-```bash
-pytest -q                                   # full test suite
-ruff check src tests scripts                # lint
-python scripts/kaggle_run.py smoke --steps 100 --resolutions 512,native
-python scripts/kaggle_run.py --status       # poll a running kernel
-python scripts/kaggle_run.py --logs         # fetch a finished kernel's output
-```
+1. One confirmation run (448 vs 512 timing) — does not change any decision, only confirms the model.
+2. `PREREGISTRATION.md` does not exist yet; until it does, every test split is refused by code.
+3. The revised compute gate (0034) must be written into `PREREGISTRATION.md` before Phase 7.
