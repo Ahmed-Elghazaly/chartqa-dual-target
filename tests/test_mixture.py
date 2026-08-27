@@ -179,3 +179,104 @@ def test_deduplication_runs_before_the_cap():
     _out, comp = build_stage2([*dup, *others], [], cap=4)
     assert comp.total == 4
     assert "2 in -> 1 out" in comp.dedup_summary or "merged" in comp.dedup_summary
+
+
+# --------------------------------------------- image contamination (DECISIONS.md 0049)
+
+
+def test_a_held_out_image_is_refused_even_when_the_record_says_train(tmp_path):
+    """The failure that no split check can see.
+
+    RefChartQA labels rows "train" that use ChartQA *test* charts — 4 in 4,000 measured —
+    and ChartQA's own train split holds 15 images pixel-identical to held-out charts.
+    Every `split` field says "train". The contamination is at the image level.
+    """
+    import json as _json
+
+    from chartqa_dt.splits import ImageContaminationError, assert_no_held_out_images
+
+    sealed = tmp_path / "sealed.json"
+    held_out_hash = "cc" * 32
+    sealed.write_text(_json.dumps({"hashes": {"test": [held_out_hash], "val": []}}))
+
+    clean = [_rec(source="chartqa", kind="human", i=i) for i in range(3)]
+    contaminated = ChartRecord(
+        record_id="refchartqa-train-x", source="refchartqa", split="train",
+        image_path="x.png", image_sha256=held_out_hash, question="q",
+        answer="1", question_kind="human", boxes=[[1, 2, 3, 4]], meta={})
+    assert contaminated.split == "train", "the point is that the label looks fine"
+
+    assert assert_no_held_out_images(clean, "stage1", path=str(sealed)) is None
+    with pytest.raises(ImageContaminationError, match="validation or test IMAGE"):
+        assert_no_held_out_images([*clean, contaminated], "stage1",
+                                  path=str(sealed))
+
+
+def test_the_guard_raises_rather_than_filtering(tmp_path):
+    """A silent filter would hide that a source is handing us contaminated rows."""
+    import json as _json
+
+    from chartqa_dt.splits import ImageContaminationError, assert_no_held_out_images
+
+    sealed = tmp_path / "sealed.json"
+    sealed.write_text(_json.dumps({"hashes": {"test": ["dd" * 32], "val": []}}))
+    bad = ChartRecord(record_id="r", source="chartqa", split="train", image_path="x.png",
+                      image_sha256="dd" * 32, question="q", answer="1",
+                      question_kind="human", meta={})
+    with pytest.raises(ImageContaminationError) as exc:
+        assert_no_held_out_images([bad], "stage2", path=str(sealed))
+    assert "Fix the source, do not filter here" in str(exc.value)
+
+
+def test_an_absent_sealed_file_does_not_silently_pass_everything(tmp_path):
+    """It returns empty, so callers that need it must check — as the cache script does."""
+    from chartqa_dt.splits import sealed_image_hashes
+
+    assert sealed_image_hashes(str(tmp_path / "missing.json")) == frozenset()
+
+
+def test_the_committed_sealed_set_covers_both_held_out_splits():
+    import json as _json
+    from pathlib import Path as _Path
+
+    root = _Path(__file__).resolve().parents[1]
+    path = root / "data/sealed_images.json"
+    if not path.exists():
+        pytest.skip("sealed_images.json is built from the archive")
+    data = _json.loads(path.read_text())
+    assert set(data["hashes"]) == {"val", "test"}
+    assert len(data["hashes"]["test"]) > 1000 and len(data["hashes"]["val"]) > 1000
+    assert all(len(h) == 64 for split in data["hashes"].values() for h in split)
+
+
+def test_the_written_mixtures_contain_no_held_out_chart():
+    """End-to-end check on the committed artefacts, not on the builder that made them.
+
+    `dedup_key` is `sha256(image)[:16] + ":" + sha256(question)[:16]`, so the image half
+    of every key in a mixture file can be matched against the sealed hashes directly —
+    without the archive, and without trusting the code that wrote the file.
+    """
+    import json as _json
+    from pathlib import Path as _Path
+
+    root = _Path(__file__).resolve().parents[1]
+    sealed_path = root / "data/sealed_images.json"
+    if not sealed_path.exists():
+        pytest.skip("sealed_images.json is built from the archive")
+    sealed = {h[:16] for split in _json.loads(sealed_path.read_text())["hashes"].values()
+              for h in split}
+
+    checked = 0
+    for name in ("mixture_stage1.json", "mixture_stage2.json"):
+        path = root / "data" / name
+        if not path.exists():
+            continue
+        keys = _json.loads(path.read_text())["keys"]
+        assert keys, f"{name} is empty"
+        offenders = [k for k in keys if k.split(":")[0] in sealed]
+        assert not offenders, (
+            f"{name}: {len(offenders)} records use a held-out ChartQA chart "
+            f"(first key {offenders[0]})")
+        checked += 1
+    if not checked:
+        pytest.skip("no mixture files built yet")

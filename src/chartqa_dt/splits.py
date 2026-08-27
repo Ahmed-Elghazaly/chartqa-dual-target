@@ -23,10 +23,14 @@ once, at the point the plan intends:
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
+from collections.abc import Iterable
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 # Split names that are sealed, per dataset. ChartQAPro is test-only and sealed
 # in its entirety (IDEA.md 6.4).
@@ -159,3 +163,62 @@ def sealed_split_env_override() -> bool:
     is visibly wrong.
     """
     return bool(os.environ.get("CDT_ALLOW_SEALED_FOR_TESTS"))
+
+
+# --------------------------------------------------------------------------------------
+# Image-level contamination
+#
+# Checking that no record is *labelled* val or test is not enough, and this was not
+# hypothetical. Measured on 4,000 cached RefChartQA **training** rows: 3,996 use a ChartQA
+# training image, 2 use a ChartQA **test** image and 2 use a ChartQA **validation** image.
+# RefChartQA labels all of them "train", so every split check in this project passes them,
+# and a model trained on them would have seen ChartQA test charts.
+#
+# The contamination is at the level of the *image*, so the guard has to be too.
+# `data/sealed_images.json` holds the pixel hash of every ChartQA val and test image —
+# derived data, no dataset content, so it is committed and works without the archive.
+# --------------------------------------------------------------------------------------
+
+SEALED_IMAGES = "data/sealed_images.json"
+
+
+class ImageContaminationError(RuntimeError):
+    """A training record uses an image from a held-out split."""
+
+
+@lru_cache(maxsize=1)
+def sealed_image_hashes(path: str = SEALED_IMAGES) -> frozenset[str]:
+    """Pixel hashes of every held-out ChartQA image. Empty if the file is absent."""
+    p = _repo_root() / path
+    if not p.exists():
+        return frozenset()
+    data = json.loads(p.read_text(encoding="utf-8"))
+    return frozenset(h for split in data["hashes"].values() for h in split)
+
+
+def find_contaminated(records: Iterable[Any], *, path: str = SEALED_IMAGES) -> list[Any]:
+    """Training records whose image is a held-out ChartQA image, whatever their own split."""
+    sealed = sealed_image_hashes(path)
+    if not sealed:
+        return []
+    return [r for r in records if getattr(r, "image_sha256", None) in sealed]
+
+
+def assert_no_held_out_images(records: Iterable[Any], stage: str, *,
+                              path: str = SEALED_IMAGES) -> None:
+    """Refuse a mixture containing a chart the evaluation will later be scored on.
+
+    Raises rather than filtering. A silent filter would hide that an upstream source is
+    handing us contaminated rows, and the count is the only signal that it is happening.
+    """
+    records = list(records)
+    offenders = find_contaminated(records, path=path)
+    if not offenders:
+        return
+    ids = ", ".join(getattr(r, "record_id", "?") for r in offenders[:5])
+    raise ImageContaminationError(
+        f"{stage}: {len(offenders)} of {len(records)} training records use a ChartQA "
+        f"validation or test IMAGE, whatever split their own dataset assigns them "
+        f"(first: {ids}). Training on these contaminates the evaluation the whole "
+        f"project is measured by. Fix the source, do not filter here."
+    )

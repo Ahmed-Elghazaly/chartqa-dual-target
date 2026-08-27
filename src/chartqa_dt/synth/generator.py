@@ -17,7 +17,6 @@ holdout cannot drift apart.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import random
 from dataclasses import asdict, dataclass, field
@@ -29,6 +28,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+from chartqa_dt.data.records import image_content_sha256
 from chartqa_dt.synth.artists import artist_box, clip_to_canvas, is_degenerate, point_box, scatter_point_box
 from chartqa_dt.synth.curriculum import LEVELS, Level, build_question
 from chartqa_dt.synth.verify import check_box_for, render_rgb
@@ -404,7 +404,9 @@ def generate_example(
     finally:
         plt.close(fig)
 
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    # Pixel content, matching every other loader, so a synthetic chart and a
+    # re-encoded copy of it are one record (`DECISIONS.md` 0048).
+    digest = image_content_sha256(path)
     return SynthExample(
         example_id=example_id,
         chart_type=chart_type,

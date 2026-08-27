@@ -204,6 +204,38 @@
       "visual_rows_inspected": 9,
       "visual_rows_correct": 9,
       "_rejected_criterion": "relative tightness; gating on it gave 84.0% (human 58.2%) and was disproved against rendered ground truth"
+    },
+    "image_overlap": {
+      "_method": "pixel-content SHA-256 of every ChartQA image (all splits) against 4,000 cached RefChartQA train images",
+      "refchartqa_train_on_chartqa_train_pct": 99.9,
+      "refchartqa_train_on_chartqa_val": 2,
+      "refchartqa_train_on_chartqa_test": 2,
+      "chartqa_train_images_identical_to_heldout": 15,
+      "chartqa_train_images": 18317,
+      "file_byte_hash_matches": 0,
+      "sealed_image_hashes": 2563
+    },
+    "mixtures": {
+      "stage1": {
+        "total": 12000,
+        "synthetic": 6000,
+        "chartqa": 6000,
+        "with_boxes": 12000,
+        "with_plan": 6952,
+        "compositional": 5080
+      },
+      "stage2": {
+        "total": 12000,
+        "chartqa": 7087,
+        "refchartqa": 3088,
+        "synthetic": 1825,
+        "with_boxes": 12000,
+        "with_plan": 2930,
+        "compositional": 1883
+      },
+      "dedup_merges": 628,
+      "dedup_chartqa_refchartqa_merges": 609,
+      "_note": "609 cross-dataset merges. With file-byte hashing this was 0 \u2014 see 0048."
     }
   }
 }

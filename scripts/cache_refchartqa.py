@@ -12,14 +12,14 @@ Resumable. A stream that dies at row 3,000 should not cost the first 3,000.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from pathlib import Path
 
-from chartqa_dt.data.records import ChartRecord
+from chartqa_dt.data.records import ChartRecord, image_content_sha256
 from chartqa_dt.data.refchartqa import row_to_record
 from chartqa_dt.data.sources import REFCHARTQA_PARQUET as SPEC
 from chartqa_dt.env import get_env
+from chartqa_dt.splits import sealed_image_hashes
 
 
 def main() -> None:
@@ -50,7 +50,14 @@ def main() -> None:
     stream = load_dataset(SPEC.repo_id, split="train", streaming=True,
                           revision=SPEC.revision).shuffle(seed=args.seed, buffer_size=5000)
 
-    written = 0
+    sealed = sealed_image_hashes()
+    if not sealed:
+        raise SystemExit(
+            "data/sealed_images.json is missing — run scripts/build_sealed_images.py "
+            "first. Without it this cache cannot tell a training chart from a held-out "
+            "one, and 4 rows in 4,000 are held-out charts labelled 'train'."
+        )
+    written = contaminated = 0
     with args.out.open("a", encoding="utf-8") as fh:
         for row in stream:
             rid = row.get("id")
@@ -61,7 +68,7 @@ def main() -> None:
             image = row["image"].convert("RGB")
             raw_path = image_dir / f"{rid}.png"
             image.save(raw_path)
-            digest = hashlib.sha256(raw_path.read_bytes()).hexdigest()
+            digest = image_content_sha256(image)
             try:
                 record: ChartRecord = row_to_record(
                     row, split="train", image_path=raw_path, image_sha256=digest,
@@ -73,6 +80,14 @@ def main() -> None:
             if not record.boxes:
                 raw_path.unlink(missing_ok=True)
                 continue      # no usable box: nothing to ground on
+            if record.image_sha256 in sealed:
+                # RefChartQA labels this row "train", but the CHART is one ChartQA holds
+                # out. Measured at 4 in 4,000 (`DECISIONS.md` 0049). Dropped here, at the
+                # point it enters the project, and counted — the mixture builder asserts
+                # the same thing as a last line of defence and should never fire.
+                raw_path.unlink(missing_ok=True)
+                contaminated += 1
+                continue
             fh.write(json.dumps(record.to_dict()) + "\n")
             fh.flush()
             written += 1
@@ -80,6 +95,8 @@ def main() -> None:
                 print(f"  {len(done) + written:,}/{args.cap:,}")
 
     print(f"\n{len(done) + written:,} records in {args.out}")
+    print(f"{contaminated} rows dropped: labelled 'train' but using a held-out ChartQA "
+          f"chart")
     print(f"images in {image_dir}")
 
 

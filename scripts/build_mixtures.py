@@ -16,7 +16,6 @@ Training split only, and the leak check runs on the inputs rather than the survi
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import random
 from pathlib import Path
@@ -37,9 +36,10 @@ from chartqa_dt.data.mixture import (
     build_stage2,
     write_mixture,
 )
-from chartqa_dt.data.records import ChartRecord, make_record_id
+from chartqa_dt.data.records import ChartRecord, image_content_sha256, make_record_id
 from chartqa_dt.env import get_env
 from chartqa_dt.plans.mining import mine_plan
+from chartqa_dt.splits import sealed_image_hashes
 
 REFCHARTQA_CAP = 4_000       # `PLAN.md` 3.4: start at the single-box cap
 
@@ -74,6 +74,8 @@ def synthetic_records(manifest: Path) -> list[ChartRecord]:
 def chartqa_records(reader: ArchiveReader, *, limit: int, seed: int) -> list[ChartRecord]:
     """Real ChartQA training rows with gold element boxes and, where unique, a plan."""
     rng = random.Random(seed)
+    sealed = sealed_image_hashes()
+    dropped = 0
     out: list[ChartRecord] = []
     for kind in ("human", "machine"):
         rows = reader.qa_rows("train", kind)
@@ -83,6 +85,13 @@ def chartqa_records(reader: ArchiveReader, *, limit: int, seed: int) -> list[Cha
             if not (reader.exists(img_name) and reader.exists(ann_name)):
                 continue
             raw = reader.read(img_name)
+            digest = image_content_sha256(raw)
+            if digest in sealed:
+                # ChartQA's OWN train split contains 15 images that are pixel-identical
+                # to val/test charts (`DECISIONS.md` 0049). Not our bug, still our
+                # contamination.
+                dropped += 1
+                continue
             width, height = reader.image_size(img_name)
             elements = annotation_boxes(reader.read_json(ann_name), width, height)
             if not elements:
@@ -101,7 +110,6 @@ def chartqa_records(reader: ArchiveReader, *, limit: int, seed: int) -> list[Cha
                 plan = mined.plan     # None unless the uniqueness rule admitted one
 
             question = str(row["query"])
-            digest = hashlib.sha256(raw).hexdigest()
             out.append(ChartRecord(
                 record_id=make_record_id("chartqa", "train", digest, question),
                 source="chartqa", split="train", image_path=img_name,
@@ -112,15 +120,19 @@ def chartqa_records(reader: ArchiveReader, *, limit: int, seed: int) -> list[Cha
                 meta={"chart_type": reader.read_json(ann_name).get("type"),
                       "imgname": row["imgname"], "image_size": [width, height],
                       "n_elements": len(elements)}))
+    if dropped:
+        print(f"  chartqa: {dropped} rows dropped — a train image identical to a "
+              f"held-out chart")
     return out
 
 
-def refchartqa_records(*, cap: int, seed: int, cache: Path) -> list[ChartRecord]:
+def refchartqa_records(*, cap: int, cache: Path) -> list[ChartRecord]:
     """Streamed RefChartQA training rows. Cached, because streaming them is the slow part."""
-    if cache.exists():
-        return [ChartRecord.from_dict(json.loads(line))
-                for line in cache.read_text(encoding="utf-8").splitlines() if line]
-    return []
+    if not cache.exists():
+        return []
+    records = [ChartRecord.from_dict(json.loads(line))
+               for line in cache.read_text(encoding="utf-8").splitlines() if line]
+    return records[:cap]
 
 
 def main() -> None:
@@ -139,8 +151,7 @@ def main() -> None:
     synth = synthetic_records(args.synthetic_manifest)
     reader = ArchiveReader(archive_path())
     real = chartqa_records(reader, limit=args.chartqa_limit, seed=args.seed)
-    ref = refchartqa_records(cap=args.refchartqa_cap, seed=args.seed,
-                             cache=args.refchartqa_cache)
+    ref = refchartqa_records(cap=args.refchartqa_cap, cache=args.refchartqa_cache)
 
     print(f"\nsources: synthetic={len(synth):,}  chartqa={len(real):,}  "
           f"refchartqa={len(ref):,}")
@@ -151,7 +162,9 @@ def main() -> None:
     s1, c1 = build_stage1(synth, [*real, *ref], cap=args.stage1_cap)
     write_mixture(s1, c1, "data/mixture_stage1.json")
 
-    plan_bearing = [r for r in [*synth, *real, *ref] if r.plan or r.boxes]
+    # Real records only here; the synthetic replay is the second argument. Passing synth
+    # in both would just merge it with itself and the replay size would control nothing.
+    plan_bearing = [r for r in [*real, *ref] if r.plan or r.boxes]
     s2, c2 = build_stage2(plan_bearing, synth, cap=args.stage2_cap, seed=args.seed)
     write_mixture(s2, c2, "data/mixture_stage2.json")
 

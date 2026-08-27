@@ -293,3 +293,80 @@ def test_dedup_key_is_stable_across_loaders():
     sha = "ab" * 32
     assert dedup_key(sha, "What is the median value?") == \
         dedup_key(sha, "  WHAT  IS   THE MEDIAN VALUE  ")
+
+
+# ------------------------------------------------- image identity (DECISIONS.md 0048)
+
+
+def _png_and_bmp_of_the_same_pixels():
+    import io
+
+    import numpy as np
+    from PIL import Image
+
+    arr = np.random.default_rng(0).integers(0, 255, (40, 60, 3)).astype("uint8")
+    img = Image.fromarray(arr)
+    png, bmp = io.BytesIO(), io.BytesIO()
+    img.save(png, "PNG")
+    img.save(bmp, "BMP")
+    return png.getvalue(), bmp.getvalue()
+
+
+def test_image_identity_survives_re_encoding():
+    """The property that makes cross-dataset dedup possible at all.
+
+    RefChartQA ships re-encoded copies of ChartQA charts: 0 of 4,000 matched by file-byte
+    hash. Keying on file bytes would have reported a clean merge while double-counting
+    every shared chart — a failure that looks exactly like success.
+    """
+    from chartqa_dt.data.records import image_content_sha256
+
+    png, bmp = _png_and_bmp_of_the_same_pixels()
+    assert png != bmp, "the two encodings must differ, or the test proves nothing"
+    assert image_content_sha256(png) == image_content_sha256(bmp)
+
+
+def test_image_identity_still_separates_different_images():
+    import io
+
+    import numpy as np
+    from PIL import Image
+
+    from chartqa_dt.data.records import image_content_sha256
+
+    png, _ = _png_and_bmp_of_the_same_pixels()
+    other = io.BytesIO()
+    arr = np.random.default_rng(1).integers(0, 255, (40, 60, 3)).astype("uint8")
+    Image.fromarray(arr).save(other, "PNG")
+    assert image_content_sha256(png) != image_content_sha256(other.getvalue())
+
+
+def test_image_identity_includes_the_dimensions():
+    """Two images whose pixel bytes coincide under a reshape are not the same image."""
+    import io
+
+    import numpy as np
+    from PIL import Image
+
+    from chartqa_dt.data.records import image_content_sha256
+
+    arr = np.random.default_rng(2).integers(0, 255, (800, 3), dtype=np.uint8)
+    a, b = io.BytesIO(), io.BytesIO()
+    Image.fromarray(arr.reshape(40, 20, 3)).save(a, "PNG")
+    Image.fromarray(arr.reshape(20, 40, 3)).save(b, "PNG")
+    assert image_content_sha256(a.getvalue()) != image_content_sha256(b.getvalue())
+
+
+def test_image_identity_accepts_a_path_bytes_or_an_image(tmp_path):
+    import io
+
+    from PIL import Image
+
+    from chartqa_dt.data.records import image_content_sha256
+
+    png, _ = _png_and_bmp_of_the_same_pixels()
+    path = tmp_path / "a.png"
+    path.write_bytes(png)
+    with Image.open(io.BytesIO(png)) as img:
+        assert image_content_sha256(png) == image_content_sha256(path) \
+            == image_content_sha256(img)

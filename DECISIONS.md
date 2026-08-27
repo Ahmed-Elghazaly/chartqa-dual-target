@@ -2188,3 +2188,97 @@ instinct — that the measured criteria were too lenient — was right: they *ar
 necessary conditions. But the fix was not to add a stricter number. It was to look at the
 data. Had the tightness gate been trusted, RefChartQA would have been dropped from
 training entirely on the strength of a criterion that does not describe the dataset.
+
+---
+
+## 0048 — Image identity is the hash of decoded pixels, not of file bytes
+
+**Date** 2026-08-27 · **Phase** 3.3 · **Status** adopted
+
+**Context.** `dedup_key` is `sha256(image)[:16] + sha256(normalised question)[:16]`, and
+`PLAN.md` 3.3 is explicit about why it exists: *"RefChartQA is derived partly from
+ChartQA. Naive mixing silently double-counts the same question and inflates the apparent
+training-set size."*
+
+The image half was hashing **file bytes**. RefChartQA's images travel through parquet and
+come back re-encoded, so the same chart has different bytes in the two datasets.
+
+**Measured**, on 4,000 cached RefChartQA training images against ChartQA training images:
+
+| comparison | matches |
+|---|---:|
+| file-byte SHA-256 | **0 / 4,000** |
+| decoded-pixel SHA-256 (600 × 600 subset) | **23** |
+
+Zero. Deduplication across the two datasets could never have fired. It would have run,
+reported a clean merge, and inflated the training set exactly as the plan warns — while
+looking like success. That is worse than not deduplicating at all, because the report
+would have said the check passed.
+
+**Decision.** `image_content_sha256` hashes the decoded RGB pixel array, prefixed with the
+image dimensions. Every loader uses it — ChartQA, RefChartQA and the synthetic generator —
+so `dedup_key` is invariant to container, encoder and compression level, which is what
+"the same chart" should mean here.
+
+**Alternative rejected.** Matching on `imgname` would work for ChartQA but RefChartQA ids
+(`RefChartQA_human_val_0`) carry no pointer back to the source chart, so it would only
+half-solve the problem and would silently stop working for any third source.
+
+**Consequences.** The file-byte hash is no longer recorded on records; archive integrity is
+covered separately and properly by `data/MANIFEST.json`, which is about *a downloaded file
+not changing* — a different question that genuinely does want file bytes. Hashing pixels
+costs a decode per image, which is paid once during record construction.
+
+This was found by asking whether a guarantee actually holds on real data, rather than
+whether the code implementing it looks right. It looked right.
+
+---
+
+## 0049 — Contamination is checked at the image level, not the split label
+
+**Date** 2026-08-27 · **Phase** 3.7 · **Status** adopted
+
+**Context.** `PLAN.md` 3.7 requires, and `tests/test_mixture.py` asserts, that zero
+validation or test **records** reach either mixture. Every record carries a `split` field
+and the check is straightforward.
+
+It is not sufficient, and the gap was found by measuring rather than reasoning. Two
+independent sources put held-out **charts** into training while every `split` field
+reads `"train"`:
+
+| source | contaminated | of |
+|---|---:|---:|
+| RefChartQA rows labelled `train` that use a ChartQA **val or test** image | **4** | 4,000 |
+| ChartQA's **own** train images that are pixel-identical to a val/test image | **15** | 18,317 |
+
+The RefChartQA case is structural: 99.9% of its training images are ChartQA training
+images, so the dataset is largely ChartQA re-annotated — and a handful of rows crossed the
+split boundary when it was built. The ChartQA case is a defect in the dataset's own splits
+and is not ours to fix, only to avoid.
+
+Either way a model would train on charts the evaluation later scores it on. Rates are
+small — 4 in 4,000, 15 in 18,317 — but this is the one number the entire project rests on,
+and a contaminated baseline comparison is not repairable after the fact.
+
+**Decision.** `data/sealed_images.json` records the pixel hash of every ChartQA validation
+and test image (2,563 hashes; derived data, no dataset content, so it is committed and the
+guard works without the archive). Two layers use it:
+
+1. **Filter at ingest, with a count.** `cache_refchartqa.py` and `build_mixtures.py` drop
+   such rows where they enter the project and report how many. The cache script refuses to
+   run at all if the sealed file is missing, rather than caching blind.
+2. **Assert at mixture time.** `assert_no_held_out_images` raises. It is a last line of
+   defence that should never fire; if it does, a source is handing us contaminated rows
+   and that is what needs fixing.
+
+**Alternative rejected.** Filtering silently inside the mixture builder. The count *is* the
+signal — it is how we learned RefChartQA has this property at all — and a silent filter
+would have made both findings invisible while producing a mixture that looked clean.
+
+**Consequences.** This depends on `DECISIONS.md` 0048: with file-byte hashing, none of
+these 19 records would have been detectable, because a re-encoded copy of a test chart has
+different bytes. The two findings are the same discovery seen twice — dataset identity has
+to be about pixels, not files.
+
+Two ChartQA validation images are themselves pixel-identical (1,056 images, 1,055 distinct
+hashes), which is noted but harmless: both are held out.
