@@ -1794,7 +1794,7 @@ the result, and if you must, report both — applies to gates as much as to resu
 
 ---
 
-### 0038 — Synthetic box verification checks the box against the ink's own extent
+## 0038 — Synthetic box verification checks the box against the ink's own extent
 
 **Date** 2026-08-27 · **Phase** 3.5 · **Status** adopted
 
@@ -1815,7 +1815,7 @@ shape — and measurement agreed across bars, wedges and markers (60.6–65.6%).
 scale-invariant for exactly that reason, so it cannot see an **oversized** box: a pie wedge
 box grown 1.8x passed.
 
-**Adopted — `ink_bbox_iou` plus `containment`.** Compare the box to the tight extent of the
+**Decision.** Adopt **`ink_bbox_iou` plus `containment`.** Compare the box to the tight extent of the
 element's own ink within `expand(box)`. Measured across all eight chart types: exact boxes
 0.841–0.990; shifted by half a width 0.365–0.377; shrunk to 0.6x 0.315–0.359; grown to 1.8x
 0.312–0.352. The floor of 0.70 has roughly 2x margin either side. `containment` — the
@@ -1828,14 +1828,14 @@ pi/4 = 78.5%, and a circular sector's tight bbox reaches only 21–78% depending
 10-degree pie sliver measured 21.0% — correct geometry, not a bad box, and the first
 version of the threshold table rejected it.
 
-**Consequence.** 640/640 examples verified across 8 chart types x 4 levels x 20 seeds, and
+**Consequences.** 640/640 examples verified across 8 chart types x 4 levels x 20 seeds, and
 `tests/test_synth_geometry.py` pairs every acceptance test with an adversarial one: shifted,
 shrunk, grown and far-away boxes must all be rejected. A verifier that accepts everything
 would certify wrong boxes and we would train on them.
 
 ---
 
-### 0039 — Boxes are verified on a recoloured render, not the delivered image
+## 0039 — Boxes are verified on a recoloured render, not the delivered image
 
 **Date** 2026-08-27 · **Phase** 3.5 · **Status** adopted
 
@@ -1854,19 +1854,21 @@ the line's own ink stops counting toward its markers' boxes.
 **Alternative rejected.** Restricting palettes to saturated colours would have removed the
 muted palettes that real charts actually use, to work around a measurement artefact.
 
-**Consequence.** One extra render per example (~74 ms total, from ~54 ms). Failures fell
+**Consequences.** One extra render per example (~74 ms total, from ~54 ms). Failures fell
 from 49/384 to 9/384, and pie, line, multi-line and area went to zero.
 `test_saved_image_never_contains_sentinel_colours` guards the restore step, since a missed
 restore would silently ship magenta charts.
 
 ---
 
-### 0040 — Three generator defects the pixel verifier caught
+## 0040 — Three generator defects the pixel verifier caught
 
 **Date** 2026-08-27 · **Phase** 3.5 · **Status** adopted
 
-Each was found by verification failing, and each was a real defect rather than a bad
-threshold. Recorded because all three are invisible to code review.
+**Context.** Each was found by verification failing, and each was a real defect rather
+than a bad threshold. Recorded because all three are invisible to code review.
+
+**Decision.** Fix each at its cause rather than by relaxing the threshold that exposed it.
 
 1. **Palette wrap gave two elements the same colour.** Palettes hold five colours and a
    series may have seven categories; `palette[i % len(palette)]` collided, and
@@ -1883,7 +1885,8 @@ threshold. Recorded because all three are invisible to code review.
    matched — read as spurious tightness failures. The fill now carries an explicit lower
    `zorder`.
 
-Two further changes were measurement fixes rather than defects: `containment` now floors
+**Consequences.** Two further changes were measurement fixes rather than defects:
+`containment` now floors
 the near box edges and ceils the far ones (rounding both ways dropped a boundary row, a few
 percent of a thin bar's ink), and `sample_series` bounds the dynamic range at
 `MAX_VALUE_RATIO = 8` because a value of 1 against a maximum of 89 drew a bar one pixel
@@ -1892,7 +1895,7 @@ rejects such boxes explicitly rather than as a threshold artefact.
 
 ---
 
-### 0041 — Synthetic aggregates use the executor's fold-over-evidence form
+## 0041 — Synthetic aggregates use the executor's fold-over-evidence form
 
 **Date** 2026-08-27 · **Phase** 3.5 · **Status** adopted
 
@@ -1905,7 +1908,7 @@ every label in `args`, which fails `OUTPUT_SCHEMA` as soon as a chart has five c
 evidence set when `args` is empty — the evidence list *is* the argument. The cap was never
 in conflict with the curriculum; the curriculum was not using the plan's own idiom.
 
-**How it was found.** `test_generated_records_pass_the_output_schema` validates every
+**Consequences.** `test_generated_records_pass_the_output_schema` validates every
 generated example against the schema the model is trained to emit. It also caught the
 generator calling the answer field `answer` where the schema requires `model_answer` —
 `SynthExample.to_record()` is now the single place that maps an example onto the schema, so
@@ -1913,11 +1916,11 @@ no consumer can disagree about field names.
 
 ---
 
-### 0042 — ChartQA carries its own element boxes; real charts can supply grounding supervision
+## 0042 — ChartQA carries its own element boxes; real charts can supply grounding supervision
 
 **Date** 2026-08-27 · **Phase** 3.2 · **Status** adopted
 
-**What was found.** `ChartQA Dataset.zip` contains, alongside the gold tables, a
+**Context.** `ChartQA Dataset.zip` contains, alongside the gold tables, a
 per-chart `annotations/*.json` holding the chart type, axis tick labels with their boxes,
 and **per-datapoint bounding boxes** in absolute-pixel `{x, y, w, h}` — the same form
 RefChartQA uses. This was established by range-reading the archive's central directory
@@ -1939,7 +1942,8 @@ That is no longer the only option. Measured over 2,500 random training charts:
 extent is a linear function of the gold table value at median r² = 0.9999 (v_bar) and
 1.0000 (h_bar) across 1,290 series.
 
-**Line charts are excluded deliberately.** Their `bboxes` are the **segments between**
+**Decision.** Extract element boxes for bars and pie wedges; **exclude line charts
+deliberately.** Their `bboxes` are the **segments between**
 consecutive points — 85.6% of line series have `len(bboxes) == len(y) - 1`. A point's
 *position* is recoverable from the segment endpoints, but its *box size* is stated
 nowhere; the annotation has no marker size. Inventing one would put fabricated boxes into
@@ -1948,7 +1952,7 @@ training data, which is exactly what the 3.4 audit gate exists to prevent. Lines
 unverifiable. If line grounding is wanted later, it needs a measured marker size, not an
 assumed one.
 
-**Consequence for the audit gate.** 3.4 says that if RefChartQA scores below 90% it is
+**Consequences.** 3.4 says that if RefChartQA scores below 90% it is
 dropped from training entirely and *not replaced with test data*. That instruction stands.
 What changes is that the fallback is no longer synthetic-only: ChartQA's own training
 annotations remain available, they are gold rather than model-generated, and rule 1 is
@@ -1957,14 +1961,14 @@ audit runs, so it cannot look like a result-driven change of plan.
 
 ---
 
-### 0043 — Remote zip reading, and reading ChartQA without extracting it
+## 0043 — Remote zip reading, and reading ChartQA without extracting it
 
 **Date** 2026-08-27 · **Phase** 3.1 · **Status** adopted
 
 **Context.** The development machine has 7.2 GiB free on a 460 GiB disk (99% full). The
 ChartQA archive is 875 MB and RefChartQA is 2.88 GB.
 
-**Decisions.**
+**Decision.** Three rules, each following from that constraint.
 
 1. **Learn before downloading.** `data/remote_zip.py` reads a zip's central directory and
    individual members over HTTP Range requests. The entire ChartQA layout, the annotation
@@ -1977,7 +1981,7 @@ ChartQA archive is 875 MB and RefChartQA is 2.88 GB.
 3. **RefChartQA is not downloaded locally.** The 3.4 audit needs 200 rows; those are
    streamed. The full 2.88 GB stays on Kaggle, where training runs.
 
-The archive is hash-verified and recorded: `data/MANIFEST.json` holds
+**Consequences.** The archive is hash-verified and recorded: `data/MANIFEST.json` holds
 `1bf310e5a51101681495c4a24f4f29d22c4f70b52df24e2e4feb0d79cae3c160` at 875,370,872 bytes,
 matching the pinned revision exactly. `record_archive` refuses to overwrite a differing
 hash at the same revision rather than updating it, because that event would make any
@@ -1985,13 +1989,14 @@ number measured before and after it incomparable.
 
 ---
 
-### 0044 — Deduplication merges within a split and only reports across it
+## 0044 — Deduplication merges within a split and only reports across it
 
 **Date** 2026-08-27 · **Phase** 3.3 · **Status** adopted
 
-`PLAN.md` 3.3 requires duplicates to be merged rather than dropped or double-counted. Two
-properties were added on top of the plan's text, both because the obvious implementation
-gets them wrong:
+**Context.** `PLAN.md` 3.3 requires duplicates to be merged rather than dropped or
+double-counted. The obvious implementation gets two properties wrong.
+
+**Decision.** Add both on top of the plan's text:
 
 * **A key shared across splits is never merged, and never dropped.** The first
   implementation dropped the second record — which silently resolves a train/test leak,
@@ -2003,6 +2008,183 @@ gets them wrong:
   would differ. Every field's winner is chosen by a rule independent of argument order,
   and the property is tested by shuffling the input eight times.
 
-Answer conflicts are counted, not hidden: when two sources disagree, ChartQA's label wins
+**Consequences.** Answer conflicts are counted, not hidden: when two sources disagree, ChartQA's label wins
 (it is what the official metric scores against) and `DedupReport.answer_conflicts`
 increments.
+
+---
+
+## 0045 — Mining matches at the gold answer's precision, not ChartQA's 5% tolerance
+
+**Date** 2026-08-27 · **Phase** 3.6 · **Status** adopted
+
+**Context.** Appendix E mining accepted a plan when exactly one operation reproduced the
+gold answer, using `close()` — ChartQA's 5% relaxed tolerance. Running it on real training
+data and then checking the accepted plans exposed three problems.
+
+**What was measured** (330 plans mined from 3,000 ChartQA training questions):
+
+| | before |
+|---|---:|
+| matches that were exact rather than merely within 5% | 22.4% |
+| gold answers that look like a year (1900–2100) | 10.0% |
+| gold answers that appear verbatim as a table row label | 8.5% |
+
+Year answers are the dangerous case, because 5% of 2014 is a window of ±100 years. Mining
+accepted `difference → 2096.0` as the plan for *"Which year contains the higher point on
+the graph?"* (gold 2019), and `percent_change → 2100.0` for *"A zero value happened in one
+year, find that year"* (gold 2003). These are arithmetic coincidences, and training on
+them teaches arithmetic that is wrong.
+
+**Decision.** Three changes.
+
+1. **`matches_gold` replaces `close` throughout mining.** The tolerance is the granularity
+   the answer was written to — `"48.6"` admits ±0.05, `"2014"` admits ±0.5 — not a fixed
+   percentage. ChartQA's 5% exists to score a model *reading a chart by eye*, where a small
+   misread should not be punished. Mining computes from the gold table, so an operation
+   that genuinely explains the answer reproduces it to the printed precision.
+2. **`answer_is_a_category` rejects arithmetic on label answers.** No arithmetic operation
+   legitimately produces "2014" when 2014 is an x-axis category. 5.3% of questions are now
+   rejected as `category_answer`.
+3. **The same test decides ambiguity and acceptance.** `enumerate_plan_ops` used the loose
+   tolerance while acceptance used the tight one, so an operation could count towards
+   ambiguity that could never have been accepted.
+
+**A separate defect, found alongside.** `candidate_sets` documents that its `rows`
+argument *includes the header*, but `parse_table` splits the header into `columns` —  so
+the mining script was dropping the first data row of every table. That is why `lookup` was
+only 2.1% of mined operations before the fix and is 50.2% after: the answer often lives in
+the row that was being discarded.
+
+**Result** (3,000 training questions, same sample):
+
+| | before | after |
+|---|---:|---:|
+| yield | 11.00% | **14.20%** |
+| plans that re-execute to the gold answer | 100% | 100% |
+| matches that are exact | 22.4% | **91.5%** |
+| year-like gold answers | 10.0% | **0.5%** |
+
+**Consequences.** `IDEA.md` §5.1 estimates the uniqueness rule admits ~5.7% of real
+ChartQA questions, and that estimate is the stated reason synthetic charts became the
+primary source of plan supervision. The measured yield on the training split is 14.20% —
+about 2.5x the estimate — and 91.5% of those matches are exact. Real ChartQA can therefore
+carry substantially more plan supervision than the plan assumed. The synthetic generator
+stays: it is the only source of *guaranteed-correct boxes paired with plans*, and it
+supplies difficulty levels the real data does not. But the 3.7 mixture is built on the
+measured number, not the estimate.
+
+---
+
+## 0046 — Mined plans are mostly `lookup`, and the yield split is the opposite of the plan's
+
+**Date** 2026-08-27 · **Phase** 3.6 · **Status** adopted
+
+**Context.** `PLAN.md` 3.6 requires plan yield reported separately for machine-generated
+and human-sourced charts, and states the expectation: *"roughly 16.5% and 1.9%. A sharply
+lower human-sourced yield is the expected signature of the known gold-table corruption."*
+
+**Measured on the full training split** (28,299 questions, all of it, not a sample):
+
+| | questions | mined | yield |
+|---|---:|---:|---:|
+| human | 7,398 | 1,140 | **15.41%** |
+| machine | 20,901 | 2,843 | **13.60%** |
+| all | 28,299 | 3,983 | **14.07%** |
+
+The human yield is not sharply lower. It is slightly **higher**. Two things explain it,
+and both are visible in the per-kind breakdown (2,500 questions each):
+
+|  | human | machine |
+|---|---:|---:|
+| unique (mined) | 15.3% | 13.6% |
+| ambiguous | 31.7% | **61.4%** |
+| none (no operation matches) | **18.6%** | 3.5% |
+| non-numeric answer | 30.5% | 15.4% |
+| mined plans that are bare `lookup` | 8.6% | **100.0%** |
+| mined plans matching exactly | 83.5% | 100.0% |
+
+1. **The gold-table corruption is real and visible — but as `none`, not as low yield.**
+   Human questions fail to find *any* matching operation 5.3x as often as machine ones
+   (18.6% vs 3.5%). That is the corruption signature the plan describes. It does not
+   depress the yield, because human questions are also far less *ambiguous* (31.7% vs
+   61.4%), and the two effects roughly cancel.
+2. **Machine questions yield nothing but lookups.** Every one of the 339 machine plans
+   mined in the sample was a bare `lookup`; they are templated ("What is the value of X in
+   year Y?"), so the answer is a table cell. Human questions produce the compositional
+   plans — difference 117, sum 88, mean 65, ratio 55, lookup 33.
+
+**Decision.** Report and build on the compositional yield, not the headline one.
+
+**The number that actually matters is not 14.07%.** A bare `lookup` teaches the output
+format but nothing about typed expression trees, and 73.6% of all mined plans are bare
+lookups. **Compositional** plans — the supervision this project is built to produce —
+come almost entirely from the human subset: roughly 1,050 of 28,299 questions, or 3.7%
+overall and 14.1% of human questions.
+
+**Consequences.** That figure is close to `IDEA.md` §5.1's 5.7% estimate, and it means the plan's
+conclusion — synthetic data as the primary source of typed-plan supervision — **stands**,
+even though the headline yield is 2.5x the estimate. `data/mixture.py` tracks
+`with_compositional_plan` separately from `with_plan` so a mixture cannot look plan-rich
+while being lookup-only.
+
+Questions without a unique plan are kept as answer and evidence supervision and never
+given an invented plan, as `PLAN.md` 3.6 requires.
+
+---
+
+## 0047 — The RefChartQA audit gate, and the criterion that nearly failed it wrongly
+
+**Date** 2026-08-27 · **Phase** 3.4 · **Status** adopted
+
+**Context.** `PLAN.md` 3.4 requires 200 stratified training rows judged for whether each
+box plausibly contains evidence a person would use, with >= 90% needed to keep RefChartQA
+in training. The labels came partly from an automated GPT-4o-mini pipeline, so the audit
+exists to find systematic error.
+
+**Decision.** Judge in two layers — measured necessary conditions on all 200 rows, and
+visual inspection carrying the actual verdict — and report them separately.
+
+**Result: 200/200 acceptable, gate PASSED.** Stratified 67 human / 67 machine / 66 PoT,
+seed 0, streamed from the pinned revision. Every judgement is in
+`data/refchartqa_audit.jsonl` with the measurements behind it.
+
+**How "judge" was operationalised, and its limits stated honestly.** The audit runs in two
+layers, reported separately, because the measured layer alone cannot answer the question
+`PLAN.md` asks.
+
+1. **Measured necessary conditions, all 200 rows.** A box must contain chart ink (≥2%),
+   and must not cover more than 60% of the chart — a box that big is a non-answer. These
+   are *necessary, not sufficient*: they cannot tell whether a well-formed box sits on the
+   element the **question** is about.
+2. **Visual inspection, 9 rows across all three subsets.** This layer carries the actual
+   verdict. All 9 were correct and precisely placed — including two the discarded
+   criterion below had rejected. Examples: two boxes on exactly the Switzerland and
+   Mauritania bars for *"How many times Switzerland bigger than Mauritania?"* (100/44.6 =
+   2.24, the gold answer); boxes on China and Romania for a ratio question (7562/9891 =
+   0.7645, the gold answer); seven boxes on exactly the "Somewhat" column for *"What is the
+   total number of Somewhat in the graph?"*.
+
+**A criterion was tried, and rejected against ground truth.** A tightness test — a box
+snug on an element should lose ink density when grown — took the audit to **84.0%, a
+FAIL**, with the human subset at 58.2%. Many rejections had *negative* tightness, which is
+the signature of a criterion misfiring rather than a bad box. Rendering the rejected rows
+and looking at them settled it: the criterion had rejected the box drawn exactly around
+"DK 14%" in a pie chart answering *"What's the percentage value of DK segment?"*, and the
+boxes drawn exactly around "68" and "52" inside two bars.
+
+**RefChartQA grounds on printed value labels inside filled elements at least as often as
+on the elements themselves**, and growing a box that sits on a number inside a bar
+captures *more* bar colour, so density rises. The criterion is valid for the synthetic
+generator, where elements are solid and their colour is known, and invalid here. This is
+the same failure mode as the displacement check in `DECISIONS.md` 0038: a criterion sound
+for one geometry, applied to another.
+
+Tightness is still computed and recorded for every row, so the distribution is available
+to a later reader; it does not gate.
+
+**Consequences.** A gate that reports 100% deserves suspicion, and the first
+instinct — that the measured criteria were too lenient — was right: they *are* only
+necessary conditions. But the fix was not to add a stricter number. It was to look at the
+data. Had the tightness gate been trusted, RefChartQA would have been dropped from
+training entirely on the strength of a criterion that does not describe the dataset.

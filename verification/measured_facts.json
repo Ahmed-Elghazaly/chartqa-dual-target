@@ -156,6 +156,54 @@
       0.841,
       0.99
     ],
-    "synth_ink_iou_wrong_max": 0.377
+    "synth_ink_iou_wrong_max": 0.377,
+    "mining_yield_pct": {
+      "human": 15.41,
+      "machine": 13.6,
+      "all": 14.07,
+      "_basis": "full ChartQA train split, 28,299 questions"
+    },
+    "mining_mined_counts": {
+      "human": 1140,
+      "machine": 2843,
+      "all": 3983
+    },
+    "mining_lookup_share_pct": 73.6,
+    "mining_compositional_pct_of_all_questions": 3.7,
+    "mining_exact_match_pct": 91.5,
+    "mining_by_kind_status_pct": {
+      "human": {
+        "unique": 15.3,
+        "ambiguous": 31.7,
+        "none": 18.6,
+        "non_numeric": 30.5,
+        "category_answer": 3.8,
+        "lookup_share": 8.6
+      },
+      "machine": {
+        "unique": 13.6,
+        "ambiguous": 61.4,
+        "none": 3.5,
+        "non_numeric": 15.4,
+        "category_answer": 6.2,
+        "lookup_share": 100.0
+      },
+      "_basis": "2,500 questions per kind"
+    },
+    "refchartqa_audit": {
+      "rows": 200,
+      "acceptable": 200,
+      "rate_pct": 100.0,
+      "gate": "PASS",
+      "seed": 0,
+      "by_type": {
+        "human": 100.0,
+        "machine": 100.0,
+        "pot": 100.0
+      },
+      "visual_rows_inspected": 9,
+      "visual_rows_correct": 9,
+      "_rejected_criterion": "relative tightness; gating on it gave 84.0% (human 58.2%) and was disproved against rendered ground truth"
+    }
   }
 }

@@ -1,0 +1,622 @@
+{
+  "split": "train",
+  "sampled_per_kind": 40000,
+  "seed": 0,
+  "questions": 28299,
+  "mined": 3983,
+  "yield_pct": 14.07,
+  "by_kind": {
+    "human": {
+      "questions": 7398,
+      "rejected:ambiguous": 2344,
+      "mined": 1140,
+      "rejected:none": 1310,
+      "rejected:non_numeric": 2298,
+      "rejected:category_answer": 306
+    },
+    "machine": {
+      "questions": 20901,
+      "mined": 2843,
+      "rejected:ambiguous": 12898,
+      "rejected:category_answer": 1268,
+      "rejected:non_numeric": 3154,
+      "rejected:none": 738
+    }
+  },
+  "by_chart_type": {
+    "h_bar": {
+      "questions": 8554,
+      "mined": 937
+    },
+    "v_bar": {
+      "questions": 14839,
+      "mined": 2325
+    },
+    "line": {
+      "questions": 3691,
+      "mined": 469
+    },
+    "pie": {
+      "questions": 1215,
+      "mined": 252
+    }
+  },
+  "operations": {
+    "difference": 381,
+    "mean": 174,
+    "lookup": 2931,
+    "percent_change": 29,
+    "sum": 258,
+    "ratio": 157,
+    "count": 53
+  },
+  "examples": [
+    {
+      "imgname": "OECD_SOCIAL_INSTITUTIONS_AND_GENDER_ALB_IDN_MNE_000000.png",
+      "kind": "human",
+      "chart_type": "v_bar",
+      "question": "What is the difference in the two bar distribution?",
+      "answer": "19",
+      "plan": {
+        "op": "difference",
+        "args": [
+          "Indonesia",
+          "Albania"
+        ]
+      }
+    },
+    {
+      "imgname": "574.png",
+      "kind": "human",
+      "chart_type": "h_bar",
+      "question": "What's the median of all the values of light blue bar?",
+      "answer": "16.5",
+      "plan": {
+        "op": "mean",
+        "args": [
+          "It would cost too much",
+          "Concern about side effects"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_100186.png",
+      "kind": "human",
+      "chart_type": "v_bar",
+      "question": "What is the average intake of 11-18 years?",
+      "answer": "72",
+      "plan": {
+        "op": "lookup",
+        "args": [
+          "11-18 years"
+        ]
+      }
+    },
+    {
+      "imgname": "multi_col_20605.png",
+      "kind": "human",
+      "chart_type": "v_bar",
+      "question": "What is the difference between the highest and lowest value in 2017?",
+      "answer": "48.6",
+      "plan": {
+        "op": "difference",
+        "args": [
+          "15-64 years",
+          "65 years and older"
+        ]
+      }
+    },
+    {
+      "imgname": "1363.png",
+      "kind": "human",
+      "chart_type": "h_bar",
+      "question": "What's the percentage of College grad who trust information to a great deal?",
+      "answer": "15",
+      "plan": {
+        "op": "difference",
+        "args": [
+          "a great deal",
+          "Not at all"
+        ]
+      }
+    },
+    {
+      "imgname": "multi_col_60884.png",
+      "kind": "human",
+      "chart_type": "v_bar",
+      "question": "What is the average of all navy blue bars?",
+      "answer": "18.88",
+      "plan": {
+        "op": "mean",
+        "args": [
+          "Property crime",
+          "Burglary",
+          "Larceny-theft",
+          "Motor vehicle theft"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_81104.png",
+      "kind": "human",
+      "chart_type": "line",
+      "question": "How many years that have the per capital real GDP over 50k dollars?",
+      "answer": "11",
+      "plan": {
+        "op": "percent_change",
+        "args": [
+          "2019",
+          "2001"
+        ]
+      }
+    },
+    {
+      "imgname": "646.png",
+      "kind": "human",
+      "chart_type": "h_bar",
+      "question": "What's the sum of the median and the largest value?",
+      "answer": "96",
+      "plan": {
+        "op": "sum",
+        "args": [
+          "Black",
+          "All adults"
+        ]
+      }
+    },
+    {
+      "imgname": "multi_col_841.png",
+      "kind": "human",
+      "chart_type": "h_bar",
+      "question": "what is the sum of cloth that was produced in the year 2018 by china and india",
+      "answer": "31725",
+      "plan": {
+        "op": "sum",
+        "args": [
+          "China",
+          "India"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_24382.png",
+      "kind": "human",
+      "chart_type": "pie",
+      "question": "What is the percentage of people that are very satisfied?",
+      "answer": "39",
+      "plan": {
+        "op": "lookup",
+        "args": [
+          "Very satisfied"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_83353.png",
+      "kind": "human",
+      "chart_type": "v_bar",
+      "question": "What is the sum of Instagram and twitter?",
+      "answer": "1088.5",
+      "plan": {
+        "op": "sum",
+        "args": [
+          "Instagram",
+          "Twitter"
+        ]
+      }
+    },
+    {
+      "imgname": "10441.png",
+      "kind": "human",
+      "chart_type": "pie",
+      "question": "What is the sum of the percentage of Advertising and Audience?",
+      "answer": "93",
+      "plan": {
+        "op": "sum",
+        "args": [
+          "Audience",
+          "Advertising"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_3207.png",
+      "kind": "human",
+      "chart_type": "line",
+      "question": "How much did the hotel attendance rate decline from FY 2016 to FY 2021?",
+      "answer": "1514",
+      "plan": {
+        "op": "difference",
+        "args": [
+          "FY 2016",
+          "FY 2021*"
+        ]
+      }
+    },
+    {
+      "imgname": "14929682007417.png",
+      "kind": "human",
+      "chart_type": "h_bar",
+      "question": "What is the difference in the value of India and Estonia?",
+      "answer": "1.57",
+      "plan": {
+        "op": "difference",
+        "args": [
+          "Estonia",
+          "India"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_103677.png",
+      "kind": "human",
+      "chart_type": "pie",
+      "question": "How many people say yes?",
+      "answer": "72",
+      "plan": {
+        "op": "sum",
+        "args": [
+          "Yes, the majority",
+          "Yes, some"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_100335.png",
+      "kind": "human",
+      "chart_type": "v_bar",
+      "question": "WHat is the difference between the median and the least value?",
+      "answer": "5",
+      "plan": {
+        "op": "difference",
+        "args": [
+          "Feb '20",
+          "July '19"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_1906.png",
+      "kind": "human",
+      "chart_type": "line",
+      "question": "What is the average American customer satisfaction index scores of McDonald's restaurants in the United States for 2019-2020?",
+      "answer": "69.5",
+      "plan": {
+        "op": "mean",
+        "args": [
+          "2020",
+          "2019"
+        ]
+      }
+    },
+    {
+      "imgname": "6824.png",
+      "kind": "human",
+      "chart_type": "h_bar",
+      "question": "What is the difference between the highest yellow and lowest green bar??",
+      "answer": "51",
+      "plan": {
+        "op": "difference",
+        "args": [
+          "Unfavorable",
+          "Favorable"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_5617.png",
+      "kind": "human",
+      "chart_type": "h_bar",
+      "question": "What is the number of persons in the 400 richest Americans list who are have attended a College or a Graduate school as of 2012?",
+      "answer": "321",
+      "plan": {
+        "op": "sum",
+        "args": [
+          "Graduate school",
+          "College"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_24108.png",
+      "kind": "human",
+      "chart_type": "pie",
+      "question": "What is the percentage we will get if we add equities and real estate ?",
+      "answer": "43",
+      "plan": {
+        "op": "sum",
+        "args": [
+          "Equities",
+          "Real estate*"
+        ]
+      }
+    },
+    {
+      "imgname": "615.png",
+      "kind": "human",
+      "chart_type": "h_bar",
+      "question": "What's the percentage value of Japan who have a favorable view of the US?",
+      "answer": "0.41",
+      "plan": {
+        "op": "ratio",
+        "args": [
+          "Germany",
+          "13 COUNTRY MEDIAN"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_81720.png",
+      "kind": "human",
+      "chart_type": "line",
+      "question": "For how many years is the net trade under 30?",
+      "answer": "6",
+      "plan": {
+        "op": "difference",
+        "args": [
+          "2014",
+          "2018"
+        ]
+      }
+    },
+    {
+      "imgname": "11651.png",
+      "kind": "human",
+      "chart_type": "pie",
+      "question": "In how many segment is the Pie chart What divided?",
+      "answer": "3",
+      "plan": {
+        "op": "count",
+        "args": [
+          "Generally pay attention",
+          "Generally do NOT pay attention",
+          "DK"
+        ]
+      }
+    },
+    {
+      "imgname": "multi_col_60682.png",
+      "kind": "human",
+      "chart_type": "v_bar",
+      "question": "What is the sum of the averages of annual revenues from proton solutions and other?",
+      "answer": "596.4",
+      "plan": {
+        "op": "sum",
+        "args": [
+          "2020",
+          "2019",
+          "2018",
+          "2017"
+        ]
+      }
+    },
+    {
+      "imgname": "multi_col_1054.png",
+      "kind": "human",
+      "chart_type": "v_bar",
+      "question": "What's the difference in percentage of males voters who voted for Clinton and Trump?",
+      "answer": "13",
+      "plan": {
+        "op": "difference",
+        "args": [
+          "Female",
+          "Male"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_5839.png",
+      "kind": "human",
+      "chart_type": "v_bar",
+      "question": "What is the average of the projection of dementia?",
+      "answer": "129.67",
+      "plan": {
+        "op": "mean",
+        "args": [
+          "2050",
+          "2030",
+          "2015"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_62115.png",
+      "kind": "human",
+      "chart_type": "line",
+      "question": "Take highest value and lowest value and divided it by 2, what is the result?",
+      "answer": "73.5",
+      "plan": {
+        "op": "mean",
+        "args": [
+          "2020",
+          "2019"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_83283.png",
+      "kind": "human",
+      "chart_type": "line",
+      "question": "What Is the difference in the value of funding in the year 2006 and 2008 ?",
+      "answer": "0.02",
+      "plan": {
+        "op": "difference",
+        "args": [
+          "2011",
+          "2012"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_42770.png",
+      "kind": "human",
+      "chart_type": "v_bar",
+      "question": "What is the value of the first blue bar from left to right ?",
+      "answer": "593",
+      "plan": {
+        "op": "lookup",
+        "args": [
+          "Spectator spending in stadiums"
+        ]
+      }
+    },
+    {
+      "imgname": "9152.png",
+      "kind": "human",
+      "chart_type": "h_bar",
+      "question": "What is the average value of united solidly behind Trump?",
+      "answer": "36.33",
+      "plan": {
+        "op": "mean",
+        "args": [
+          "Kasich",
+          "Cruz",
+          "Trump"
+        ]
+      }
+    },
+    {
+      "imgname": "multi_col_80609.png",
+      "kind": "human",
+      "chart_type": "v_bar",
+      "question": "What is the ratio of longest red bar and shortest green bar (A:B)?",
+      "answer": "2.5",
+      "plan": {
+        "op": "ratio",
+        "args": [
+          "Not at all",
+          "No opinion"
+        ]
+      }
+    },
+    {
+      "imgname": "7806.png",
+      "kind": "human",
+      "chart_type": "h_bar",
+      "question": "What's the percentage of Dem/Lean Dem who say Donald Trump's views are Liberal on all/most issues?",
+      "answer": "11",
+      "plan": {
+        "op": "mean",
+        "args": [
+          "Dem/Lean Dem",
+          "Rep/Lean Rep"
+        ]
+      }
+    },
+    {
+      "imgname": "7889.png",
+      "kind": "human",
+      "chart_type": "h_bar",
+      "question": "Add all the bars whose value exceeds 40?",
+      "answer": "146",
+      "plan": {
+        "op": "sum",
+        "args": [
+          "Most of the time itis easy for me to determine what information is trustworthy",
+          "Having a lot of information feel makes me like - have more control over things in my life",
+          "feel confident in my ability the internet other to use and communication devices to information keep up with demands in my life"
+        ]
+      }
+    },
+    {
+      "imgname": "OECD_FDI_STOCKS_CAN_CHE_ISL_USA_000006.png",
+      "kind": "human",
+      "chart_type": "v_bar",
+      "question": "What is the total sum of FDI stocks in Canada and Ireland?",
+      "answer": "120.6",
+      "plan": {
+        "op": "sum",
+        "args": [
+          "Iceland",
+          "Canada"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_3817.png",
+      "kind": "human",
+      "chart_type": "pie",
+      "question": "What is the difference between biggest and smallest slice of the pie?",
+      "answer": "29",
+      "plan": {
+        "op": "difference",
+        "args": [
+          "Other",
+          "Google (Android TV and Chromecast)"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_41509.png",
+      "kind": "human",
+      "chart_type": "pie",
+      "question": "The minimum opinion plus the median of all the opinions equal to what?",
+      "answer": "22",
+      "plan": {
+        "op": "sum",
+        "args": [
+          "Can't say",
+          "No"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_23244.png",
+      "kind": "human",
+      "chart_type": "line",
+      "question": "what is the difference between 2010 and 2019?",
+      "answer": "997",
+      "plan": {
+        "op": "difference",
+        "args": [
+          "2010",
+          "2019"
+        ]
+      }
+    },
+    {
+      "imgname": "two_col_81866.png",
+      "kind": "human",
+      "chart_type": "h_bar",
+      "question": "How many hits does the most popular leader have over the least popular one?",
+      "answer": "601",
+      "plan": {
+        "op": "difference",
+        "args": [
+          "Tony Fernandez",
+          "Willie Upshaw"
+        ]
+      }
+    },
+    {
+      "imgname": "multi_col_100693.png",
+      "kind": "human",
+      "chart_type": "v_bar",
+      "question": "What is the average of Postive Military power of china?",
+      "answer": "35.5",
+      "plan": {
+        "op": "mean",
+        "args": [
+          "Greater economic power of China (2005)",
+          "Greater economic power of China (2011)",
+          "Greater military power of China (2005)",
+          "Greater military power of China (2011)"
+        ]
+      }
+    },
+    {
+      "imgname": "14780.png",
+      "kind": "human",
+      "chart_type": "pie",
+      "question": "What's the ratio of two largest segment?",
+      "answer": "1",
+      "plan": {
+        "op": "ratio",
+        "args": [
+          "Leave EU",
+          "Remain"
+        ]
+      }
+    }
+  ]
+}

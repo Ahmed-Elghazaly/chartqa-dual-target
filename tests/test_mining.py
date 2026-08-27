@@ -18,6 +18,8 @@ from chartqa_dt.plans.mining import (
     candidate_sets,
     close,
     enumerate_plan_ops,
+    gold_tolerance,
+    matches_gold,
     mine_plan,
     to_number,
 )
@@ -106,14 +108,51 @@ def test_the_worked_ambiguous_example_from_idea_is_refused():
     assert m.plan is None, "an ambiguous question must never receive an invented plan"
 
 
-def test_the_five_percent_tolerance_itself_creates_ambiguity():
-    """Values within 5% of each other make `lookup` and `min` indistinguishable.
+def test_the_scoring_tolerance_does_not_manufacture_ambiguity():
+    """Mining matches at the gold answer's own precision, not ChartQA's 5%.
 
-    This is the design working, not failing: it is why yield is low.
+    5.11 is within 5% of 5.32, so the scoring tolerance would call `min` a match and
+    reject the question as ambiguous. The gold answer "5.32" was written to two
+    decimals, so `min` is not a match and only genuinely indistinguishable operations
+    remain (DECISIONS.md 0045).
     """
-    m = mine_plan(TWO_COL, 5.32)           # 5.11 is within 5% of 5.32
-    assert m.status == "ambiguous"
-    assert {"lookup", "min"} <= set(m.ops_matched)
+    m = mine_plan(TWO_COL, 5.32)
+    assert "min" not in set(m.ops_matched), \
+        "a value 4% away is not the answer, it is a different value"
+
+
+def test_gold_tolerance_follows_the_answers_written_precision():
+    assert gold_tolerance("48.6") == pytest.approx(0.05)
+    assert gold_tolerance("2014") == pytest.approx(0.5)
+    assert gold_tolerance("0.405") == pytest.approx(0.0005)
+    assert gold_tolerance("1,234") == pytest.approx(0.5)
+    assert gold_tolerance("15%") == pytest.approx(0.5)
+
+
+def test_matches_gold_accepts_rounding_but_not_coincidence():
+    assert matches_gold(48.62, "48.6"), "the table value rounds to the printed answer"
+    assert not matches_gold(47.70, "48.6"), "0.9 away is a different quantity"
+    assert matches_gold(2014.4, "2014")
+    assert not matches_gold(2066.0, "2014"), \
+        "within ChartQA's 5% of a year, but 52 years is not a rounding error"
+
+
+def test_a_category_answer_is_never_explained_by_arithmetic():
+    """"Which year has the most crime?" is answered by a label, not a computation.
+
+    Year answers parse as numbers, so without this guard a `difference` landing near
+    the year looks like a unique match — measured at 8.5% of mined plans.
+    """
+    rows = [["Year", "Value"], ["2012", "1000"], ["2013", "1200"], ["2014", "2014"]]
+    m = mine_plan(rows, "2014")
+    assert m.status == "category_answer"
+    assert m.plan is None
+
+
+def test_a_quantity_answer_that_is_not_a_label_still_mines():
+    rows = [["Entity", "Value"], ["a", "10"], ["b", "20"], ["c", "30"]]
+    m = mine_plan(rows, 60)
+    assert m.status == "unique" and m.plan["op"] == "sum"
 
 
 def test_a_non_numeric_answer_is_classified_not_mined():
