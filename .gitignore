@@ -3,10 +3,13 @@
 # ChartQA is GPL-3.0, RefChartQA is AGPL-3.0. Scripts, IDs, hashes, adapters
 # and derived statistics only.
 # ---------------------------------------------------------------------------
-data/
-!data/MANIFEST.json
-!data/*.json
-!data/refchartqa_audit.jsonl
+# ANCHORED to the repo root with a leading slash. An unanchored `data/` also matches
+# `src/chartqa_dt/data/` — the loaders package — which was silently untracked for nine
+# commits while every local test passed and CI failed on ModuleNotFoundError.
+/data/
+!/data/MANIFEST.json
+!/data/*.json
+!/data/refchartqa_audit.jsonl
 *.png
 *.jpg
 *.jpeg

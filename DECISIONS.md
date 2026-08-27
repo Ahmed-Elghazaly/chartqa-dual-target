@@ -2282,3 +2282,44 @@ to be about pixels, not files.
 
 Two ChartQA validation images are themselves pixel-identical (1,056 images, 1,055 distinct
 hashes), which is noted but harmless: both are held out.
+
+---
+
+## 0050 — The loaders package was never in the repository
+
+**Date** 2026-08-27 · **Phase** 3 · **Status** adopted
+
+**Context.** Rule 7 forbids committing dataset content, and `.gitignore` implemented it
+with an unanchored `data/`. Git matches such a pattern against **every** directory of that
+name at any depth, so it also matched `src/chartqa_dt/data/` — the loaders package:
+`records.py`, `chartqa.py`, `refchartqa.py`, `dedup.py`, `download.py`, `mixture.py`,
+`sources.py`, `remote_zip.py`. **Nine files, never committed.**
+
+Every local test passed the whole time, because the files were on disk. CI failed every
+push with `ModuleNotFoundError: No module named 'chartqa_dt.data'`, and eight consecutive
+runs were red while Phase 3 was reported as progressing.
+
+**Why this particular failure is dangerous.** The code works everywhere the author runs it
+and exists nowhere else. Kaggle pulls from GitHub, so Phase 5 training would have failed on
+a clean checkout; and if this machine were lost, the entire Phase 3 data layer was gone.
+Nothing in the working copy indicates a problem — `git status` shows nothing to commit,
+because the files are ignored rather than merely untracked.
+
+**Decision.**
+
+1. Anchor the rule: `/data/` with a leading slash, plus the matching `!/data/…`
+   exceptions. This keeps rule 7 exactly as strict for the top-level dataset directory
+   while leaving source directories alone.
+2. `tests/test_repo_completeness.py` runs `git check-ignore` over every source file in
+   `src`, `tests` and `scripts`, asserts every `__init__.py` under `src` is tracked, and
+   asserts the rule-7 pattern stays anchored. It is a real test, not a lint: it fails
+   today's mistake, and it would have failed on the very first commit.
+
+**Consequences.** `check_ci.py` already existed and already reported this — `last 10 runs:
+failure=8`. It was written after an earlier instance of exactly this pattern and then not
+run after each push. **Running it is now part of pushing, not a thing to remember.** A tool
+that reports a failure nobody reads is indistinguishable from no tool.
+
+**Consequence for the earlier phase reports.** Phase 3's tests, numbers and artefacts are
+unaffected — they were produced from the real code, which was correct and present locally.
+What was wrong was the claim that the work was *in the repository*.
