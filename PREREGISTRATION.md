@@ -189,6 +189,27 @@ byte-identical official evaluator on the same sealed split. 32.83 is cited as co
 labelled as unverified, because nobody — including its authors' released artefacts — can
 reproduce it.
 
+### How much of each test split is evaluated, decided now
+
+Declared here because it is a choice, and a choice made after seeing test numbers is not
+a choice a reader can trust.
+
+| split | rows | evaluated | why |
+|---|---:|---:|---|
+| ChartQA test | 2,500 | **all 2,500** | the published 79.1 is measured on the whole split, and the plain-prompt arm costs about 0.8 GPU hours at a 32-token cap, so there is no reason to sample |
+| RefChartQA test | 11,690 | **1,800, stratified** | evaluating all of them for three systems is roughly 37 GPU hours against a 30 h weekly quota; 1,800 is the same size as the 5.4 validation slice, stratified the same way |
+
+At 1,800 rows a proportion near 40% carries a 95% Wilson interval of **±2.26 points**,
+against **±0.89** for the whole 11,690-row split. So sampling costs about 1.4 points of
+resolution and buys back roughly 31 GPU hours; the sample resolves differences of about five
+points and not smaller ones. Every RefChartQA test figure is
+reported with its interval and with `n = 1,800` beside it, never as though it came from the
+whole split. If a difference this project cares about turns out to be smaller than the
+interval, that is reported as *not resolved at this sample size* rather than as a result.
+
+The sample is drawn once, by the same stratified procedure as the validation slice, and its
+SHA-256 is recorded before any test row is read.
+
 ## 12. The zero-shot baselines this project must beat
 
 Section 11's success condition is *"beats our own zero-shot baseline, CIs disjoint"*. The

@@ -577,6 +577,27 @@
     "over_limit_pct": 39.0,
     "_why": "not length at all \u2014 every ChartQA image was missing from disk because it lives in the zip (DECISIONS.md 0073)"
    }
+  },
+  "data_path_dry_run": {
+   "_method": "CPU, real processor, real chart images, real collator, no model weights. Rehydrate data/mixture_stage1.json through cli/train's own source readers and pull 40 batches of 2 from MixtureFeed.",
+   "_measured": "2026-08-28, after DECISIONS.md 0071-0074",
+   "ids_rehydrated": 10304,
+   "ids_in_mixture": 10304,
+   "usable_examples_pct": 100.0,
+   "batch_keys": [
+    "attention_mask",
+    "image_grid_thw",
+    "input_ids",
+    "labels",
+    "mm_token_type_ids",
+    "pixel_values"
+   ],
+   "supervised_positions_first_batch": 136,
+   "seq_len_min": 372,
+   "seq_len_max": 654,
+   "max_seq_len": 1024,
+   "collate_seconds_per_batch": 0.04,
+   "_finding": "Every mixture id resolves, every example collates, and collation costs 0.04 s against 11.9 s/step of training \u2014 so the data path is not a bottleneck and, as of this run, not a source of silent loss either."
   }
  }
 }
