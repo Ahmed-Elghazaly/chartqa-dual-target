@@ -2845,3 +2845,56 @@ choice, which is what `DECISIONS.md` 0059 addresses and what training is for.
 Raising the cap is still refused: it would trade a grounding metric we are judged on for
 an internal consistency number we are not, and it is now clear the trade would buy almost
 nothing.
+
+---
+
+## 0061 — Constrained decoding: evaluated, declined for the main arms, kept as an ablation
+
+**Date** 2026-08-28 · **Phase** 5.1 · **Status** adopted
+
+**Context.** Four prompt iterations were spent chasing malformed JSON. Constrained (grammar
+/ schema-guided) decoding would make malformed output *impossible*, so it deserved a
+proper evaluation rather than being discovered late.
+
+**What is actually available**, checked rather than assumed:
+
+| library | latest | verdict |
+|---|---|---|
+| `xgrammar` | 0.2.5 | **incompatible** — pins `transformers<5`, we run 5.16.0 |
+| `outlines` | 1.3.3 (Aug 2026) | compatible, active |
+| `lm-format-enforcer` | 0.11.3 | compatible, works through a logits processor |
+
+`transformers.generate()` also accepts `logits_processor` and `prefix_allowed_tokens_fn`
+directly, so no dependency is strictly required.
+
+**What it would buy**, decomposed on the 24 zero-shot generations rather than argued:
+
+| | count | would constraining fix it? |
+|---|---:|---|
+| fail JSON syntax | 6 | **yes** |
+| parse but fail `OUTPUT_SCHEMA` | 6 | yes, with a schema-aware grammar |
+| schema-valid, plan disagrees or raises | 6 | **no** |
+| schema-valid and round-trips | 6 | — |
+
+Roughly a doubling of usable records, 25% → 50%. Not negligible. But **the binding
+constraint is semantic**: half of the records that are already perfectly well-formed still
+compute the wrong thing, because the model picks `lookup` where the answer is a label
+(`DECISIONS.md` 0059). No decoder constraint can choose an operation.
+
+**Decision.** The main arms — zero-shot baseline and trained model — stay **unconstrained**.
+Three reasons:
+
+1. `PLAN.md` 5.2 gates variant selection on "≥ 90% valid compact JSON **under the planned
+   prompt**". Constraining makes that gate vacuous by construction.
+2. **Improved format adherence is a genuine benefit of fine-tuning**, and one this project
+   should be able to report. Constraining both arms hides it.
+3. It would not touch the failure that matters. Adopting it would feel like progress while
+   leaving the real gap where it is.
+
+Kept as a **secondary ablation** if quota allows: a constrained arm cleanly separates
+"the model learned the format" from "the model learned to reason", which is a genuinely
+informative split. Gated behind the core result, like every other extension.
+
+**Consequences.** No new dependency on the training path, no integration risk against a
+4-bit quantised VLM. The option is now on the record with its numbers, so a later reader
+sees it was measured and declined rather than missed.

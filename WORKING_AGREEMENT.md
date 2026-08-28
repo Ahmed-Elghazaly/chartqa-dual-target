@@ -54,6 +54,35 @@ reader unable to tell whether the project is going well.
   calls or `urllib` will raise what looks like a rejected credential.
 * **Skills/MCP** — searched for pytorch / transformers / VLM / LoRA / HF / Kaggle: **none exist.**
 
+## Before writing a non-trivial component: the design pass (added 2026-08-28)
+
+Ahmed's objection, and it is correct: too many defects were *discovered by running* when
+they were knowable beforehand. The prompt took four GPU iterations, and each one found
+something already established — `PLAN.md` itself said "compact JSON" and the first version
+was pretty-printed; that a model imitates its example's formatting is not a new result.
+
+The diagnosis is not carelessness. It is **iterating where front-loading was possible**.
+So, before writing any component that costs a run to test:
+
+1. **Re-read what this project already decided.** `PLAN.md` for the section, `DECISIONS.md`
+   for anything related, `measured_facts.json` for the numbers. Most of the prompt defects
+   were already answered in text I had read once and not applied.
+2. **Research the established practice**, from primary sources — library docs, the actual
+   signature, the paper, the model card. Not memory. If a whole class of failure has a
+   standard solution, find out *before* building around it (`DECISIONS.md` 0061 evaluates
+   constrained decoding; it should have been evaluated before iteration one, not after
+   four).
+3. **Enumerate the failure modes on paper first.** For each: how would it show up, and
+   what is the cheapest measurement that would reveal it? A component whose failure modes
+   were listed in advance rarely surprises.
+4. **Measure the direct thing, never a proxy.** `DECISIONS.md` 0060 claimed a limitation
+   from *table length* when *evidence length in actual plans* was one query away and said
+   the opposite. If a proxy is all that is available, say so in the claim.
+5. **Only then write**, and pair each failure mode with the test that catches it.
+
+The cost of this pass is minutes. The cost of skipping it has been GPU runs, wrong entries
+in the decision log, and Ahmed reading a correction instead of a result.
+
 ## The failure patterns this project keeps hitting
 
 Every one of these produced a plausible, wrong result rather than an error.
