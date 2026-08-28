@@ -46,6 +46,21 @@ class FeedStats:
         return "\n".join(lines)
 
 
+class FeedRefusedTooMuch(RuntimeError):
+    """The feed is discarding so much of its mixture that the run is not the planned one."""
+
+
+#: Refusals are checked once this many records have been offered — enough that the rate is
+#: not noise, and early enough that a broken run dies in its first minute rather than its
+#: tenth hour.
+REFUSAL_CHECK_AFTER = 200
+#: The fraction of offered records that must become examples. Measured yields after the
+#: fixes in `DECISIONS.md` 0071-0073 are 99.5%; the 0.5% loss is examples over
+#: `max_seq_len`. 0.90 leaves generous room for that while catching the failures that
+#: actually occurred, which cost 23%, 38%, 46% and 100%.
+MIN_USABLE_FRACTION = 0.90
+
+
 class MixtureFeed:
     """An ordered, resumable stream of training examples over a list of records."""
 
@@ -128,9 +143,39 @@ class MixtureFeed:
         self.stats.usable += 1
         return Example(image=image, question=record.question, target=target)
 
+    def check_refusal_rate(self) -> None:
+        """Stop a run that is training on a fraction of its mixture.
+
+        Four defects in this project have had the same shape: something the feed cannot
+        turn into an example, caught by an `except`, counted, and skipped. Each produced a
+        smaller training set rather than an error, so the run finished on schedule and
+        reported its step count truthfully — 100% of stage-1 targets lost to a misspelled
+        metadata key, 100% of the compositional level to an evidence-selection interaction,
+        46% of a mixture to unusable records, 38% to chart images that were in a zip rather
+        than on disk (`DECISIONS.md` 0071, 0072, 0073).
+
+        `FeedStats` recorded every one of them. Recording is not enough: from outside, an
+        `except` that counts and continues is indistinguishable from there being no
+        failures. So the rate is now a gate.
+        """
+        if self.stats.offered < REFUSAL_CHECK_AFTER:
+            return
+        fraction = self.stats.usable / self.stats.offered
+        if fraction >= MIN_USABLE_FRACTION:
+            return
+        raise FeedRefusedTooMuch(
+            f"the feed turned only {self.stats.usable}/{self.stats.offered} "
+            f"({100 * fraction:.1f}%) of offered records into examples, below the "
+            f"{100 * MIN_USABLE_FRACTION:.0f}% floor. Training would proceed on a "
+            f"fraction of the mixture and report its step count truthfully.\n"
+            f"{self.stats.describe()}\n"
+            f"Run `scripts/measure_target_yield.py --mixture <file> --tokens 200` to see "
+            f"the same refusals without booking a GPU.")
+
     def batches(self, batch_size: int) -> Iterator[list[Example]]:
         """Yield batches forever, advancing `position` and rolling epochs."""
         pending: list[Example] = []
+        checked = False
         while True:
             if self.position >= len(self._order):
                 self.epoch += 1
@@ -140,6 +185,9 @@ class MixtureFeed:
             self.position += 1
             self.stats.offered += 1
             example = self._example(self.records[index])
+            if not checked and self.stats.offered >= REFUSAL_CHECK_AFTER:
+                checked = True
+                self.check_refusal_rate()
             if example is None:
                 continue
             pending.append(example)
@@ -163,4 +211,11 @@ def load_mixture_records(path: str | Path, records_by_id: dict[str, ChartRecord]
     return [records_by_id[i] for i in data["record_ids"]]
 
 
-__all__ = ["FeedStats", "MixtureFeed", "load_mixture_records"]
+__all__ = [
+    "MIN_USABLE_FRACTION",
+    "REFUSAL_CHECK_AFTER",
+    "FeedRefusedTooMuch",
+    "FeedStats",
+    "MixtureFeed",
+    "load_mixture_records",
+]

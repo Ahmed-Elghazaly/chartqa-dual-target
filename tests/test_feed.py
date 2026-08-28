@@ -205,3 +205,87 @@ class TestImagesFromTheArchive:
         from chartqa_dt.cli import train
 
         assert "archive=_chartqa_archive()" in inspect.getsource(train._run_stage)
+
+
+class TestRefusalRateGate:
+    """`DECISIONS.md` 0074. Counting a refusal is not enough — it has to stop the run.
+
+    Four defects in this project had the same shape: something the feed cannot turn into
+    an example, caught, counted, skipped. Each produced a smaller training set rather than
+    an error, so the run finished on schedule and reported its step count truthfully.
+    """
+
+    @staticmethod
+    def _records(n: int):
+        from chartqa_dt.data.records import ChartRecord
+
+        return [ChartRecord(record_id=f"r{i}", source="synthetic", split="train",
+                            image_path=f"{i}.png", image_sha256="0" * 64,
+                            question="q?", answer="1", question_kind="synthetic")
+                for i in range(n)]
+
+    def _feed(self, *, usable_every: int):
+        """A feed whose `_example` succeeds one record in `usable_every`."""
+        from chartqa_dt.train.feed import Example, MixtureFeed
+
+        feed = MixtureFeed(self._records(2000), shuffle=False)
+        calls = {"n": 0}
+
+        def fake(record):
+            calls["n"] += 1
+            if calls["n"] % usable_every:
+                feed.stats.note_refusal(ValueError("no plan derivable"))
+                return None
+            feed.stats.usable += 1
+            return Example(image=object(), question="q?", target="{}")
+
+        feed._example = fake
+        return feed
+
+    def test_a_feed_refusing_most_records_stops_the_run(self) -> None:
+        import pytest
+
+        from chartqa_dt.train.feed import FeedRefusedTooMuch
+
+        feed = self._feed(usable_every=3)          # 33% usable
+        with pytest.raises(FeedRefusedTooMuch, match="below the 90% floor"):
+            # Consumed the way training consumes it. The gate waits for 200 offered
+            # records, which at 33% usable is about eight optimizer steps -- under two
+            # minutes of GPU, against the ten hours it used to cost to find out.
+            for _ in feed.batches(2):
+                pass
+
+    def test_the_error_names_the_reasons_and_how_to_reproduce_it_without_a_gpu(self) -> None:
+        import pytest
+
+        from chartqa_dt.train.feed import FeedRefusedTooMuch
+
+        with pytest.raises(FeedRefusedTooMuch) as exc:
+            for _ in self._feed(usable_every=5).batches(2):
+                pass
+        message = str(exc.value)
+        assert "no plan derivable" in message
+        assert "measure_target_yield.py" in message
+
+    def test_a_healthy_feed_is_not_interrupted(self) -> None:
+        """Measured yield after the 0071-0073 fixes is 99.5%; the floor must not fire."""
+        import itertools
+
+        feed = self._feed(usable_every=1)
+        batches = list(itertools.islice(feed.batches(2), 150))
+        assert len(batches) == 150 and all(len(b) == 2 for b in batches)
+        assert feed.stats.offered > 200, "the gate was passed, not skipped"
+
+    def test_the_check_waits_for_enough_records_to_be_meaningful(self) -> None:
+        """Two refusals in the first three records is noise, not a broken pipeline."""
+        from chartqa_dt.train.feed import MixtureFeed
+
+        feed = MixtureFeed(self._records(10), shuffle=False)
+        feed.stats.offered, feed.stats.usable = 3, 1
+        feed.check_refusal_rate()          # does not raise
+
+    def test_the_floor_leaves_room_for_the_known_over_length_loss(self) -> None:
+        from chartqa_dt.train.feed import MIN_USABLE_FRACTION
+
+        assert MIN_USABLE_FRACTION <= 0.995, "must tolerate the measured 0.5% over-length"
+        assert MIN_USABLE_FRACTION > 0.62, "must catch the 38% loss that actually occurred"

@@ -3530,3 +3530,43 @@ the *real* images before any GPU is booked, which is how this was found at all.
 
 I did not find this by reasoning about the code. I found it because a number in a summary
 line contradicted another number three lines above it.
+
+---
+
+## 0074 — A refusal rate is a gate, not a statistic
+
+**Context.** Four defects in two days had the same shape:
+
+| decision | what was refused | cost |
+|---|---|---:|
+| 0071 | synthetic element metadata under the wrong key | 100% of stage 1 |
+| 0071 | a fold-over-evidence plan given only its named labels | 100% of level 4 |
+| 0072 | mixture slots holding records that yield no target | 46% of stage 2 |
+| 0073 | ChartQA images that live in a zip rather than on disk | 38% of stage 2 |
+
+Every one was caught by an `except`, counted in `FeedStats`, and skipped. None raised.
+Each produced a *smaller training set* rather than an error, so the run would have finished
+on schedule and reported its step count truthfully.
+
+`FeedStats` already recorded all of them, in detail, with reasons. That was not enough, and
+the reason is worth stating plainly: **from outside, an `except` that counts a failure and
+continues is indistinguishable from there being no failures.** The information existed; it
+sat in a summary nobody was required to read, at the end of a run that had already been
+paid for.
+
+**Decision.** The rate is a gate. `MixtureFeed.check_refusal_rate` fires once
+`REFUSAL_CHECK_AFTER = 200` records have been offered and raises `FeedRefusedTooMuch` if
+fewer than `MIN_USABLE_FRACTION = 0.90` of them became examples. The message carries the
+refusal reasons and the command that reproduces them without a GPU.
+
+**Why those two numbers.** 200 offered records is about eight optimizer steps at effective
+batch 8 — under two minutes of GPU, against the ten hours it previously took to not find
+out. And the rate at 200 is no longer noise. The floor sits at 90% because the measured
+yield after 0071–0073 is **99.5%**, with the residual 0.5% being examples over
+`max_seq_len`, while the failures that actually occurred cost 38%, 46%, 100% and 100%.
+Nothing real lives between 90% and 62%.
+
+**Consequences.** This does not replace the earlier fixes or the pre-flight measurement in
+`scripts/measure_target_yield.py`; it is the backstop for the defect of this shape that has
+not been written yet. A run that legitimately needs to refuse more than a tenth of its
+mixture is a run whose mixture should be rebuilt, and the exception says so.
