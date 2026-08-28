@@ -323,11 +323,11 @@ def format_variant_table(table: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-#: `PLAN.md` 5.3 says "validation split". All 1,920 questions would resolve ~3 points and
-#: cost up to 7 h of quota; 800 resolves ~5 points for 1.5–2.9 h, which is ample for a
-#: baseline and leaves the budget for Phases 6 and 7. Sized from the power calculation
-#: rather than by taking the whole split because it was there (design pass, step 5).
-STRUCTURED_N = 800
+#: The full validation split. `DECISIONS.md` 0065: the zero-shot numbers are measured once
+#: and every later claim is a difference against them, so their intervals propagate into
+#: the headline — ±2.2 points at 1,920 against ±3.5 at 800, for 7 h instead of 2.9 h.
+#: Worth it for a number used forever; 0 means "the whole slice".
+STRUCTURED_N = 0
 
 
 def stage_chartqa(args) -> dict[str, Any]:
@@ -362,7 +362,8 @@ def stage_chartqa(args) -> dict[str, Any]:
     for mode in ("structured", "plain"):
         # The plain arm is cheap (0.28 s/item), so it runs on everything; the structured
         # arm is sized to what it can resolve.
-        rows = all_rows if mode == "plain" else all_rows[:args.structured_n]
+        rows = all_rows if (mode == "plain" or not args.structured_n) \
+            else all_rows[:args.structured_n]
         gens, rep = generate_over(loaded, rows, mode=mode)
         write_generations(gens, out_dir() / f"chartqa_val_{mode}.jsonl")
         items = [score_item(r["record_id"], r["answer"], g.answer,

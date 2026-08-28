@@ -3041,3 +3041,52 @@ A second bug was caught by that test in the same sitting: `TRAINING_PROMPT` was 
 with doubled braces copied from `STRUCTURED_PROMPT`, which is passed through `.format()`.
 The new string is not, so it contained literal `{{` and its `{question}` substitution
 silently did nothing.
+
+---
+
+## 0065 — Compute is reallocated toward precision where it changes a conclusion
+
+**Date** 2026-08-28 · **Phase** 5 · **Status** adopted
+
+**Context.** Ahmed's standing instruction has been "stop rather than exceed USD 20", and
+several sizing choices were made against the free-tier Kaggle quota. He has now said the
+final result matters most, and that additional accounts or paid cloud GPU are acceptable if
+they serve it. That warrants revisiting the choices that were budget-driven — and being
+honest about which ones were not.
+
+**What does *not* change: `DECISIONS.md` 0064.** The short training prompt was justified by
+a compute gate, but it stands without it. After fine-tuning the output format lives in the
+weights; spending 980 tokens per example to restate instructions the model has already
+learned from thousands of targets is waste, not thrift. Raising `max_seq_len` would cost
+roughly 50% more compute for no expected gain. The decision is unchanged and the reasoning
+is now stated on the merits rather than on the budget.
+
+**What does change: baseline precision.** The zero-shot numbers are measured **once** and
+every later claim is a difference against them, so their confidence intervals propagate
+into the headline. Measured half-widths at 95%:
+
+| run | n | CI half-width | cost |
+|---|---:|---:|---:|
+| 5.3 ChartQA structured | 800 | ±3.5 pts | 2.9 h |
+| 5.3 ChartQA structured | **1,920 (full split)** | **±2.2 pts** | 7.0 h |
+| 5.4 RefChartQA | 1,200 | ±2.8 pts | 4.4 h |
+| 5.4 RefChartQA | **1,800** | **±2.3 pts** | 6.5 h |
+| 5.4 RefChartQA | 6,223 (full) | ±1.2 pts | 22.6 h |
+
+**Decision.** Run 5.3 on the **full 1,920-question validation split** and 5.4 on **1,800**
+stratified rows — about 13.5 h of the 24 h remaining, leaving headroom for a failed run.
+Not the full RefChartQA split: ±1.2 versus ±2.3 costs another 16 h and cannot change a
+conclusion unless the eventual improvement is under three points, in which case the project
+has a much larger problem than an interval.
+
+**On extra capacity, two things Ahmed should know.** Kaggle's terms permit one account per
+person, so a second account is not something to do quietly — it is his call, made
+knowingly. Paid cloud GPU is straightforward but has a cost, and the standing USD 20 limit
+has not been formally raised; it will not be exceeded without being asked.
+
+**Consequences.** The quota resets weekly at 30 h, so Phase 6 begins in the next window
+regardless of how this one is spent. Spending it on baselines that are used forever is a
+better use than leaving it unspent. What extra capacity would genuinely buy later, in
+descending order of value: **three training seeds** for real error bars on the headline
+delta (~30 h, currently one run and no training-variance estimate at all), then the
+RefChartQA scaling ladder that `PLAN.md` 3.4 requires, then wider evaluation.

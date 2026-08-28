@@ -485,8 +485,8 @@ def main() -> int:
     p.add_argument("--max-new-tokens", type=int, default=0)
     p.add_argument("--variant", type=str, default="instruct",
                    help="the variant 5.2 selected; used by chartqa/refchartqa")
-    p.add_argument("--structured-n", type=int, default=800)
-    p.add_argument("--refchartqa-n", type=int, default=1200)
+    p.add_argument("--structured-n", type=int, default=0)
+    p.add_argument("--refchartqa-n", type=int, default=1800)
     args = p.parse_args()
 
     api = _api()
