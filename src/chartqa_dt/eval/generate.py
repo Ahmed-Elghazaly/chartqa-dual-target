@@ -30,7 +30,11 @@ from chartqa_dt.prompting.parsing import (
     coerce_boxes,
     parse_record,
 )
-from chartqa_dt.prompting.prompts import build_plain_prompt, build_structured_prompt
+from chartqa_dt.prompting.prompts import (
+    build_plain_prompt,
+    build_structured_prompt,
+    build_training_prompt,
+)
 
 #: Greedy. Sealed by the pre-registration; see the module docstring.
 DECODING = {"do_sample": False, "temperature": None, "top_p": None, "top_k": None,
@@ -41,6 +45,30 @@ DECODING = {"do_sample": False, "temperature": None, "top_p": None, "top_k": Non
 #: record because generation stops at the closing brace.
 MAX_NEW_TOKENS_STRUCTURED = 900
 MAX_NEW_TOKENS_PLAIN = 32
+#: A fine-tuned model emits the compact record the target uses — 141 tokens for the
+#: worked example, 399 for one at the schema maximum (`verification/measured_facts.json`,
+#: `sequence_budget`). 512 leaves headroom without paying for the zero-shot run-ons the
+#: 900 budget exists to catch.
+MAX_NEW_TOKENS_TRAINING = 512
+
+#: Each mode's prompt builder and token budget, together, so a new mode cannot pick up
+#: one and not the other. Both used to be `if structured else plain` fall-throughs: an
+#: unrecognised mode silently got the *plain* prompt and a 32-token budget, which would
+#: have looked like a model that had forgotten how to emit JSON.
+MODES: dict[str, tuple[Any, int]] = {
+    "structured": (build_structured_prompt, MAX_NEW_TOKENS_STRUCTURED),
+    "training": (build_training_prompt, MAX_NEW_TOKENS_TRAINING),
+    "plain": (build_plain_prompt, MAX_NEW_TOKENS_PLAIN),
+}
+
+
+def mode_spec(mode: str) -> tuple[Any, int]:
+    """The prompt builder and token budget for `mode`, refusing an unknown one."""
+    try:
+        return MODES[mode]
+    except KeyError:
+        raise ValueError(f"unknown prompt mode {mode!r}; "
+                         f"expected one of {sorted(MODES)}") from None
 
 
 @dataclass
@@ -110,8 +138,7 @@ class GenerationReport:
 
 def build_messages(question: str, image: Any, mode: str) -> list[dict[str, Any]]:
     """The chat structure the processor expects, with the sealed prompt text."""
-    text = build_structured_prompt(question) if mode == "structured" \
-        else build_plain_prompt(question)
+    text = mode_spec(mode)[0](question)
     return [{"role": "user", "content": [{"type": "image", "image": image},
                                          {"type": "text", "text": text}]}]
 
@@ -133,8 +160,7 @@ def generate_one(loaded: Any, question: str, image: Any, *, mode: str = "structu
     inputs = processor(text=[text], images=[image], return_tensors="pt")
     inputs = {k: v.to(model.device) if hasattr(v, "to") else v for k, v in inputs.items()}
 
-    budget = max_new_tokens or (MAX_NEW_TOKENS_STRUCTURED if mode == "structured"
-                                else MAX_NEW_TOKENS_PLAIN)
+    budget = max_new_tokens or mode_spec(mode)[1]
     start = time.perf_counter()
     with torch.inference_mode():
         out = model.generate(**inputs, max_new_tokens=budget, do_sample=False,
@@ -218,6 +244,18 @@ def read_generations(path: str | Path) -> list[Generation]:
     return out
 
 
-__all__ = ["DECODING", "MAX_NEW_TOKENS_PLAIN", "MAX_NEW_TOKENS_STRUCTURED", "Generation",
-           "GenerationReport", "build_messages", "generate_one", "generate_over",
-           "read_generations", "write_generations"]
+__all__ = [
+    "DECODING",
+    "MAX_NEW_TOKENS_PLAIN",
+    "MAX_NEW_TOKENS_STRUCTURED",
+    "MAX_NEW_TOKENS_TRAINING",
+    "MODES",
+    "Generation",
+    "GenerationReport",
+    "build_messages",
+    "generate_one",
+    "generate_over",
+    "mode_spec",
+    "read_generations",
+    "write_generations",
+]

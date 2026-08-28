@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from chartqa_dt.cli._common import NotYetBuilt, base_parser, setup
+from chartqa_dt.train.monitor import DEFAULT_TIME_BUDGET_S
 
 
 def main() -> None:
@@ -35,6 +36,10 @@ def main() -> None:
                    help="mixture file for stage1/stage2/control")
     p.add_argument("--lr", type=float, default=None,
                    help="override the stage learning rate; the 6.x fallback is 2e-5")
+    p.add_argument("--no-metrics", action="store_true",
+                   help="skip generation-based validation metrics (PLAN 6.5 curves)")
+    p.add_argument("--metric-budget-s", type=float, default=DEFAULT_TIME_BUDGET_S,
+                   help="seconds one monitoring evaluation may spend before stopping early")
     p.add_argument("--summarise", type=str, default=None,
                    help="print the DECISIONS.md table for an existing smoke_results.json and exit")
     ctx = setup(p)
@@ -62,8 +67,9 @@ def _run_stage(ctx) -> None:
     from chartqa_dt.train.checkpoint import load_checkpoint
     from chartqa_dt.train.feed import MixtureFeed
     from chartqa_dt.train.loop import TrainConfig, train
+    from chartqa_dt.train.monitor import make_metric_fn
     from chartqa_dt.train.smoke import build_optimizer
-    from chartqa_dt.train.validate import make_evaluator
+    from chartqa_dt.train.validate import METRIC_EVERY_STEPS, make_evaluator
 
     args = ctx.args
     stage = args.stage
@@ -104,11 +110,21 @@ def _run_stage(ctx) -> None:
     # on an affordable slice has a +/-8.7 point interval and cannot detect "has not
     # improved" (`DECISIONS.md` 0069).
     evaluate = None
-    holdout = _holdout_examples(ctx, records, feed)
+    holdout, metric_items = _holdout_examples(ctx, records, feed)
     if holdout:
-        evaluate = make_evaluator(loaded, holdout, max_len=cfg.max_len)
+        # Generation-based metrics are the curves 6.5 asks for; they inform, they do not
+        # gate. `--no-metrics` drops them when the GPU budget is tighter than the report.
+        metric_fn = None
+        if metric_items and not args.no_metrics:
+            metric_fn = make_metric_fn(metric_items,
+                                       time_budget_s=args.metric_budget_s)
+        evaluate = make_evaluator(loaded, holdout, max_len=cfg.max_len,
+                                  metric_fn=metric_fn)
         print(f"  validation: {len(holdout)} held-out examples, "
               f"early stopping on loss, patience {cfg.patience}")
+        if metric_fn is not None:
+            print(f"  monitoring : {len(metric_items)} generated every "
+                  f"{METRIC_EVERY_STEPS} steps, budget {args.metric_budget_s:.0f}s each")
 
     result = train(loaded, feed, cfg, state=state, optimizer=optimizer,
                    evaluate=evaluate, on_log=_progress,
@@ -158,27 +174,33 @@ def _hub_pusher(ctx, stage: str):
     return push
 
 
-def _holdout_examples(ctx, records, feed) -> list:
-    """A fixed slice held out of training, for the loss signal.
+def _holdout_examples(ctx, records, feed) -> tuple[list, list]:
+    """A fixed slice held out of training: loss examples, and items to generate over.
 
     Taken from the **end** of the mixture and excluded from the feed, because validating
     on examples the model is also training on measures memorisation rather than
     generalisation — and the curve looks better for it, which is the dangerous direction.
     """
-    from chartqa_dt.train.validate import LOSS_SLICE
+    from chartqa_dt.train.validate import LOSS_SLICE, METRIC_SLICE
 
     if len(records) <= LOSS_SLICE * 2:
-        return []
+        return [], []
     holdout = records[-LOSS_SLICE:]
     feed.records = list(records[:-LOSS_SLICE])
     feed.load_state_dict({**feed.state_dict(), "n": len(feed.records)})
 
-    examples = []
+    # The metric items reuse the example's own already-resized image, so the two
+    # validation signals cannot drift apart by looking at different pixels.
+    examples, items = [], []
     for record in holdout:
         example = feed._example(record)
-        if example is not None:
-            examples.append(example)
-    return examples
+        if example is None:
+            continue
+        examples.append(example)
+        items.append({"record_id": record.record_id, "question": record.question,
+                      "image": example.image, "answer": str(record.answer or ""),
+                      "boxes": list(record.boxes or [])})
+    return examples, items[:METRIC_SLICE]
 
 
 def _progress(log) -> None:

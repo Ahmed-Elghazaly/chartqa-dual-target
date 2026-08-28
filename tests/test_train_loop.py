@@ -166,6 +166,15 @@ def test_resuming_continues_from_the_supplied_state(patched, tmp_path):
     assert result.state.step == 4
 
 
+class _HoldoutRecord:
+    """Enough of a `ChartRecord` for the holdout split, plus a stand-in `Example`."""
+
+    def __init__(self, i: int) -> None:
+        self.record_id, self.question = f"r{i}", "how many?"
+        self.answer, self.boxes = "35", [[10, 20, 30, 40]]
+        self.image = object()          # `feed._example` returns the record itself here
+
+
 def test_the_validation_holdout_is_excluded_from_training():
     """Validating on examples the model also trains on measures memorisation.
 
@@ -193,14 +202,46 @@ def test_the_validation_holdout_is_excluded_from_training():
         def _example(self, record):
             return record
 
-    records = list(range(LOSS_SLICE * 3))
+    records = [_HoldoutRecord(i) for i in range(LOSS_SLICE * 3)]
     feed = Feed(records)
-    holdout = _holdout_examples(types.SimpleNamespace(), records, feed)
+    holdout, items = _holdout_examples(types.SimpleNamespace(), records, feed)
 
     assert len(holdout) == LOSS_SLICE
     assert set(holdout).isdisjoint(set(feed.records)), "no example may appear in both"
     assert len(feed.records) == len(records) - LOSS_SLICE
     assert feed.state_dict()["n"] == len(feed.records), "the feed's own count is updated"
+    assert [i["record_id"] for i in items] == [r.record_id for r in holdout[:len(items)]]
+
+
+def test_metric_items_are_capped_and_reuse_the_examples_own_image():
+    """Two validation signals must not look at different pixels of the same chart."""
+    import types
+
+    from chartqa_dt.cli.train import _holdout_examples
+    from chartqa_dt.train.validate import LOSS_SLICE, METRIC_SLICE
+
+    class Feed:
+        def __init__(self, records):
+            self.records, self.position, self.epoch = list(records), 0, 0
+
+        def state_dict(self):
+            return {"position": self.position, "epoch": self.epoch,
+                    "n": len(self.records)}
+
+        def load_state_dict(self, state):
+            self.position = state["position"]
+
+        def _example(self, record):
+            return record
+
+    records = [_HoldoutRecord(i) for i in range(LOSS_SLICE * 3)]
+    _, items = _holdout_examples(types.SimpleNamespace(), records, Feed(records))
+
+    assert len(items) == min(METRIC_SLICE, LOSS_SLICE)
+    first = items[0]
+    assert first["image"] is records[-LOSS_SLICE].image
+    assert first["boxes"] == [[10, 20, 30, 40]], "gold boxes travel with the item"
+    assert first["answer"] == "35"
 
 
 def test_a_mixture_too_small_to_split_gets_no_holdout():
@@ -213,7 +254,7 @@ def test_a_mixture_too_small_to_split_gets_no_holdout():
         def __init__(self):
             self.records = [1, 2, 3]
 
-    assert _holdout_examples(types.SimpleNamespace(), [1, 2, 3], Feed()) == []
+    assert _holdout_examples(types.SimpleNamespace(), [1, 2, 3], Feed()) == ([], [])
 
 
 def test_checkpoints_are_offered_to_the_push_callback(patched, tmp_path):
