@@ -139,3 +139,36 @@ def test_the_report_skeleton_compiles(tmp_path: Path) -> None:
         cwd=ROOT / "report", capture_output=True, text=True, timeout=300, check=False)
     assert proc.returncode == 0, proc.stdout[-2500:]
     assert (tmp_path / "main.pdf").is_file()
+
+
+ZEROSHOT_ARMS = {
+    "arms": {
+        "structured": {"n": 1920, "relaxed_accuracy": 0.412, "ci": [0.390, 0.434],
+                       "median_new_tokens": 198.0, "median_latency_s": 11.44,
+                       "valid_json_fraction": 0.665},
+        "plain": {"n": 1920, "relaxed_accuracy": 0.762, "ci": [0.743, 0.781],
+                  "median_new_tokens": 4.0, "median_latency_s": 1.20,
+                  "valid_json_fraction": 1.0},
+    }
+}
+
+
+class TestStructuredCostFillsFromTheRun:
+    """`PLAN.md` 5.3 and 8.1. The table must read what run_zeroshot writes."""
+
+    def test_both_arms_render_with_their_intervals(self) -> None:
+        text = BUILDERS["structured_cost"]({"chartqa_zeroshot": ZEROSHOT_ARMS})
+        assert "41.20" in text and "76.20" in text
+        assert not has_todo(text)
+
+    def test_the_gap_is_stated_as_a_cost_in_points(self) -> None:
+        text = BUILDERS["structured_cost"]({"chartqa_zeroshot": ZEROSHOT_ARMS})
+        assert "-35.00 points" in text
+
+    def test_the_caption_carries_the_sample_size(self) -> None:
+        text = BUILDERS["structured_cost"]({"chartqa_zeroshot": ZEROSHOT_ARMS})
+        assert "1,920 ChartQA validation questions" in text
+
+    def test_a_missing_run_leaves_the_table_visibly_unfilled(self) -> None:
+        text = BUILDERS["structured_cost"]({})
+        assert has_todo(text) and "points" not in text.split("Published")[0].split("\\\\")[-1]

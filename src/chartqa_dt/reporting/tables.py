@@ -328,25 +328,57 @@ def _todo_table(name: str, caption: str, columns: list[str]) -> str:
 
 
 def build_structured_cost(results: dict[str, Any]) -> str:
-    """`PLAN.md` 5.3 — what the structured output costs against a plain-prompt baseline."""
-    d = results.get("structured_cost") or {}
-    rows = []
-    for key, label in [("plain", "Plain prompt (published)"),
-                       ("structured", "Structured record")]:
-        r = d.get(key) or {}
-        rows.append(row([label, ci(r.get("accuracy"), r.get("lo"), r.get("hi")),
-                         num(r.get("median_new_tokens"), 0),
-                         f"{num(r.get('median_latency_s'), 2)}\\,s"
-                         if r.get("median_latency_s") is not None else TODO,
-                         num(r.get("valid_pct"), 1, percent=True)]))
+    """`PLAN.md` 5.3 and 8.1 — what the structured output costs against the plain prompt.
+
+    Reads the shape `scripts/run_zeroshot.py` writes for the 5.3 stage, so the table fills
+    from the run rather than from anything retyped. Both arms are the same checkpoint on
+    the same items with the same decoding: only the requested output format differs, which
+    is what makes the gap attributable.
+    """
+    arms = (results.get("chartqa_zeroshot") or {}).get("arms") or {}
+
+    def cell(arm: str, key: str, digits: int = 2, *, percent: bool = False,
+             scale: float = 1.0) -> str:
+        value = (arms.get(arm) or {}).get(key)
+        return num(scale * value, digits, percent=percent) if value is not None else TODO
+
+    def accuracy(arm: str) -> str:
+        node = arms.get(arm) or {}
+        value, interval = node.get("relaxed_accuracy"), node.get("ci")
+        if value is None:
+            return TODO
+        if not interval:
+            return num(100 * value, 2, percent=True)
+        return ci(100 * value, 100 * interval[0], 100 * interval[1], 2)
+
+    rows = [row([label, accuracy(arm), cell(arm, "median_new_tokens", 0),
+                 f"{cell(arm, 'median_latency_s')}\\,s",
+                 cell(arm, "valid_json_fraction", 1, percent=True, scale=100)])
+            for arm, label in [("plain", "Plain prompt (published)"),
+                               ("structured", "Structured record")]]
+
+    n = (arms.get("structured") or {}).get("n")
+    gap = None
+    if (arms.get("structured") or {}).get("relaxed_accuracy") is not None \
+            and (arms.get("plain") or {}).get("relaxed_accuracy") is not None:
+        gap = 100 * (arms["structured"]["relaxed_accuracy"]
+                     - arms["plain"]["relaxed_accuracy"])
+    note = ("Both arms are the same checkpoint over the same items with the same greedy "
+            "decoding; only the requested output format differs. "
+            + (f"The structured arm costs \\textbf{{{gap:+.2f} points}}. "
+               if gap is not None else "")
+            + "Published measurements on comparable models report 4.0 to 8.9 points for "
+              "asking for JSON at all, and this asks for considerably more than JSON. A "
+              "large cost is a result, not a failure \\textemdash{} it is the price the "
+              "fine-tune has to earn back.")
     return table("tab_structured_cost",
                  "The cost of asking for a structured record instead of a bare answer, "
-                 "measured zero-shot on the same frozen validation slice with the same "
-                 "checkpoint and decoding. This is the price the fine-tune has to earn back.",
+                 "measured zero-shot"
+                 + (f" on {n:,} ChartQA validation questions" if n else "") + ".",
                  "tab:structured_cost",
                  tabular("lcccc",
                          ["Prompt", "Relaxed accuracy", "Median tokens", "Median latency",
-                          "Valid output"], rows))
+                          "Valid output"], rows), note=note)
 
 
 def build_crop(results: dict[str, Any]) -> str:

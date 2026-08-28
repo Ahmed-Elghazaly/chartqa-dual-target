@@ -25,7 +25,10 @@ SOURCES = {
     "results/oracle.json": "oracle",
     "results/diagnostics.json": "diagnostics",
     "results/stratified.json": "stratified",
-    "results/structured_cost.json": "structured_cost",
+    "outputs/phase5/chartqa_zeroshot.json": "chartqa_zeroshot",
+    "outputs/kaggle/repo/outputs/phase5/chartqa_zeroshot.json": "chartqa_zeroshot",
+    "outputs/phase5/refchartqa_zeroshot.json": "refchartqa_zeroshot",
+    "outputs/kaggle/repo/outputs/phase5/refchartqa_zeroshot.json": "refchartqa_zeroshot",
     "results/compute.json": "compute",
 }
 
