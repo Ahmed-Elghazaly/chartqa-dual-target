@@ -198,10 +198,10 @@ the vendored official evaluators.
 
 | protocol | subset | zero-shot, 95% CI |
 |---|---|---|
-| ChartQA relaxed accuracy | human | **TBD** (n=12; needs n≥1,920) |
-| ChartQA relaxed accuracy | machine | **TBD** (n=12; needs n≥1,920) |
-| ChartQA relaxed accuracy | all | **TBD** (n=12; needs n≥1,920) |
-| ChartQA, plain published prompt | all | **TBD** (n=12; needs n≥1,920) |
+| ChartQA relaxed accuracy | human | **TBD** (no result; needs n≥1,920) |
+| ChartQA relaxed accuracy | machine | **TBD** (no result; needs n≥1,920) |
+| ChartQA relaxed accuracy | all | **TBD** (no result; needs n≥1,920) |
+| ChartQA, plain published prompt | all | **TBD** (no result; needs n≥1,920) |
 | RefChartQA AP@0.5 | human | **TBD** (no result; needs n≥1,800) |
 | RefChartQA AP@0.5 | machine | **TBD** (no result; needs n≥1,800) |
 | RefChartQA AP@0.5 | PoT | **TBD** (no result; needs n≥1,800) |
