@@ -28,6 +28,11 @@ from typing import Any
 #: Repairs that only touch transport, never content. Ordered cheapest first.
 FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
 TRAILING_COMMA_RE = re.compile(r",(\s*[}\]])")
+#: `"bbox":[10,20,30,40]"` — a quotation mark immediately after a closing bracket, where
+#: no valid JSON can have one. Measured at 11-21 occurrences per affected record in the
+#: zero-shot probe. Unambiguously transport noise: there is exactly one reading, and
+#: removing it invents nothing.
+STRAY_QUOTE_AFTER_ARRAY_RE = re.compile(r"(\]\s*)\"(\s*[},])")
 SMART_QUOTES = str.maketrans({"“": '"', "”": '"', "‘": "'", "’": "'"})
 
 REQUIRED_FIELDS = ("answerable", "evidence", "plan", "model_answer")
@@ -73,6 +78,13 @@ def _candidates(text: str) -> list[tuple[str, list[str]]]:
         if TRAILING_COMMA_RE.search(body):
             extended.append((TRAILING_COMMA_RE.sub(r"\1", body),
                              [*repairs, "removed trailing comma"]))
+        if STRAY_QUOTE_AFTER_ARRAY_RE.search(body):
+            cleaned = STRAY_QUOTE_AFTER_ARRAY_RE.sub(r"\1\2", body)
+            extended.append((cleaned, [*repairs, "removed stray quote after an array"]))
+            if TRAILING_COMMA_RE.search(cleaned):
+                extended.append((TRAILING_COMMA_RE.sub(r"\1", cleaned),
+                                 [*repairs, "removed stray quote after an array",
+                                  "removed trailing comma"]))
     return out + extended
 
 

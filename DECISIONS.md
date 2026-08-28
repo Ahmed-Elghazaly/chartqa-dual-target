@@ -2771,3 +2771,54 @@ is real headroom, and headroom is what the project needs. But a baseline cripple
 allows prompt iteration on validation data. Fixing what prompting can fix is therefore
 required for the comparison to be honest, not optional — the trained model should have to
 beat the best baseline we can fairly elicit, not the first one we happened to write.
+
+---
+
+## 0060 — The evidence list serves two purposes that conflict on long charts
+
+**Date** 2026-08-28 · **Phase** 5.1 · **Status** adopted
+
+**Context.** The third prompt iteration stated every schema limit and raised the token cap
+to 900, and validity did not move: 18/24 valid JSON, 12/24 schema-valid, 21% still hitting
+the cap. Reading the failures rather than the rate showed why.
+
+**Two syntax slips, both recurring.**
+
+1. `"bbox":[100,250,250,270]"` — a quotation mark immediately after a closing bracket,
+   where no valid JSON can have one. It appeared **11 to 21 times in a single record**.
+2. `{"op":"mean","args":[],"model_answer":"9.35"}` — `model_answer` nested *inside* the
+   plan object, because the brace closing `plan` was never written.
+
+The first is unambiguous transport noise — one possible reading, and removing it invents
+nothing — so `parse_record` repairs it and counts the repair, on the same standard as a
+code fence. The second is **not** repaired: reconstructing object nesting means supplying
+structure the model did not produce, and rule 3 makes that a failure.
+
+**A design tension the plan did not anticipate.** The records that hit the token cap were
+enumerating chart elements. Measured on 2,000 ChartQA training tables:
+
+| | |
+|---|---:|
+| median rows per table | 10 |
+| mean | 11.1 |
+| maximum | 49 |
+| **tables with more than 8 rows** | **58.5%** |
+
+`OUTPUT_SCHEMA` caps `evidence` at 8, and that cap is deliberate: extra boxes are expensive
+(`DECISIONS.md` 0014 — one spurious box per image takes AP from 1.00 to 0.68). But the
+same list is the executor's input. For a whole-chart total over a 12-bar chart, grounding
+wants few boxes and execution wants all twelve. **On the majority of ChartQA charts those
+two demands cannot both be satisfied.**
+
+**Decision.** Keep the cap at 8 — it is the plan's deliberate choice and it protects the
+grounding metric, which is the harder of the two targets. The prompt now tells the model
+what to do when a question exceeds it: stop at 8, ground the most relevant elements, and
+still give the correct answer for the whole chart. An unfinished record scores zero, so a
+correct answer with partial grounding is strictly better than a truncated one.
+
+**Consequences.** Whole-chart aggregates over long charts will show as round-trip
+*disagreements* — the plan computes over 8 of 12 values and gets a different number. That
+is a real, measured limitation of the dual-target format rather than a bug, and it is
+recorded now so the Phase 7 round-trip number is read correctly. The alternative, raising
+the cap, would trade a grounding metric we are judged on for an internal consistency
+number we are not.

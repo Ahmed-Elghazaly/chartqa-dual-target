@@ -85,9 +85,12 @@ Example — the chart does not contain the answer:
 
 Rules:
 - All four keys are required every time, including "plan" and "model_answer".
-- "evidence": at most {max_evidence} items, and FEWER IS BETTER. Include only the chart
-  elements the answer actually depends on, most important first. Do not list every bar or
-  every year.
+- "evidence": NEVER more than {max_evidence} items. Fewer is better. Include only the
+  chart elements the answer actually depends on, most important first.
+- If a question covers more elements than that (a whole-chart total or average over a
+  long chart), still stop at {max_evidence}: give the correct "model_answer" from the
+  whole chart, and ground the {max_evidence} most relevant elements. Do NOT keep listing
+  elements — an unfinished record scores zero.
 - Each "label" appears at most ONCE. Never repeat a label.
 - "unit": at most {max_unit} characters, or null. Use "USD" or "%" rather than a phrase.
 - "args" is always a LIST with at most {max_args} elements. Each element is either a label
@@ -95,8 +98,12 @@ Rules:
   Never an object with "label" or "value" keys.
 - To aggregate over EVERY evidence item, use an empty list — never list the labels:
   {{"op":"sum","args":[]}} means "sum all the evidence".
-- bbox coordinates are integers 0-999 on the image as you see it; x1,y1 is top-left and
-  x2,y2 is bottom-right.
+- bbox is a bare array of four integers 0-999 with NO quotation marks around it:
+  write "bbox":[10,20,30,40] and never "bbox":[10,20,30,40]" — a stray quote after the
+  closing bracket makes the whole record unreadable.
+  x1,y1 is top-left and x2,y2 is bottom-right.
+- Close every object. "plan" ends with its own }} before "model_answer" begins:
+  ...,"plan":{{"op":"mean","args":[]}},"model_answer":"9.35"}}
 - "op" must be EXACTLY one of these strings: {ops}.
   Use "mean" (not "average"), "difference" (not "subtract").
 - Choose the op by WHAT THE ANSWER IS:

@@ -350,13 +350,27 @@
         "_note": "compaction cut tokens 2.6x; schema failures then became the binding constraint \u2014 args too long, duplicate labels, unit too long, op 'average'"
       },
       "v3_schema_limits_stated": {
-        "_status": "measuring"
+        "n": 24,
+        "median_new_tokens": 118,
+        "hit_cap_pct": 21,
+        "median_latency_s": 6.91,
+        "json_valid_pct": 75.0,
+        "schema_valid_pct": 50.0,
+        "_note": "schema limits stated and the cap raised to 900 did not move validity: the remaining failures are two syntax slips (a stray quote after a bbox array, 11-21 per affected record; and model_answer nested inside plan) plus run-on enumeration on long charts"
       },
       "projected_hours_at_v2": {
         "variant_slice_200": 0.39,
         "chartqa_val_1920": 3.72,
         "refchartqa_val_1200": 2.32
       }
+    },
+    "chartqa_table_rows": {
+      "_method": "2,000 random ChartQA training tables",
+      "median": 10,
+      "mean": 11.1,
+      "max": 49,
+      "pct_over_8_rows": 58.5,
+      "_why_it_matters": "OUTPUT_SCHEMA caps evidence at 8, deliberately, because extra boxes cost AP (DECISIONS.md 0014). The majority of charts have more elements than that, so a whole-chart aggregate cannot be both fully grounded and fully executable."
     }
   }
 }

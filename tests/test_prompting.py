@@ -341,7 +341,7 @@ def test_the_prompt_states_the_schema_limits_it_must_satisfy():
     from chartqa_dt.prompting.prompts import MAX_ARGS, MAX_EVIDENCE, MAX_UNIT_CHARS
 
     prompt = build_structured_prompt("q")
-    assert f"at most {MAX_EVIDENCE} items" in prompt
+    assert f"NEVER more than {MAX_EVIDENCE} items" in prompt
     assert f"at most {MAX_ARGS} elements" in prompt
     assert f"at most {MAX_UNIT_CHARS} characters" in prompt
     assert "appears at most ONCE" in prompt
@@ -376,6 +376,57 @@ def test_the_prompt_discourages_over_emitting_boxes():
     cause of 4 of 5 parse failures. One instruction addresses all three.
     """
     prompt = build_structured_prompt("q")
-    assert "FEWER IS BETTER" in prompt
-    assert "Do not list every bar" in prompt
+    assert "Fewer is better" in prompt
     assert "most important first" in prompt
+    assert "Do NOT keep listing" in prompt
+
+
+def test_a_stray_quote_after_an_array_is_repaired():
+    """Measured 11-21 times per affected record in the zero-shot probe.
+
+    `"bbox":[10,20,30,40]"` — a quotation mark where no valid JSON can have one. There is
+    exactly one reading, so removing it invents nothing; it is transport noise by the same
+    standard as a code fence, and it is counted like one.
+    """
+    body = ('{"answerable":true,"evidence":[{"label":"UBS","value":682,"unit":"GBP",'
+            '"bbox":[100,250,250,270]"},{"label":"X","value":1,"unit":null,'
+            '"bbox":[1,2,3,4]}],"plan":{"op":"lookup","args":["UBS"]},'
+            '"model_answer":"682"}')
+    result = parse_record(body)
+    assert result.ok
+    assert "removed stray quote after an array" in result.repairs
+    assert [e["bbox"] for e in result.record["evidence"]] == \
+        [[100, 250, 250, 270], [1, 2, 3, 4]], "no coordinate may be altered"
+
+
+def test_the_stray_quote_repair_does_not_touch_legitimate_quotes():
+    """A quoted string that merely follows an array must survive untouched."""
+    body = ('{"answerable":true,"evidence":[{"label":"a","value":1,"unit":null,'
+            '"bbox":[1,2,3,4]}],"plan":{"op":"lookup","args":["a"]},'
+            '"model_answer":"ok"}')
+    result = parse_record(body)
+    assert result.ok and result.repairs == []
+    assert result.record["model_answer"] == "ok"
+    assert result.record["plan"]["args"] == ["a"]
+
+
+def test_the_prompt_warns_about_the_two_syntax_slips_the_model_actually_makes():
+    prompt = build_structured_prompt("q")
+    assert 'never "bbox":[10,20,30,40]"' in prompt
+    assert "Close every object" in prompt
+    assert '"plan":{"op":"mean","args":[]},"model_answer":"9.35"}' in prompt
+
+
+def test_the_prompt_tells_the_model_what_to_do_when_a_chart_is_too_long():
+    """58.5% of ChartQA tables have more than 8 rows; the schema caps evidence at 8.
+
+    Without an instruction the model kept enumerating and ran off the token budget, and
+    an unfinished record scores zero. Stopping at the cap and still answering correctly is
+    strictly better.
+    """
+    from chartqa_dt.prompting.prompts import MAX_EVIDENCE
+
+    prompt = build_structured_prompt("q")
+    assert f"NEVER more than {MAX_EVIDENCE} items" in prompt
+    assert "an unfinished record scores zero" in prompt
+    assert "whole-chart total or average" in prompt
