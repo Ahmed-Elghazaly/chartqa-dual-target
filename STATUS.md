@@ -26,7 +26,7 @@ ten-hour training run (`DECISIONS.md` 0071–0074).
 | 9 | **all seven analyses built** | oracle, stratification, plan diagnostics, transfer, robustness, calibration, figures |
 | 10 | skeleton compiles, generator built | `cdt-report` fills tables from recorded JSON; 16 pages, 0 undefined refs |
 
-**1,071 tests pass**; `ruff check src tests scripts` clean; preflight green.
+**1,069 tests pass**; `ruff check src tests scripts` clean; preflight green.
 
 ## Phase 5.2 result — the first properly powered measurement
 
