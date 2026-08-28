@@ -1,69 +1,67 @@
 # Status
 
-**Phase 4 — Evaluation: COMPLETE.** Phases 0–3 done. Cost so far: **USD 0** (local, or free-tier Kaggle).
+**Phase 5 in progress** (5.1 and 5.2 done, 5.3 running, 5.4 queued). **Phase 6 built and
+tested ahead of its gate.** Phases 0–4 complete. Cost so far: **USD 0**.
 
-## Phase 4 acceptance criteria
+## Where each phase stands
 
-| criterion (`PLAN.md` 4) | status | evidence |
+| phase | state | note |
 |---|---|---|
-| Metrics agree with **both** official evaluators on a shared prediction set | **pass** | On 11,690 **real** predictions: AP@0.5 differs by 0.000 / 0.068 / 0.036 pp (human/machine/pot); relaxed accuracy 0 of 423 disagreements; P@F1 0 of 40. Both evaluators vendored and hash-pinned. |
-| Regression suite passes and is in CI | **pass** | `tests/test_metrics_regression.py`, all twelve `PLAN.md` 4.3 cases including the four it asks to *define*; runs in the fast CPU job |
-| 32.83 reproduced, **or the discrepancy fully documented** | **documented** | It does not reproduce, and cannot: see below and `DECISIONS.md` 0052 |
-| Stratified AP reporting works and reports the sub-token fraction | **pass** | Area buckets at one visual token; measured **24.8%** sub-token against `PLAN.md`'s predicted ~23.9% |
-| `cdt-eval` runs end to end on `--dev` and writes structured results JSON | **pass** | No model, no network; writes `results.json` with intervals and strata |
+| 0–3 | complete | data, mixtures, audit gate, mining |
+| 4 | complete | metrics agree with both official evaluators on 11,690 real predictions |
+| 5.1 prompt | complete | three prompts, sealed by hash |
+| 5.2 variant | **complete** | **Instruct selected**, n=200 |
+| 5.3 ChartQA zero-shot | running | full 1,920 validation split, ~6 h |
+| 5.4 RefChartQA zero-shot | queued | 1,800 stratified rows |
+| 5.5 pre-registration | drafted | generated from source; the seal guard rejects it while it says "TBD" |
+| 6 | **built, untrained** | feed, collator, checkpointing, loop, validation, kill-and-resume verified |
 
-**611 tests pass**; `ruff check src tests scripts` clean; **CI green**.
+**783 tests pass**; `ruff check src tests scripts` clean; preflight green.
 
-## The finding that changes the project's claim
+## Phase 5.2 result — the first properly powered measurement
 
-**32.83 cannot be independently reproduced, because the artefacts needed do not exist.**
-Running the byte-identical official evaluator on RefChartQA's released file gives:
+| | value |
+|---|---:|
+| relaxed accuracy | 50.0% |
+| **round-trip agreement** | **69.0%** |
+| plans that execute at all | 94.4% |
+| schema-valid (after repair) | 46.5% |
+| median latency | 11.4 s |
 
-| subset | published | official evaluator on the released file | delta |
-|---|---:|---:|---:|
-| human | **32.83** | **28.33** | −4.50 |
-| machine | 59.28 | 71.25 | **+11.97** |
-| pot | 39.32 | 59.66 | **+20.34** |
+The n=24 probes had reported round-trip at 40–50%. At n=200 it is 69%, confirming
+`DECISIONS.md` 0062: three prompt iterations were run on noise, and the probe could not
+have detected any effect it was used to justify.
 
-Deltas in both directions and up to +20 points are not a scoring error — they are a
-different model's output. RefChartQA's own README calls that file *"an example file showing
-the appropriate format"*; the repository has four files, publishes no per-model predictions,
-and no checkpoints exist on the Hub. `PLAN.md` 4.4's premise is unsatisfiable, and `PLAN.md`
-has been updated to say so.
+## What Phase 6's design pass found, before spending 10 GPU hours
 
-**Consequence.** 32.83 is a **Level C** anchor — cited, not verified. The project's primary
-claim moves to the **internal** comparison: the same backbone zero-shot versus fine-tuned,
-both scored by us with the vendored official evaluator on the same sealed split. That is
-reproducible end to end from this repository, and Phase 5 builds it.
+Each of these would have produced a plausible-looking failure rather than an error.
 
-## Three metric corrections, all in the official's favour (`DECISIONS.md` 0053)
+1. **Training examples did not fit `max_seq_len`** (0064). The zero-shot prompt is 980
+   tokens; with visual tokens and a target the example is 1,363–1,498 against a limit of
+   1,024. Every example would have been silently truncated. Fixed with a 117-token training
+   prompt — 389 tokens of headroom, no extra compute. Raising the limit was measured and
+   rejected: ≥14.9 h against a 10 h gate.
+2. **Targets did not reproduce their own answers** (0067). Four separate join defects; at
+   worst **1 of 636** ChartQA records produced an executable target, and **100%** of
+   RefChartQA targets failed the round-trip. Now 69% of planned ChartQA records, and every
+   emitted target round-trips by construction.
+3. **No end-of-turn token in the target.** A model trained that way is never taught to
+   stop, and every generation runs to the token cap.
+4. **Early stopping on AP is unsound** (0069). At an affordable slice the AP interval is
+   ±8.7 points, which cannot detect "has not improved". Stopping moved to validation loss —
+   free, low variance, and directly sensitive to the boxes because the target contains them.
 
-1. **`relaxed_correctness`** — Appendix D strips commas and guards `t == 0` explicitly. The
-   canonical pix2struct implementation does neither: it tests `target_float` for
-   *truthiness*, so a gold `"0"` falls through to string comparison, and `float("1,234")`
-   raises. Appendix D disagreed on **61 of 423** cases, every one in our favour.
-2. **AP@0.5** — the official is COCO 101-point interpolation via `pycocotools`, not
-   Appendix D's all-point rule. Appendix D was off by up to 0.009.
-3. **P@F1 is not an F1** — the official helper computes COCO AP == 1.0 on one image. Every
-   target must be matched *and* every false positive must rank after every true positive,
-   so trailing extras are free and a leading one is fatal.
+## Open items
 
-This sharpens `DECISIONS.md` 0014: P@F1 punishes **ordering**, AP punishes **count** — one
-spurious box per image takes AP from 1.00 to 0.68 across a dataset.
+- **Deferred by Ahmed until the core result is in**: three training seeds (~30 h) and the
+  RefChartQA scaling ladder (~30 h). Both measure or document a result rather than improve
+  it.
+- **The plan-rich mixture arm** is built and waiting: 3,331 compositional plans against the
+  pre-registered arm's 1,665. Phase 6 trains both and reports the better (0066).
+- **32.83 stays a Level C anchor** — cited, not reproducible by anyone (0052). The ChartQA
+  reproduction of 79.1 is reachable but only at Phase 7, on the test split (0063).
 
-## Open items carried into Phase 5
+## Next
 
-- **RefChartQA scaling ladder** (`PLAN.md` 3.4): the audit decided *whether*; the ladder at
-  4,000 / 10,000 / 25,000 decides *how many*. It needs validation grounding numbers, which
-  now exist as machinery.
-- **One residual AP disagreement**, reported not fitted: 1 of 120 randomised scenarios
-  differs by 0.0019. A float32 hypothesis was tried and made agreement *worse*, so it was
-  reverted. No reported number depends on it — the official evaluator stays the scorer of
-  record (`DECISIONS.md` 0003).
-- **Line-chart grounding from ChartQA** remains deliberately unimplemented (segment boxes,
-  no stated marker size).
-
-## Next: Phase 5 — zero-shot baselines and pre-registration
-
-The "before" number, measured with the ruler built above, and the pre-registration that
-seals the test split until Phase 7.
+5.3 and 5.4 finish → finalise and commit `PREREGISTRATION.md` → the seal opens → Phase 6
+trains both stage-2 arms plus the direct-answer control.
