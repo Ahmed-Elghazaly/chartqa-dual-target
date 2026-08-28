@@ -371,6 +371,16 @@
       "max": 49,
       "pct_over_8_rows": 58.5,
       "_why_it_matters": "OUTPUT_SCHEMA caps evidence at 8, deliberately, because extra boxes cost AP (DECISIONS.md 0014). The majority of charts have more elements than that, so a whole-chart aggregate cannot be both fully grounded and fully executable."
+    },
+    "evidence_cap_impact": {
+      "_method": "340 mined ChartQA training plans replayed through the executor with the evidence list truncated to MAX_EVIDENCE=8",
+      "roundtrip_full_evidence_pct": 100.0,
+      "roundtrip_capped_at_8_pct": 100.0,
+      "plans_lost_to_the_cap": 0,
+      "evidence_items_median": 1,
+      "evidence_items_max": 8,
+      "aggregate_plans_over_8_items": 0,
+      "_note": "Corrects an overstated concern in DECISIONS.md 0060. Tables are long (median 10 rows) but questions with a UNIQUE executable plan need very little evidence, so the cap does not bind for them."
     }
   }
 }

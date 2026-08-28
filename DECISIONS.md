@@ -2807,8 +2807,28 @@ enumerating chart elements. Measured on 2,000 ChartQA training tables:
 `OUTPUT_SCHEMA` caps `evidence` at 8, and that cap is deliberate: extra boxes are expensive
 (`DECISIONS.md` 0014 — one spurious box per image takes AP from 1.00 to 0.68). But the
 same list is the executor's input. For a whole-chart total over a 12-bar chart, grounding
-wants few boxes and execution wants all twelve. **On the majority of ChartQA charts those
-two demands cannot both be satisfied.**
+wants few boxes and execution wants all twelve.
+
+**Correction, measured after this entry was first written.** The tension is real in
+principle and much smaller in practice than the table-size figure suggests. Replaying 340
+mined ChartQA plans — perfect plans over perfect values — through the executor with the
+evidence list truncated to 8:
+
+| | |
+|---|---:|
+| round-trip with the full evidence list | 340/340 (100%) |
+| round-trip capped at 8 items | **340/340 (100%)** |
+| lost to the cap | **0** |
+
+Because questions that admit a *unique executable plan* need very little evidence: median
+**1** item, maximum **8**, and **no aggregate plan exceeded 8**. Long tables produce large
+candidate sets, but the uniqueness rule rejects those questions before they ever become
+plans. So "the majority of charts" was the wrong frame — the majority of *charts* are long,
+while the questions that carry executable plans are not.
+
+What remains true: a model at inference is not restricted to questions with unique plans,
+so it can still attempt a whole-chart aggregate and hit the cap. There is no evidence that
+this is the common case, and the earlier claim that it would be is withdrawn.
 
 **Decision.** Keep the cap at 8 — it is the plan's deliberate choice and it protects the
 grounding metric, which is the harder of the two targets. The prompt now tells the model
@@ -2816,9 +2836,12 @@ what to do when a question exceeds it: stop at 8, ground the most relevant eleme
 still give the correct answer for the whole chart. An unfinished record scores zero, so a
 correct answer with partial grounding is strictly better than a truncated one.
 
-**Consequences.** Whole-chart aggregates over long charts will show as round-trip
-*disagreements* — the plan computes over 8 of 12 values and gets a different number. That
-is a real, measured limitation of the dual-target format rather than a bug, and it is
-recorded now so the Phase 7 round-trip number is read correctly. The alternative, raising
-the cap, would trade a grounding metric we are judged on for an internal consistency
-number we are not.
+**Consequences.** Whole-chart aggregates over long charts can still show as round-trip
+*disagreements* — the plan computes over 8 of 12 values and gets a different number — but
+the measurement above bounds how much of the round-trip gap that can explain: for every
+question with a verifiable plan, none of it. The remaining gap is the model's operation
+choice, which is what `DECISIONS.md` 0059 addresses and what training is for.
+
+Raising the cap is still refused: it would trade a grounding metric we are judged on for
+an internal consistency number we are not, and it is now clear the trade would buy almost
+nothing.
