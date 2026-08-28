@@ -31,8 +31,20 @@ echo "== 3/4 fast CPU tests (CI's exact selection) =="
 echo "== 4/4 documentation consistency =="
 "$CIENV/bin/pytest" -q tests/test_docs_consistency.py
 
+# The count STATUS.md quotes. Printed rather than remembered: I have written the wrong
+# number into it twice, and a figure a human retypes is a figure that drifts.
+# `|| true` matters: this script runs under `set -e`, and a grep that matches nothing
+# exits 1 — so a cosmetic count would abort a preflight that had already passed.
+# Summed from the per-file counts rather than parsed from a summary line: the two pytest
+# versions in play here print different summaries, and `|| true` matters because this runs
+# under `set -e` and a grep matching nothing exits 1 — a cosmetic count must never abort a
+# preflight that has already passed.
+N_TESTS=$("$CIENV/bin/pytest" --collect-only -q 2>/dev/null \
+    | awk -F': ' '/^tests\/.*: [0-9]+$/ {n += $2} END {print n}' || true)
+[ -n "$N_TESTS" ] && [ "$N_TESTS" != "0" ] || N_TESTS="?"
+
 echo
-echo "preflight passed — safe to push."
+echo "preflight passed — safe to push.   ${N_TESTS} tests collected."
 echo
 echo "NOTE: run this WITHOUT a pipe. \`preflight.sh | tail -3\` reports tail's exit"
 echo "status, not preflight's, so a failure chained with && is silently skipped."

@@ -81,6 +81,16 @@ jobs:
           PY
       - name: evaluator cross-check and regression suite
         run: pytest -q -m "official and not network"
+      # The fast job has no torch, so every file guarded by
+      # `pytest.importorskip("torch")` is skipped at collection there — that is
+      # test_train_loop, test_checkpoint, test_validate, test_resume_end_to_end
+      # and three more, about 70 tests. They are not marked `official`, so the
+      # line above did not pick them up either, and they were running nowhere
+      # in CI: the training loop, checkpointing and the resume path, which is
+      # the code whose failure costs ten GPU hours. Re-running the fast
+      # selection here with torch present is what actually collects them.
+      - name: the fast suite again, with torch present so nothing is skipped
+        run: pytest -q -m "not slow and not gpu and not network and not official"
 
   guardrails:
     # Cheap, high-value checks for the non-negotiable rules.
