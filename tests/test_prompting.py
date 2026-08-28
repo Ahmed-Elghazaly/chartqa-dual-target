@@ -103,7 +103,7 @@ def test_the_prompt_carries_the_question_exactly_once():
 def test_prompts_are_fingerprinted_so_a_silent_edit_is_detectable():
     """`PLAN.md` 5.5 seals the prompt; a hash makes "unchanged" checkable."""
     a = prompt_fingerprint()
-    assert set(a) == {"structured", "plain"}
+    assert set(a) == {"structured", "plain", "training"}
     assert all(len(v) == 64 for v in a.values())
     assert a == prompt_fingerprint()
 
@@ -439,3 +439,71 @@ def test_the_prompt_tells_the_model_what_to_do_when_a_chart_is_too_long():
     assert f"NEVER more than {MAX_EVIDENCE} items" in prompt
     assert "an unfinished record scores zero" in prompt
     assert "whole-chart total or average" in prompt
+
+
+# ------------------------------------------------------- the training sequence budget
+
+
+#: Measured with the real `Qwen/Qwen3-VL-2B-Instruct` tokenizer, not estimated.
+MEASURED_TOKENS = {
+    "structured_prompt": 980,
+    "training_prompt": 117,
+    "plain_prompt": 27,
+    "target_2_evidence": 106,
+    "target_8_evidence": 241,
+    "visual_tokens_512px": 247,     # DECISIONS.md 0027
+    "chat_template_overhead": 30,
+}
+
+
+def test_a_training_example_fits_the_sequence_budget():
+    """The defect this constant table exists to prevent — `DECISIONS.md` 0064.
+
+    Training an example costs visual tokens + prompt + target + chat overhead. With the
+    980-token zero-shot prompt that is 1,363–1,498 tokens against a `max_seq_len` of
+    1,024, so **every example would have been silently truncated** — and a truncated
+    target teaches incomplete records while the loss curve looks entirely normal.
+
+    Raising the limit was measured and rejected: 1,536 tokens implies at least 14.9 h for
+    3,000 steps against a 10 h gate, and that is a lower bound because attention is
+    quadratic. The training prompt is short instead.
+    """
+    from chartqa_dt.config import ModelConfig
+
+    limit = ModelConfig().max_seq_len
+    m = MEASURED_TOKENS
+    fixed = m["visual_tokens_512px"] + m["chat_template_overhead"]
+
+    worst_case = fixed + m["training_prompt"] + m["target_8_evidence"]
+    assert worst_case < limit, (
+        f"a worst-case training example is {worst_case} tokens against a {limit} limit"
+    )
+    assert limit - worst_case > 300, "keep real headroom; targets vary"
+
+    would_have_been = fixed + m["structured_prompt"] + m["target_8_evidence"]
+    assert would_have_been > limit, (
+        "the zero-shot prompt must NOT fit — if it does, this test has stopped guarding "
+        "anything and the constants need re-measuring"
+    )
+
+
+def test_the_training_prompt_is_far_shorter_than_the_zero_shot_one():
+    """After fine-tuning the format lives in the weights; the long prompt is for eliciting
+    it from a model that has never seen it."""
+    from chartqa_dt.prompting.prompts import build_training_prompt
+
+    short = build_training_prompt("q")
+    long_ = build_structured_prompt("q")
+    assert len(short) < len(long_) / 4
+    assert "{question}" not in short and short.rstrip().endswith("q")
+    # It must still pin the one convention a target cannot express by example alone.
+    assert "0-999" in short
+    for key in ("answerable", "evidence", "plan", "model_answer", "bbox"):
+        assert key in short, f"the training prompt must still name {key}"
+
+
+def test_all_three_prompts_are_fingerprinted():
+    """`PLAN.md` 5.5 seals the prompt text; there are three of them and all are sealed."""
+    fp = prompt_fingerprint()
+    assert set(fp) == {"structured", "plain", "training"}
+    assert len(set(fp.values())) == 3, "three distinct prompts, three distinct hashes"

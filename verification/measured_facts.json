@@ -403,5 +403,27 @@
         "_note": "the 8-evidence cap does not bind here"
       }
     }
+  },
+  "phase6": {
+    "_method": "Qwen/Qwen3-VL-2B-Instruct tokenizer, measured directly",
+    "tokens": {
+      "structured_prompt": 980,
+      "training_prompt": 117,
+      "plain_prompt": 27,
+      "target_2_evidence": 106,
+      "target_8_evidence": 241,
+      "visual_tokens_512px": 247,
+      "chat_template_overhead": 30
+    },
+    "max_seq_len": 1024,
+    "worst_case_training_example": 635,
+    "headroom": 389,
+    "would_have_been_with_zero_shot_prompt": 1498,
+    "raise_seq_len_rejected": {
+      "1536": ">=14.9 h",
+      "2048": ">=19.8 h",
+      "_gate": "10 h",
+      "_note": "lower bounds; attention is quadratic"
+    }
   }
 }

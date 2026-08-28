@@ -120,6 +120,39 @@ Question: {{question}}\
            max_unit=MAX_UNIT_CHARS, max_args=MAX_ARGS)
 
 
+#: The prompt used during TRAINING and when evaluating the trained model.
+#:
+#: Measured with the real tokenizer, `STRUCTURED_PROMPT` is **980 tokens**. Training an
+#: example costs 247 visual tokens + prompt + target + ~30 of chat template, so the long
+#: prompt needs 1,363–1,498 tokens against a `max_seq_len` of 1,024 — every example would
+#: have been silently truncated, and the loss curve would have looked plausible while the
+#: model learned incomplete records.
+#:
+#: Raising the limit was measured and rejected: 1,536 tokens implies ≥ 14.9 h for 3,000
+#: steps against a 10 h gate, and that is a lower bound because attention is quadratic.
+#:
+#: A short prompt is also the better answer on its own terms. After fine-tuning the format
+#: lives in the weights; the 980-token instruction exists to elicit the format from a model
+#: that has never seen it, which is the zero-shot problem, not the trained one.
+#: Single braces: this string is never passed through `.format()`, unlike
+#: `STRUCTURED_PROMPT`. Doubling them left literal `{{` in the prompt and broke the
+#: `{question}` substitution — caught by the test below rather than in training.
+TRAINING_PROMPT = """\
+Answer the question about the chart. Reply with one compact JSON object:
+{"answerable":<bool>,"evidence":[{"label":<str>,"value":<num|str|null>,\
+"unit":<str|null>,"bbox":[x1,y1,x2,y2]}],"plan":{"op":<str>,"args":[...]},\
+"model_answer":<str>}
+bbox is four integers 0-999.
+
+Question: {question}\
+"""
+
+
+def build_training_prompt(question: str) -> str:
+    """The prompt the trained model is taught with, and later evaluated under."""
+    return TRAINING_PROMPT.replace("{question}", question)
+
+
 def build_structured_prompt(question: str) -> str:
     return STRUCTURED_PROMPT.replace("{question}", question)
 
@@ -137,6 +170,7 @@ def prompt_fingerprint() -> dict[str, str]:
     return {
         "structured": hashlib.sha256(STRUCTURED_PROMPT.encode()).hexdigest(),
         "plain": hashlib.sha256(PLAIN_PROMPT.encode()).hexdigest(),
+        "training": hashlib.sha256(TRAINING_PROMPT.encode()).hexdigest(),
     }
 
 
@@ -157,6 +191,15 @@ def example_record_json() -> str:
     return json.dumps(example_record(), separators=(",", ":"))
 
 
-__all__ = ["ALLOWED_OPS", "PLAIN_PROMPT", "STRUCTURED_PROMPT", "build_plain_prompt",
-           "build_structured_prompt", "example_record", "example_record_json",
-           "prompt_fingerprint"]
+__all__ = [
+    "ALLOWED_OPS",
+    "PLAIN_PROMPT",
+    "STRUCTURED_PROMPT",
+    "TRAINING_PROMPT",
+    "build_plain_prompt",
+    "build_structured_prompt",
+    "build_training_prompt",
+    "example_record",
+    "example_record_json",
+    "prompt_fingerprint",
+]

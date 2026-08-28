@@ -2984,3 +2984,60 @@ is the strongest available evidence that the evaluation is correct end to end.
 A useful side effect: if the Phase 7 plain arm lands near 79.1, every component between the
 raw checkpoint and the reported score is validated at once — prompt, decoding, answer
 normalisation, and the evaluator.
+
+---
+
+## 0064 — Training examples would not have fitted the sequence budget
+
+**Date** 2026-08-28 · **Phase** 6 · **Status** adopted · **Prevented a 10-hour loss**
+
+**Context.** A design pass on Phase 6, run before any training code was written, checked
+the one thing that is invisible once a run starts: does a training example fit in
+`max_seq_len`?
+
+**Measured with the real tokenizer**, not estimated — the first pass used a
+3.7-chars-per-token proxy and was 60 tokens optimistic:
+
+| | tokens |
+|---|---:|
+| `STRUCTURED_PROMPT` (zero-shot) | **980** |
+| visual tokens at 512 px | 247 (`DECISIONS.md` 0027) |
+| target record, 2 evidence items | 106 |
+| target record, 8 evidence items | 241 |
+| chat template overhead | ~30 |
+| **total** | **1,363 – 1,498** |
+| `ModelConfig.max_seq_len` | **1,024** |
+
+**Every training example would have been silently truncated**, by 339 to 474 tokens. The
+failure mode is the dangerous kind: nothing raises, the loss curve looks entirely normal,
+and the model learns to emit records that stop mid-way. It would have surfaced as "the
+fine-tune did not work", after ten hours of quota, with no obvious cause.
+
+**Options, measured rather than argued.**
+
+*Raise `max_seq_len`.* Step time grows at least linearly with sequence, and Phase 2
+measured 11.903 s/step at 1,024 for a 9.92 h run. 1,536 tokens implies **≥ 14.9 h** for
+3,000 steps and 2,048 implies **≥ 19.8 h**, both past the 10 h gate — and those are lower
+bounds, because attention is quadratic. Rejected.
+
+**Decision.** A separate, short `TRAINING_PROMPT` — **117 tokens** — used for training and
+for evaluating the trained model. The worst-case example is then 635 tokens with **389 of
+headroom**, at no extra compute cost.
+
+This is also the better answer on its own terms. The 980-token prompt exists to elicit a
+format from a model that has never seen it; after fine-tuning the format is in the weights,
+and paying 980 tokens per example to restate it would be waste as well as overflow.
+
+**Consequences.** The zero-shot baseline keeps the long prompt and the trained model gets
+the short one, so each is measured under the elicitation that suits it — the asymmetry is
+deliberate and is recorded in `PREREGISTRATION.md`, which now seals **three** prompt hashes
+rather than two.
+
+`tests/test_prompting.py` pins the measured token counts and asserts the budget in **both**
+directions: the training example must fit, and the zero-shot prompt must **not** — if it
+ever does, the constants have drifted and the test has stopped guarding anything.
+
+A second bug was caught by that test in the same sitting: `TRAINING_PROMPT` was written
+with doubled braces copied from `STRUCTURED_PROMPT`, which is passed through `.format()`.
+The new string is not, so it contained literal `{{` and its `{question}` substitution
+silently did nothing.
