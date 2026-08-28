@@ -25,9 +25,19 @@ import random
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(_ROOT / "src"))
+sys.path.insert(0, str(_ROOT))          # `scripts.build_mixtures` is a source reader
 
-from chartqa_dt.train.targets import TargetError, build_answer_only_target, build_target
+from chartqa_dt.train.targets import (  # noqa: E402 — sys.path is set above
+    TargetError,
+    build_answer_only_target,
+    build_target,
+)
+
+#: `PLAN.md`'s compute table: 24,000 presentations = 3,000 steps at effective batch 8,
+#: for **Stage 1 and Stage 2 together**.
+BUDGET_PRESENTATIONS = 24_000
 
 
 def _reason(exc: Exception) -> str:
@@ -187,12 +197,13 @@ def main() -> int:
             print(f"    over limit: {over} of {len(sample)} "
                   f"({100 * over / len(sample):.1f}%)")
 
-    presentations = len(ok) * 2
-    print(f"\n  two epochs over the usable records = {presentations:,} presentations "
-          f"(budget 24,000)")
-    if presentations < 24000:
-        print(f"  SHORT by {24000 - presentations:,}. The pre-registered budget needs "
-              f"{24000 / 2 / max(len(ok), 1):.2f} epochs, or a larger mixture.")
+    # `PLAN.md`'s table of budgets: 24,000 presentations is **Stage 1 + Stage 2
+    # combined**, not per mixture. Reporting it per mixture made a healthy stage 2 look
+    # like a shortfall.
+    if len(ok):
+        print(f"\n  {len(ok):,} usable records -> {BUDGET_PRESENTATIONS / len(ok):.2f} "
+              f"epochs to fill the whole {BUDGET_PRESENTATIONS:,}-presentation budget "
+              f"(shared across both stages)")
 
     if args.out:
         Path(args.out).write_text(json.dumps({

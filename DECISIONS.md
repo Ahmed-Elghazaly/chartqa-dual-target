@@ -3425,3 +3425,58 @@ been a run that finished on schedule and learned less than it should have. Where
 project discards data, the discard is now counted and reported — `FeedStats` at training
 time, `measure_target_yield.py` before it — because a pipeline that silently drops 100% of
 its input looks exactly like one that drops none of it.
+
+---
+
+## 0072 — Mixtures now hold only records that can become training targets
+
+**Context.** `DECISIONS.md` 0071 fixed the defects that made targets fail. What remained was
+a quieter problem: the mixtures were assembled by sampling source pools *without asking
+whether a sampled record yields a target at all*. The feed catches a refusal, counts it and
+moves on, so an unusable record does not fail — it just occupies a slot that teaches nothing.
+
+Measured after the 0071 fixes, at the mixture caps the project actually uses:
+
+| mixture | usable | of | |
+|---|---:|---:|---:|
+| stage 1 | 6,443 | 12,000 | 53.7% |
+| **stage 2** | **3,265** | **12,000** | **27.2%** |
+| stage 2 (plan-rich arm) | 5,232 | 12,000 | 43.6% |
+
+Stage 2's *effective* training set was a quarter of the pre-registered one. The run would
+have reported 3,000 optimizer steps and 24,000 presentations, and both would have been true;
+they would simply have been 24,000 presentations of 3,265 distinct examples rather than
+12,000.
+
+**Decision.** `build_mixtures.py` filters every source pool through `build_target` before
+sampling. `--keep-unusable` restores the old behaviour for comparison.
+
+This changes nothing about *what* the model learns — the refused records never contributed —
+only how many of the 12,000 slots contribute at all.
+
+### The supply ceiling, which is the number that actually constrains the project
+
+`scripts/measure_target_yield.py --source <name>`, CPU only:
+
+| source | pool | usable | rate |
+|---|---:|---:|---:|
+| synthetic | 24,000 | 23,966 | 99.9% |
+| ChartQA train | 22,947 | 2,420 | 10.5% |
+| RefChartQA train (cached) | 3,996 | 2,063 | 51.6% |
+| **all real** | 26,943 | **4,483** | 16.6% |
+
+ChartQA's 10.5% is the mining yield showing through: 19,634 of its rows have no plan that
+uniquely explains their answer, and `DECISIONS.md` 0045 refuses to guess one.
+
+**The entire supply of real chart supervision available to this project is 4,483 records.**
+Synthetic data supplies the rest of both mixtures, which is exactly why `PLAN.md` 9.4's
+synthetic-to-real transfer measurement carries the weight it does — it is not a side
+ablation, it is the assumption the training set rests on.
+
+**Consequences.** Only 3,996 of RefChartQA's 55,789
+training rows are cached — 7%. At the measured 51.6% that is roughly 28,000 usable real
+grounding records left unused, and caching costs bandwidth and disk rather than GPU. It is
+*not* done now for two reasons: the disk is at 99% (6.0 GiB free), and choosing how many
+rows to train on is precisely the question `PLAN.md`'s 4,000 / 10,000 / 25,000 scaling ladder
+exists to answer — which is deferred. The number is recorded here so the ladder starts from a
+measurement rather than a guess.

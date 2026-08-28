@@ -185,3 +185,34 @@ class TestZeroIsAnAnswer:
             answer="0", evidence=evidence,
             table={e["label"]: e["value"] for e in evidence}))
         assert json.loads(build_target(record))["model_answer"] == "0"
+
+
+class TestSourceDrawsCannotDrift:
+    """`DECISIONS.md` 0072. A mixture holds ids; training rebuilds the records.
+
+    If training rebuilds a smaller pool than the mixture was built from, the ids at the
+    tail resolve to nothing. `load_mixture_records` refuses on that — loudly, but on the
+    GPU, an hour into a run.
+    """
+
+    def test_neither_side_hand_writes_a_source_draw(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        offenders = []
+        for name in ["src/chartqa_dt/cli/train.py", "scripts/build_mixtures.py"]:
+            path = root / name
+            for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                stripped = line.strip()
+                if stripped.startswith("#"):
+                    continue
+                for call, arg in (("chartqa_records", "limit="), ("refchartqa_records", "cap=")):
+                    if call in line and arg in line and not any(
+                            c.isalpha() for c in line.split(arg)[1][:1]):
+                        offenders.append(f"{name}:{i}: {stripped}")
+        assert not offenders, ("use CHARTQA_DRAW / REFCHARTQA_CAP from data.mixture:\n"
+                               + "\n".join(offenders))
+
+    def test_the_constants_are_the_ones_both_sides_import(self) -> None:
+        from chartqa_dt.data.mixture import CHARTQA_DRAW, REFCHARTQA_CAP
+
+        assert CHARTQA_DRAW >= 20_901, "must cover the whole ChartQA machine split"
+        assert REFCHARTQA_CAP > 0

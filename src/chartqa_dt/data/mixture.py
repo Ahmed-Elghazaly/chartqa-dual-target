@@ -32,6 +32,15 @@ STAGE2_CAP = 12_000
 SYNTHETIC_REPLAY = 2_000
 TRAIN_ONLY = "train"
 
+#: How much of each source is drawn when records are rebuilt. **These belong here, not at
+#: each call site.** A mixture holds record ids only (rule 7), so training rehydrates every
+#: record from the sources; if it rehydrates a *smaller* pool than the mixture was built
+#: from, the ids at the tail resolve to nothing. `load_mixture_records` refuses on that
+#: drift — loudly, but on the GPU, an hour into a run. `DECISIONS.md` 0072 raised the
+#: ChartQA draw to the whole split because only 10.5% of it yields a training target.
+CHARTQA_DRAW = 30_000        # per question kind; the split has 7,398 human + 20,901 machine
+REFCHARTQA_CAP = 4_000       # `PLAN.md` 3.4: start at the single-box cap
+
 #: The curriculum order for stage 1. Not shuffled — that is what makes it a curriculum.
 LEVEL_ORDER = ("L1", "L2", "L3", "L4")
 

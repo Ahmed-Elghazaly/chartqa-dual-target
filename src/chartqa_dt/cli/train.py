@@ -238,11 +238,16 @@ def _all_source_records(ctx):
 
     from chartqa_dt.data.chartqa import ArchiveReader
 
+    # The draws must match the ones the mixture was built from, or its tail ids resolve
+    # to nothing. Shared constants rather than two hand-written numbers (0072).
+    from chartqa_dt.data.mixture import CHARTQA_DRAW, REFCHARTQA_CAP
+
     root = Path(ctx.env.data_root)
     yield from synthetic_records(root / "synthetic/train/manifest.json")
-    yield from chartqa_records(ArchiveReader(archive_path()), limit=8000,
+    yield from chartqa_records(ArchiveReader(archive_path()), limit=CHARTQA_DRAW,
                                seed=ctx.cfg.seed)
-    yield from refchartqa_records(cap=4000, cache=root / "refchartqa_train.jsonl")
+    yield from refchartqa_records(cap=REFCHARTQA_CAP,
+                                  cache=root / "refchartqa_train.jsonl")
 
 
 def _run_smoke(ctx) -> None:

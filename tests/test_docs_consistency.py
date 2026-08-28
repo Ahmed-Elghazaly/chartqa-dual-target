@@ -426,7 +426,19 @@ def test_the_plan_rich_arm_actually_has_more_compositional_plans():
         f"plan-rich has {rich['compositional']} compositional plans against "
         f"{base['compositional']} — not a meaningful contrast"
     )
-    assert rich["total"] == base["total"], "the arms must be the same size to compare"
+    if rich["total"] != base["total"]:
+        # The arms differ in size as well as composition, so a difference between them is
+        # not attributable to composition alone. That is allowed — with the real supply at
+        # 4,483 records the two knobs cannot be separated (`DECISIONS.md` 0072) — but it
+        # must be *recorded*, because Phase 7 requires every comparison to state whether it
+        # is matched.
+        assert m.get("arms_are_matched") is False, (
+            f"the arms are {base['total']:,} and {rich['total']:,} records. Record "
+            f"'arms_are_matched': false and 'arms_confound' saying what else differs, or "
+            f"rebuild them at equal size.")
+        assert m.get("arms_confound"), "say what the unmatched comparison confounds"
+    else:
+        assert m.get("arms_are_matched") is not False
 
 
 def test_coverage_percentages_are_bounded_by_their_parts():

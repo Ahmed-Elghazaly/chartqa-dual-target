@@ -229,42 +229,56 @@
    "sealed_image_hashes": 2563
   },
   "mixtures": {
-   "_rebuilt": "2026-08-28, after DECISIONS.md 0067 corrected target construction and 0066 expanded the synthetic pool to 24,000",
+   "_rebuilt": "2026-08-28, DECISIONS.md 0072: source pools are filtered through build_target, so every slot trains something. Before this, stage 2 held 3,265 usable records of 12,000.",
+   "_all_records_usable": true,
    "stage1": {
-    "total": 12000,
+    "total": 10304,
     "synthetic": 6000,
-    "chartqa": 6000,
-    "with_boxes": 12000,
-    "with_plan": 7003,
-    "compositional": 5345,
+    "chartqa": 2408,
+    "refchartqa": 1896,
+    "with_boxes": 10304,
+    "with_plan": 8406,
+    "compositional": 4824,
     "levels": {
      "L1": 1500,
      "L2": 1500,
      "L3": 1500,
      "L4": 1500
-    }
+    },
+    "sha256_prefix": "84d3e9bdd1489981"
    },
    "stage2_preregistered": {
-    "total": 12000,
-    "chartqa": 8465,
-    "synthetic": 1419,
-    "refchartqa": 2116,
-    "with_plan": 2718,
-    "compositional": 1665,
-    "with_boxes": 12000
+    "total": 6304,
+    "chartqa": 2408,
+    "synthetic": 2000,
+    "refchartqa": 1896,
+    "with_plan": 4406,
+    "compositional": 1820,
+    "with_boxes": 6304,
+    "sha256_prefix": "c5151e6058ee1344"
    },
    "stage2_planrich": {
-    "total": 12000,
-    "chartqa": 6453,
-    "synthetic": 3868,
-    "refchartqa": 1679,
-    "with_plan": 4809,
-    "compositional": 3331,
-    "with_boxes": 12000
+    "total": 10304,
+    "chartqa": 2408,
+    "synthetic": 6000,
+    "refchartqa": 1896,
+    "with_plan": 8406,
+    "compositional": 4820,
+    "with_boxes": 10304,
+    "replay": 6000,
+    "sha256_prefix": "98d7f997c43c8c33"
    },
-   "dedup_merges": 988,
-   "dedup_chartqa_refchartqa_merges": 949,
-   "_note": "Two stage-2 arms exist as files. Phase 6 trains both and the better is reported (DECISIONS.md 0066); 'more plan data helps' is a hypothesis with a mechanism, not a fact."
+   "dedup_merges": 179,
+   "dedup_chartqa_refchartqa_merges": 162,
+   "cross_split_collisions": 0,
+   "_before_the_yield_filter": {
+    "stage1_usable_of_12000": 6443,
+    "stage2_usable_of_12000": 3265,
+    "stage2_planrich_usable_of_12000": 5232
+   },
+   "_note": "stage1_planrich was byte-identical to stage1 \u2014 --replay only affects stage 2 \u2014 and was deleted rather than kept as a second name for the same file.",
+   "arms_are_matched": false,
+   "arms_confound": "The plan-rich arm has 10,304 records to the pre-registered arm's 6,304, so a difference between them confounds MORE COMPOSITIONAL SUPERVISION with MORE DATA. The two cannot be separated at this supply: both arms already contain every one of the 4,304 real records that yields a target (DECISIONS.md 0072), so the only way to add compositional plans is to add synthetic ones, which also adds volume. Holding the total fixed caps the contrast at about 1.28x, because 'compositional' means 'not a bare lookup' and a level-balanced 2,000-example replay is already three-quarters compositional. Any reported comparison between the arms must be declared unmatched (PLAN.md 7.4)."
   },
   "refchartqa_parquet_bytes_recorded": 2884503702,
   "refchartqa_parquet_files": 9
@@ -512,6 +526,40 @@
    "at_most_2_pct": 92.5,
    "over_cap_pct": 2.0,
    "_finding": "The cap binds on 2% of records. It is a bounded, small cost, not a structural ceiling on AP."
+  },
+  "supervision_supply": {
+   "_method": "scripts/measure_target_yield.py --source <name>, CPU only. A record is 'usable' when build_target succeeds: it parses, satisfies OUTPUT_SCHEMA, and its plan reproduces its own answer against its own evidence.",
+   "_measured": "2026-08-28, after the three fixes in DECISIONS.md 0071",
+   "synthetic": {
+    "pool": 24000,
+    "usable": 23966,
+    "pct": 99.9
+   },
+   "chartqa_train": {
+    "pool": 22947,
+    "usable": 2420,
+    "pct": 10.5,
+    "_binding": "19,634 have no mined plan and none can be derived"
+   },
+   "refchartqa_train_cached": {
+    "pool": 3996,
+    "usable": 2063,
+    "pct": 51.6,
+    "split_total": 55789,
+    "_note": "only 7% of the split is cached; the PLAN 3.x scaling ladder at 10,000/25,000 rows needs more, and caching is CPU and bandwidth only"
+   },
+   "real_total": {
+    "pool": 26943,
+    "usable": 4483,
+    "pct": 16.6
+   },
+   "_finding": "The whole supply of REAL chart supervision this project can build is 4,483 records. Synthetic supplies the rest, which is why Change 2's synthetic-to-real transfer claim (PLAN 9.4) carries the weight it does.",
+   "synthetic_by_level_usable_pct": {
+    "L1": 100.0,
+    "L2": 100.0,
+    "L3": 100.0,
+    "L4": 99.4
+   }
   }
  }
 }

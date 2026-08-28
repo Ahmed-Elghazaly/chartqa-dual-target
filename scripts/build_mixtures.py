@@ -30,6 +30,8 @@ from chartqa_dt.data.chartqa import (
 )
 from chartqa_dt.data.download import load_manifest
 from chartqa_dt.data.mixture import (
+    CHARTQA_DRAW,
+    REFCHARTQA_CAP,
     STAGE1_CAP,
     STAGE2_CAP,
     SYNTHETIC_REPLAY,
@@ -46,8 +48,7 @@ from chartqa_dt.data.records import (
 from chartqa_dt.env import get_env
 from chartqa_dt.plans.mining import mine_plan
 from chartqa_dt.splits import sealed_image_hashes
-
-REFCHARTQA_CAP = 4_000       # `PLAN.md` 3.4: start at the single-box cap
+from chartqa_dt.train.targets import TargetError, build_target
 
 
 def archive_path() -> Path:
@@ -177,11 +178,39 @@ def refchartqa_records(*, cap: int, cache: Path) -> list[ChartRecord]:
     return records[:cap]
 
 
+def usable_only(records: list[ChartRecord], label: str) -> list[ChartRecord]:
+    """Drop records that cannot become a training target.
+
+    A mixture slot filled by a record `build_target` refuses is a slot that trains
+    nothing: the feed catches the refusal, counts it and moves on. Measured before this
+    filter existed, stage 2 held **3,265 usable records of 12,000** — so the effective
+    training set was a quarter of the pre-registered one, and nothing said so
+    (`DECISIONS.md` 0072).
+
+    This does not change *what* the model learns, only how many of the 12,000 slots teach
+    it something. The supply of real records that yield targets is itself the binding
+    constraint: 2,420 of 22,947 ChartQA rows and 2,063 of 3,996 cached RefChartQA rows.
+    """
+    keep, refused = [], 0
+    for record in records:
+        try:
+            build_target(record)
+        except TargetError:
+            refused += 1
+            continue
+        keep.append(record)
+    if refused:
+        print(f"  {label:<12}dropped {refused:,} of {len(records):,} — no training target "
+              f"({100 * len(keep) / max(len(records), 1):.1f}% usable)")
+    return keep
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--synthetic-manifest", type=Path,
                     default=Path.home() / ".cache/chartqa_dt/data/synthetic/train/manifest.json")
-    ap.add_argument("--chartqa-limit", type=int, default=6000, help="questions per kind")
+    ap.add_argument("--chartqa-limit", type=int, default=CHARTQA_DRAW,
+                    help="questions per kind")
     ap.add_argument("--refchartqa-cache", type=Path,
                     default=Path.home() / ".cache/chartqa_dt/data/refchartqa_train.jsonl")
     ap.add_argument("--refchartqa-cap", type=int, default=REFCHARTQA_CAP)
@@ -195,6 +224,10 @@ def main() -> None:
     ap.add_argument("--synthetic-stage1", type=int, default=6000,
                     help="synthetic examples offered to stage 1, balanced across L1-L4. "
                          "The rest of the cap is real grounding data.")
+    ap.add_argument("--keep-unusable", action="store_true",
+                   help="keep records that do not yield a training target. The default is "
+                        "to drop them: the feed skips them anyway, so they only consume "
+                        "mixture slots (DECISIONS.md 0072)")
     ap.add_argument("--suffix", type=str, default="",
                     help="written as data/mixture_stageN<suffix>.json, so the "
                          "pre-registered mixture and the plan-rich arm coexist")
@@ -203,10 +236,15 @@ def main() -> None:
     if args.replay is None:
         args.replay = SYNTHETIC_REPLAY
     synth_all = synthetic_records(args.synthetic_manifest)
-    synth = balance_by_level(synth_all, args.synthetic_stage1, seed=args.seed)
     reader = ArchiveReader(archive_path())
     real = chartqa_records(reader, limit=args.chartqa_limit, seed=args.seed)
     ref = refchartqa_records(cap=args.refchartqa_cap, cache=args.refchartqa_cache)
+
+    if not args.keep_unusable:
+        synth_all = usable_only(synth_all, "synthetic")
+        real = usable_only(real, "chartqa")
+        ref = usable_only(ref, "refchartqa")
+    synth = balance_by_level(synth_all, args.synthetic_stage1, seed=args.seed)
 
     print(f"\nsources: synthetic={len(synth):,}  chartqa={len(real):,}  "
           f"refchartqa={len(ref):,}")

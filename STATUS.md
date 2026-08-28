@@ -18,7 +18,7 @@ tested ahead of its gate.** Phases 0–4 complete. Cost so far: **USD 0**.
 | 7 | table and claim guards built | `Cell` refuses a point estimate without an interval; `Claims` cannot say training was reproduced |
 | 10 | skeleton compiles, generator built | `cdt-report` fills tables from recorded JSON; 16 pages, 0 undefined refs |
 
-**860 tests pass**; `ruff check src tests scripts` clean; preflight green.
+**876 tests pass**; `ruff check src tests scripts` clean; preflight green.
 
 ## Phase 5.2 result — the first properly powered measurement
 
@@ -36,6 +36,27 @@ The last two are conditional on a usable record, not on a question. Read as a sh
 The n=24 probes had reported round-trip at 40–50%. At n=200 it is 69%, confirming
 `DECISIONS.md` 0062: three prompt iterations were run on noise, and the probe could not
 have detected any effect it was used to justify.
+
+## The supply of real supervision, measured
+
+`scripts/measure_target_yield.py`, CPU only. A record is *usable* when it becomes a
+training target: it parses, satisfies the schema, and its plan reproduces its own answer.
+
+| source | pool | usable | |
+|---|---:|---:|---:|
+| synthetic | 24,000 | 23,966 | 99.9% |
+| ChartQA train | 22,947 | 2,420 | 10.5% |
+| RefChartQA train (7% of the split, cached) | 3,996 | 2,063 | 51.6% |
+| **all real** | 26,943 | **4,483** | 16.6% |
+
+**The entire supply of real chart supervision this project can build is 4,483 records.**
+ChartQA's 10.5% is the mining yield showing through — 19,634 of its rows have no plan that
+uniquely explains their answer, and `DECISIONS.md` 0045 refuses to guess one. Synthetic
+supplies the rest of both mixtures, which is why `PLAN.md` 9.4's synthetic-to-real transfer
+measurement is not a side ablation but the assumption the training set rests on.
+
+Asking this question before training rather than after found three defects that would have
+wasted the run (`DECISIONS.md` 0071) and one that would have quartered it (0072).
 
 ## What Phase 6's design pass found, before spending 10 GPU hours
 
