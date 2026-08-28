@@ -113,6 +113,9 @@ def refchartqa_val(limit: int, seed: int = 0) -> list[dict[str, Any]]:
         out.append({"record_id": row["id"], "question": row["query"],
                     "answer": str(row["label"]), "question_kind": kind,
                     "image": image, "image_size": (w, h),
+                    # The official evaluator quantises the raw {x,y,w,h} boxes itself, so
+                    # they are kept unconverted alongside our normalised copy.
+                    "raw_boxes": list(row.get("grounding_bboxes") or []),
                     "gt_boxes": boxes_to_norm1000(row.get("grounding_bboxes"), w, h)})
         taken[kind] += 1
         if sum(taken.values()) >= limit:
@@ -373,6 +376,7 @@ def stage_refchartqa(args) -> dict[str, Any]:
     """`PLAN.md` 5.4 — zero-shot grounding. The measurement that decides the framing."""
     from chartqa_dt.eval.generate import generate_over, write_generations
     from chartqa_dt.eval.metrics import average_precision_coco, p_at_f1
+    from chartqa_dt.eval.official_format import build_rows, score_with_official
     from chartqa_dt.eval.runner import evaluate_predictions, score_item, write_results
     from chartqa_dt.eval.stratified import stratify
     from chartqa_dt.vision.coords import clamp_for_official_evaluator
@@ -407,21 +411,51 @@ def stage_refchartqa(args) -> dict[str, Any]:
 
     result = evaluate_predictions(items, seeds=[0, 1, 2], ap_resamples=200)
     report_strat = stratify(strat)
+
+    # `PLAN.md` 5.4 requires the RELEASED evaluator, and `DECISIONS.md` 0003 makes it the
+    # scorer of record. Ours agrees to within 0.07 pp on 11,690 real predictions, and
+    # "agrees with" is still not "is" — so the reported number comes from the vendored
+    # code, while ours supplies the strata and intervals it cannot produce.
+    official_rows = build_rows([
+        {"pred_boxes": [list(map(float, clamp_for_official_evaluator(b)))
+                        for b in gen.boxes],
+         "answer": gen.answer, "label": row["answer"], "image_size": row["image_size"],
+         "grounding_bboxes": row["raw_boxes"], "question_kind": row["question_kind"]}
+        for row, gen in zip(rows, gens)])
+    official = score_with_official(official_rows)
+    by_subset = {}
+    for kind in ("human", "machine", "pot"):
+        subset = [r for r in official_rows if r["type"] == kind]
+        if subset:
+            by_subset[kind] = score_with_official(subset)
+
     write_results(result, out_dir() / "refchartqa_zeroshot.json",
                   meta={"variant": args.variant, "n": len(rows),
                         "valid_json_fraction": rep.parse.valid_fraction,
+                        "schema_valid_fraction": rep.parse.schema_valid_fraction,
+                        "official": official, "official_by_subset": by_subset,
                         "published_reference_ap50": 32.83,
                         "published_reference_note":
                             "Level C — not independently reproducible, DECISIONS.md 0052"},
                   stratified=report_strat.to_dict())
 
-    ap = average_precision_coco(preds, gts, 0.5)
+    ours_ap = average_precision_coco(preds, gts, 0.5)
     print("\n" + result.describe())
     print("\n" + report_strat.describe())
-    print(f"\nAP@0.5 {100 * ap:.2f}%   P@F1 {100 * p_at_f1(pairs):.2f}%   "
-          f"valid JSON {100 * rep.parse.valid_fraction:.1f}%")
-    print("published reference 32.83 (human test subset, Level C)")
-    return {"ap50": ap, "stratified": report_strat.to_dict()}
+    print("\nOFFICIAL evaluator — this is the number of record:")
+    print(f"  accuracy {100 * official['accuracy']:.2f}%   "
+          f"AP@0.5 {100 * official['AP_50']:.2f}%   "
+          f"P@F1 {100 * official['P_at_FI']:.2f}%")
+    for kind, m in by_subset.items():
+        print(f"    {kind:<8} AP@0.5 {100 * m['AP_50']:>6.2f}%   "
+              f"P@F1 {100 * m['P_at_FI']:>6.2f}%   acc {100 * m['accuracy']:>6.2f}%")
+    print(f"\n  ours, cross-check: AP@0.5 {100 * ours_ap:.2f}%   "
+          f"P@F1 {100 * p_at_f1(pairs):.2f}%   "
+          f"(delta {abs(100 * ours_ap - 100 * official['AP_50']):.3f} pp)")
+    print("  published reference 32.83 is the human TEST subset — Level C, not "
+          "independently reproducible (DECISIONS.md 0052)")
+    return {"official": official, "ours_ap50": ours_ap,
+            "stratified": report_strat.to_dict()}
 
 
 def main() -> int:
