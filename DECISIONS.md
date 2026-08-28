@@ -3137,3 +3137,55 @@ finalised first, this improvement would have been unavailable.
 
 Recorded also as a correction to my own prioritisation: when asked what would help most, I
 first listed the things that quantify an outcome above the thing that changes it.
+
+---
+
+## 0067 — Every training target must reproduce its own answer, and three joins that broke it
+
+**Date** 2026-08-28 · **Phase** 6 · **Status** adopted · **Prevented training on wrong data**
+
+**Context.** A design pass on the training-target builder, before any training run. The
+target is the join between the data pipeline and the model, and a defect there is invisible:
+the model learns to emit records our own evaluator rejects, and the only symptom is a
+disappointing score.
+
+**Decision.** `build_target` refuses to emit anything that does not survive our own
+pipeline — it must parse, satisfy `OUTPUT_SCHEMA`, **and round-trip**, meaning its plan
+reproduces its answer when executed against its own evidence. Measuring that invariant
+found three separate defects, each of which would have poisoned training.
+
+**1. RefChartQA targets were 100% non-executable.** Those records carry boxes but no
+per-element values, and the first version filled them with `null` and a `lookup` plan.
+Sampled over 800 records, **every single target failed the round-trip** — 3,088 of 12,000
+stage-2 records teaching the model to emit plans that cannot run, on the exact metric the
+project exists to move. Now: a record with one box and a numeric answer *is* a lookup
+whose result is that answer, so the value is recovered honestly (52% of RefChartQA); the
+rest are refused rather than filled in. `PLAN.md` 3.6's "never given an invented plan",
+extended from operations to values.
+
+**2. Evidence was selected as "the first eight boxes".** For a twelve-bar chart whose plan
+references the tenth, the referenced label was simply absent and the executor refused with
+*"lookup of unknown evidence label: 'Indonesia'"*. **1 of 636 ChartQA records** produced a
+usable target. Evidence is now selected **by the labels the plan needs** — which also
+teaches the behaviour `DECISIONS.md` 0014 wants, point at what the answer requires rather
+than at the first eight things on the chart.
+
+**3. Two code paths built "the same" record differently.** `data/chartqa.py` stores
+`meta["elements"]` with per-element labels and values; `scripts/build_mixtures.py` had its
+own inline construction that stored only `n_elements`. So `elements` was empty while
+`boxes` was full, every label fell back to an `item1` placeholder, and no plan label could
+match. Fixing that alone took 1/636 to 57/636.
+
+**4. Values came from the wrong source.** The mined plan is verified against the gold
+**table**; the evidence values were read from the **annotation**, which rounds differently.
+35 of 105 planned records disagreed with their own answer. The table is now the authority
+on values and the annotation on boxes, joined by label.
+
+**Consequences.** ChartQA records with a mined plan now yield executable targets at
+**69% (72 of 105)**, against 1% before. Every emitted target round-trips by construction,
+so training data quality is enforced rather than hoped for, and the round-trip metric the
+project reports is no longer undermined by its own training set.
+
+The generalisable lesson is the third defect: **duplicated construction logic diverges.**
+Two functions that both build a `ChartRecord` will not stay in agreement, and the one used
+by the pipeline was the one that was wrong.

@@ -424,6 +424,20 @@
       "2048": ">=19.8 h",
       "_gate": "10 h",
       "_note": "lower bounds; attention is quadratic"
+    },
+    "target_quality": {
+      "_method": "636 ChartQA training records and 1,500 RefChartQA records, targets built and required to parse, satisfy OUTPUT_SCHEMA, and round-trip",
+      "chartqa_executable_of_planned_pct": 69,
+      "chartqa_executable_of_planned": "72 of 105",
+      "chartqa_before_fixes": "1 of 636",
+      "refchartqa_executable_pct": 52,
+      "refchartqa_before_fixes_roundtrip_pct": 0,
+      "defects_found": [
+        "RefChartQA targets used null values with a lookup plan: 100% failed round-trip",
+        "evidence was the first 8 boxes, not the labels the plan references",
+        "build_mixtures.py dropped meta['elements'], so all labels were placeholders",
+        "values read from the annotation while the plan was verified on the table"
+      ]
     }
   }
 }

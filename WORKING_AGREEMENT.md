@@ -36,6 +36,22 @@ Every report must say, in plain language:
 Brief and concrete. The failure to avoid is a technically complete report that leaves the
 reader unable to tell whether the project is going well.
 
+### Work ordering (Ahmed, 2026-08-28, standing)
+
+Compute-heavy work that does **not** improve the final result waits until the end.
+Specifically deferred to after the core result is in:
+
+| deferred | why it waits | cost |
+|---|---|---|
+| three training seeds | measures the result, does not improve it | ~30 h |
+| RefChartQA scaling ladder (`PLAN.md` 3.4) | completeness, not strength | ~30 h |
+
+Work that **does** improve the result runs first — currently the compositional plan
+supervision of `DECISIONS.md` 0066.
+
+Capacity: three team members, one Kaggle account each, ~30 h GPU per account per week.
+Paid cloud only if genuinely needed, and the standing USD 20 limit has not been raised.
+
 ## Standing facts about the environment
 
 * **Kaggle** — account `nanonanite`. Token is a `KGAT_` **bearer** token in `~/.kaggle/access_token`,

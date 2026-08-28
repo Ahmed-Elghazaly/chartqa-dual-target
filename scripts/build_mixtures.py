@@ -120,7 +120,13 @@ def chartqa_records(reader: ArchiveReader, *, limit: int, seed: int) -> list[Cha
                 boxes=[e["bbox"] for e in elements], plan=plan,
                 meta={"chart_type": reader.read_json(ann_name).get("type"),
                       "imgname": row["imgname"], "image_size": [width, height],
-                      "n_elements": len(elements)}))
+                      "n_elements": len(elements),
+                      # The per-element label, value and unit — not just the count.
+                      # Dropping them left `meta["elements"]` empty while `boxes` was
+                      # full, so every training target fell back to "item1" placeholders
+                      # and the mined plan's labels matched nothing: 1 of 636 records
+                      # produced an executable target.
+                      "elements": elements}))
     if dropped:
         print(f"  chartqa: {dropped} rows dropped — a train image identical to a "
               f"held-out chart")
