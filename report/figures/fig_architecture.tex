@@ -2,6 +2,6 @@
 \begin{figure}[t]
 \centering
 % \includegraphics[width=\linewidth]{figures/fig_architecture.pdf}
-\caption{\TODO{caption for architecture}}
+\caption{One forward pass, one record. The model reads the chart and question and emits a single JSON record: an answerability flag, evidence entries each carrying a label, a value, a unit and a box in $0$--$999$ normalised coordinates, a typed expression tree over those labels, and its own answer. A deterministic CPU executor then recomputes the answer from the tree and the evidence. Nothing in the shaded path uses the model, so the reported answer is checkable: when the executor and the model disagree, the record is a failure rather than a lucky guess.}
 \label{fig:architecture}
 \end{figure}

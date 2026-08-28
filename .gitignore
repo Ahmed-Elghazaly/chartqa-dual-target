@@ -75,3 +75,11 @@ report/**/*.synctex.gz
 .kaggle_dataset/
 .kaggle_kernel/
 outputs/
+
+# LaTeX build products — the PDF is rebuilt from source, never committed
+report/**/*.aux
+report/**/*.log
+report/**/*.out
+report/**/*.pdf
+report/**/*.toc
+report/.DS_Store

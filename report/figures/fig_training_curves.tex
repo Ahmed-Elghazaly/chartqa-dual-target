@@ -2,6 +2,6 @@
 \begin{figure}[t]
 \centering
 % \includegraphics[width=\linewidth]{figures/fig_training_curves.pdf}
-\caption{\TODO{caption for training_curves}}
+\caption{Training and validation over the run. Early stopping watches validation loss rather than AP@0.5, because an AP measured on a slice this project can afford carries an interval of roughly $\pm 9$ points and cannot detect that improvement has stopped (\textsc{decisions} 0069). AP, answer accuracy, schema validity and executor agreement are still measured, on a fixed slice at wider intervals; they inform the reader, they do not gate the run.}
 \label{fig:training_curves}
 \end{figure}

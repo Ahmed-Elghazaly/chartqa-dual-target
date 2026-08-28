@@ -25,6 +25,21 @@ equally strong.
         this is context, not a win.}
 \end{enumerate}
 
+\subsection{Where the before/after comparison starts}
+\label{sec:results:before}
+
+The mandatory claim is an improvement over this project's own starting point, so that starting
+point is stated first, on the same checkpoint, the same frozen slice and the same decoding as
+everything that follows.
+
+\input{tables/tab_variant_selection}
+
+Two of these numbers set the problem the fine-tune has to solve. The model answers half the
+questions correctly while emitting a schema-valid record only about a third of the time, and its
+own expression tree reproduces its own answer in roughly seven cases in ten. A record that does
+not parse, or whose tree disagrees with its answer, is counted as a failure throughout this
+report; none of them are quietly dropped.
+
 \subsection{Headline table}
 
 \input{tables/tab_headline}
@@ -33,6 +48,11 @@ Every cell carries a bootstrap confidence interval, and every comparison states 
 matched. Grounding is reported as a per-subset triple, because the official evaluator produces no
 aggregate and the published reference figure is the human subset alone
 (Section~\ref{sec:setup:data}).
+
+\subsection{The run itself}
+\label{sec:results:curves}
+
+\input{figures/fig_training_curves}
 
 \subsection{Grounding, stratified by target size}
 
