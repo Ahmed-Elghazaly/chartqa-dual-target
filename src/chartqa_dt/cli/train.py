@@ -31,6 +31,10 @@ def main() -> None:
                         "'native' means the model's own max_pixels; a number R means R^2 pixels.")
     p.add_argument("--no-resume-test", action="store_true",
                    help="skip the kill-and-resume verification (it doubles model loads)")
+    p.add_argument("--mixture", type=str, default="data/mixture_stage1.json",
+                   help="mixture file for stage1/stage2/control")
+    p.add_argument("--lr", type=float, default=None,
+                   help="override the stage learning rate; the 6.x fallback is 2e-5")
     p.add_argument("--summarise", type=str, default=None,
                    help="print the DECISIONS.md table for an existing smoke_results.json and exit")
     ctx = setup(p)
@@ -40,10 +44,117 @@ def main() -> None:
         print(markdown_table(load_report(Path(ctx.args.summarise))))
         return
 
+    if ctx.args.stage in ("stage1", "stage2", "control"):
+        _run_stage(ctx)
+        return
     if ctx.args.stage != "smoke":
         raise NotYetBuilt(f"cdt-train --stage {ctx.args.stage}", "Phase 6 — Training")
 
     _run_smoke(ctx)
+
+
+def _run_stage(ctx) -> None:
+    """`PLAN.md` 6.1, 6.2 and 6.4 — the real training stages."""
+    import json
+
+    from chartqa_dt.config import ModelConfig
+    from chartqa_dt.modeling.backends.base import get_backend
+    from chartqa_dt.train.checkpoint import load_checkpoint
+    from chartqa_dt.train.feed import MixtureFeed
+    from chartqa_dt.train.loop import TrainConfig, train
+    from chartqa_dt.train.smoke import build_optimizer
+
+    args = ctx.args
+    stage = args.stage
+    records = _records_for(ctx)
+    print(f"\n{stage}: {len(records):,} records from {args.mixture}")
+
+    # `PLAN.md` 6.1 orders stage 1 easy->hard; 6.2 shuffles stage 2. The control (6.4)
+    # trains on the SAME records as the arm it is a control for, so it inherits its
+    # ordering — only the target differs.
+    feed = MixtureFeed(records, shuffle=(stage != "stage1"), seed=ctx.cfg.seed,
+                       answer_only=(stage == "control"),
+                       image_root=Path(ctx.env.data_root))
+
+    cfg = TrainConfig(stage=stage, steps=args.steps or 3000,
+                      batch_size=ctx.cfg.train.per_device_batch,
+                      grad_accum=ctx.cfg.train.grad_accum,
+                      max_len=ctx.cfg.model.max_seq_len,
+                      lr=args.lr, seed=ctx.cfg.seed,
+                      out_dir=ctx.out_dir / "checkpoints",
+                      answer_only=(stage == "control"))
+    print(f"  lr {cfg.learning_rate}  batch {cfg.batch_size}x{cfg.grad_accum} "
+          f"= {cfg.batch_size * cfg.grad_accum}  max_len {cfg.max_len}  "
+          f"steps {cfg.steps}")
+
+    model_cfg = ModelConfig(image_max_pixels=512 * 512)
+    loaded = get_backend(args.backend[0] if args.backend else "hf_peft").load(model_cfg)
+    print(loaded.describe())
+
+    state = optimizer = None
+    if args.resume:
+        optimizer, state = load_checkpoint(
+            args.resume, model=loaded.model,
+            optimizer_factory=lambda m: build_optimizer(m, cfg.learning_rate))
+        feed.load_state_dict(state.feed)
+        print(f"  resumed at step {state.step}, feed position {state.feed.get('position')}")
+
+    result = train(loaded, feed, cfg, state=state, optimizer=optimizer,
+                   on_log=_progress)
+    print("\n" + result.summary())
+    print(feed.stats.describe())
+
+    report = {"stage": stage, "steps": result.state.step,
+              "stopped_early": result.stopped_early,
+              "losses": result.state.losses, "grad_norms": result.state.grad_norms,
+              "feed": feed.state_dict(), "usable": feed.stats.usable,
+              "offered": feed.stats.offered, "refused": feed.stats.refused,
+              "logs": [x.to_dict() for x in result.logs]}
+    out = ctx.out_dir / f"{stage}_report.json"
+    out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    print(f"\nwritten to {out}")
+
+
+def _progress(log) -> None:
+    if log.step % 25 == 0 or log.step <= 3:
+        print(f"    step {log.step:>5}  loss {log.loss:.4f}  |grad| {log.grad_norm:.2f}  "
+              f"{log.seconds:.2f}s  peak {log.peak_gb:.2f} GiB", flush=True)
+
+
+def _records_for(ctx):
+    """Rehydrate the mixture. Ids only live in the file (rule 7), so records are rebuilt."""
+    import json
+
+    from chartqa_dt.train.feed import load_mixture_records
+
+    by_id = {}
+    for record in _all_source_records(ctx):
+        by_id[record.record_id] = record
+    path = Path(ctx.args.mixture)
+    ids = json.loads(path.read_text(encoding="utf-8"))["record_ids"]
+    print(f"  mixture lists {len(ids):,} ids; rebuilt {len(by_id):,} source records")
+    return load_mixture_records(path, by_id)
+
+
+def _all_source_records(ctx):
+    """Every record the mixtures can draw from, rebuilt from the pinned sources."""
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+    from scripts.build_mixtures import (
+        archive_path,
+        chartqa_records,
+        refchartqa_records,
+        synthetic_records,
+    )
+
+    from chartqa_dt.data.chartqa import ArchiveReader
+
+    root = Path(ctx.env.data_root)
+    yield from synthetic_records(root / "synthetic/train/manifest.json")
+    yield from chartqa_records(ArchiveReader(archive_path()), limit=8000,
+                               seed=ctx.cfg.seed)
+    yield from refchartqa_records(cap=4000, cache=root / "refchartqa_train.jsonl")
 
 
 def _run_smoke(ctx) -> None:
@@ -138,3 +249,7 @@ def _run_smoke(ctx) -> None:
         print("Record the choice in DECISIONS.md with this table before proceeding (PLAN 2.4).")
     finally:
         logger.close()
+
+
+if __name__ == "__main__":
+    main()
