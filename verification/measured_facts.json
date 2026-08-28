@@ -560,6 +560,23 @@
     "L3": 100.0,
     "L4": 99.4
    }
+  },
+  "real_sequence_lengths": {
+   "_method": "scripts/measure_target_yield.py --tokens 200 on data/mixture_stage2.json: the real Qwen3VLProcessor over the real chart images at 512 px, through the real collator. Not a proxy \u2014 DECISIONS.md 0064 was written after a chars-per-token estimate came out 60 tokens optimistic.",
+   "_measured": "2026-08-28, after the archive fix in DECISIONS.md 0073",
+   "n": 200,
+   "median": 610,
+   "p90": 683,
+   "p99": 973,
+   "max": 1024,
+   "max_seq_len": 1024,
+   "over_limit": 1,
+   "over_limit_pct": 0.5,
+   "_finding": "max_seq_len = 1024 fits 99.5% of real training examples. The 0.5% that do not are refused by the collator and counted, not truncated.",
+   "_before_the_archive_fix": {
+    "over_limit_pct": 39.0,
+    "_why": "not length at all \u2014 every ChartQA image was missing from disk because it lives in the zip (DECISIONS.md 0073)"
+   }
   }
  }
 }
