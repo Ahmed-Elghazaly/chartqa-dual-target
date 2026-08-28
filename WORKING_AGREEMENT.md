@@ -78,7 +78,13 @@ So, before writing any component that costs a run to test:
 4. **Measure the direct thing, never a proxy.** `DECISIONS.md` 0060 claimed a limitation
    from *table length* when *evidence length in actual plans* was one query away and said
    the opposite. If a proxy is all that is available, say so in the claim.
-5. **Only then write**, and pair each failure mode with the test that catches it.
+5. **Compute what the measurement can resolve, before running it.** A 24-item probe
+   cannot distinguish 50% from 42% — the intervals are [31,69] and [24,61]. Three prompt
+   iterations were justified by movement inside that noise (`DECISIONS.md` 0062). Rule of
+   thumb for a rate: n ≈ 200 resolves 10 points, n ≈ 770 resolves 5. If the affordable n
+   cannot see the effect, either change the design or accept that the run is a smoke test
+   and say so.
+6. **Only then write**, and pair each failure mode with the test that catches it.
 
 The cost of this pass is minutes. The cost of skipping it has been GPU runs, wrong entries
 in the decision log, and Ahmed reading a correction instead of a result.

@@ -2898,3 +2898,52 @@ informative split. Gated behind the core result, like every other extension.
 **Consequences.** No new dependency on the training path, no integration risk against a
 4-bit quantised VLM. The option is now on the record with its numbers, so a later reader
 sees it was measured and declined rather than missed.
+
+---
+
+## 0062 — Three prompt iterations were run on noise; the probe was never powered
+
+**Date** 2026-08-28 · **Phase** 5.1 · **Status** adopted · **Process finding**
+
+**Context.** Four prompt versions were measured on a 24-item probe and each change was
+justified by the movement between them. The movement was not real.
+
+Wilson 95% intervals on the schema-valid rate, n = 24:
+
+| version | schema-valid | 95% interval |
+|---|---:|---|
+| v2 (compact) | 12/24 = 50.0% | **[31%, 69%]** |
+| v3 (+ schema limits) | 12/24 = 50.0% | [31%, 69%] |
+| v4 (+ op guidance, syntax warnings) | 10/24 = 41.7% | **[24%, 61%]** |
+
+The intervals overlap almost entirely. Round-trip "improving" from 4/10 to 5/10 is a
+single record. Resolving a 10-point difference at 95% confidence needs **n ≈ 193**; a
+5-point difference needs n ≈ 769. **The probe could not have detected any of the effects
+it was used to justify.**
+
+**Decision.** Stop probing at n = 24. The next measurement is the `PLAN.md` 5.2 run on the
+frozen **200**-question slice, which is adequately powered for a 10-point effect and is
+plan-required work rather than an extra experiment. Prompt content is chosen on
+*principle*, not on the noise:
+
+* **Kept** — compact single-line examples (v2 measured a real 2.6× token reduction, an
+  effect far larger than the interval); the schema's own limits, stated because the model
+  cannot respect a cap it was never told; operation-choice guidance, justified by *reading*
+  failures rather than by a rate — the model used `lookup` where the answer is a label,
+  which is a specific verified confusion (`DECISIONS.md` 0059).
+* **Dropped** — the negative instruction "never write `bbox":[...]"`" and a worked
+  closing-brace example. Negative instructions can raise the probability of the token they
+  name, these showed no benefit, and v4's prompt grew 1,266 characters while median output
+  nearly doubled from 118 to 229 tokens. The parser repairs that artefact instead, which
+  is what a repair is for.
+
+**Consequences.** The one genuinely large, reliably measured effect is compaction: 308 →
+118 median tokens, which halved the ChartQA validation projection. Everything after it was
+inside the noise floor, and three GPU runs and roughly an hour of quota went to
+distinguishing indistinguishable things.
+
+The generalisable rule, now in `WORKING_AGREEMENT.md`: **before running a comparison,
+compute what it can resolve.** A probe that cannot detect the effect being sought produces
+numbers that look like evidence and are not, and the resulting decisions feel measured
+while being arbitrary. This sits alongside 0055's lesson — consistency is not truth — as
+the second way this project has produced confident numbers that meant nothing.

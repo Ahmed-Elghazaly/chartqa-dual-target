@@ -410,11 +410,20 @@ def test_the_stray_quote_repair_does_not_touch_legitimate_quotes():
     assert result.record["plan"]["args"] == ["a"]
 
 
-def test_the_prompt_warns_about_the_two_syntax_slips_the_model_actually_makes():
+def test_the_prompt_avoids_negative_instructions_about_syntax():
+    """`DECISIONS.md` 0062: telling the model not to emit a token did not help.
+
+    v4 added "never write bbox":[...]"" and a worked closing example. The stray quote
+    still appeared in every failure, the prompt grew by 1,266 characters, and median
+    output nearly doubled — 118 tokens to 229. Negative instructions can raise the
+    probability of the token they name, and here they measurably cost length for no
+    measurable gain. The parser repairs the artefact instead; that is what a repair is
+    for.
+    """
     prompt = build_structured_prompt("q")
-    assert 'never "bbox":[10,20,30,40]"' in prompt
-    assert "Close every object" in prompt
-    assert '"plan":{"op":"mean","args":[]},"model_answer":"9.35"}' in prompt
+    assert 'never "bbox"' not in prompt
+    assert "Close every object" not in prompt
+    assert "bbox is four integers 0-999" in prompt
 
 
 def test_the_prompt_tells_the_model_what_to_do_when_a_chart_is_too_long():

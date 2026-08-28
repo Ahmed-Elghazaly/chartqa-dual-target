@@ -98,12 +98,7 @@ Rules:
   Never an object with "label" or "value" keys.
 - To aggregate over EVERY evidence item, use an empty list — never list the labels:
   {{"op":"sum","args":[]}} means "sum all the evidence".
-- bbox is a bare array of four integers 0-999 with NO quotation marks around it:
-  write "bbox":[10,20,30,40] and never "bbox":[10,20,30,40]" — a stray quote after the
-  closing bracket makes the whole record unreadable.
-  x1,y1 is top-left and x2,y2 is bottom-right.
-- Close every object. "plan" ends with its own }} before "model_answer" begins:
-  ...,"plan":{{"op":"mean","args":[]}},"model_answer":"9.35"}}
+- bbox is four integers 0-999: x1,y1 is top-left and x2,y2 is bottom-right.
 - "op" must be EXACTLY one of these strings: {ops}.
   Use "mean" (not "average"), "difference" (not "subtract").
 - Choose the op by WHAT THE ANSWER IS:
