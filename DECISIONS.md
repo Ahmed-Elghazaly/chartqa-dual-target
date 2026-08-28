@@ -3090,3 +3090,50 @@ better use than leaving it unspent. What extra capacity would genuinely buy late
 descending order of value: **three training seeds** for real error bars on the headline
 delta (~30 h, currently one run and no training-variance estimate at all), then the
 RefChartQA scaling ladder that `PLAN.md` 3.4 requires, then wider evaluation.
+
+---
+
+## 0066 — The scarcest thing in training is compositional plan supervision
+
+**Date** 2026-08-28 · **Phase** 3.7 / 6 · **Status** adopted
+
+**Context.** Asked which extra work would most improve the final result, the honest answer
+turned out not to be on the list first offered. Three training seeds and a scaling ladder
+*measure* and *document* a result; neither improves it. Counting what the mixtures actually
+contain shows where the shortage is:
+
+| | stage 1 | stage 2 |
+|---|---:|---:|
+| records | 12,000 | 12,000 |
+| with any plan | 6,952 | 2,930 |
+| **with a compositional plan** | 5,080 | **1,883** |
+
+**Only 15.7% of stage 2 teaches a non-trivial plan.** Against that, the weakest measured
+quantity in the project is the zero-shot round-trip agreement of 40–50%
+(`DECISIONS.md` 0059), whose dominant cause is the model choosing the wrong *operation* —
+`lookup` where the answer is a label and `argmax` is required. Operation choice is exactly
+what a compositional plan example teaches, and synthetic examples carry one that is
+**verified correct by construction** at a cost of 74 ms each.
+
+**Decision.** Expand the synthetic pool to 24,000 and rebuild stage 2 with a materially
+higher compositional share, then **treat the change as a measured comparison rather than an
+assumption**: Phase 6 trains the pre-registered mixture and the plan-rich mixture and the
+better one is reported. With three team accounts at 30 h each per week, the extra run is
+affordable, and "more plan data helps" is a hypothesis with a plausible mechanism, not a
+fact.
+
+**The risk, stated because it is real.** Synthetic charts are matplotlib; ChartQA charts are
+not. Raising the synthetic share trades plan supervision against a domain gap, and past
+some point the model learns synthetic chart style rather than chart reading. Grounding is
+where the domain matters most, so real data stays dominant for boxes while synthetic
+carries the plan load. That balance is a guess, which is precisely why it is being
+measured rather than assumed.
+
+**Consequences.** The mixture must be settled **before** `PREREGISTRATION.md` is finalised —
+5.5 seals "training mixtures with exact counts", and changing them afterwards would break
+the seal. The draft is not committed as final yet and the sealed-split guard is still
+closed (`DECISIONS.md` 0056), so the sequencing works out; had the pre-registration been
+finalised first, this improvement would have been unavailable.
+
+Recorded also as a correction to my own prioritisation: when asked what would help most, I
+first listed the things that quantify an outcome above the thing that changes it.

@@ -32,6 +32,7 @@ from chartqa_dt.data.download import load_manifest
 from chartqa_dt.data.mixture import (
     STAGE1_CAP,
     STAGE2_CAP,
+    SYNTHETIC_REPLAY,
     build_stage1,
     build_stage2,
     write_mixture,
@@ -146,8 +147,17 @@ def main() -> None:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--stage1-cap", type=int, default=STAGE1_CAP)
     ap.add_argument("--stage2-cap", type=int, default=STAGE2_CAP)
+    ap.add_argument("--replay", type=int, default=None,
+                    help="synthetic examples in stage 2. `PLAN.md` 3.7 says ~2,000; the "
+                         "plan-rich arm raises it because only 15.7%% of stage 2 teaches "
+                         "a compositional plan (DECISIONS.md 0066)")
+    ap.add_argument("--suffix", type=str, default="",
+                    help="written as data/mixture_stageN<suffix>.json, so the "
+                         "pre-registered mixture and the plan-rich arm coexist")
     args = ap.parse_args()
 
+    if args.replay is None:
+        args.replay = SYNTHETIC_REPLAY
     synth = synthetic_records(args.synthetic_manifest)
     reader = ArchiveReader(archive_path())
     real = chartqa_records(reader, limit=args.chartqa_limit, seed=args.seed)
@@ -160,13 +170,14 @@ def main() -> None:
               "   mixture; run scripts/cache_refchartqa.py to add them.)")
 
     s1, c1 = build_stage1(synth, [*real, *ref], cap=args.stage1_cap)
-    write_mixture(s1, c1, "data/mixture_stage1.json")
+    write_mixture(s1, c1, f"data/mixture_stage1{args.suffix}.json")
 
     # Real records only here; the synthetic replay is the second argument. Passing synth
     # in both would just merge it with itself and the replay size would control nothing.
     plan_bearing = [r for r in [*real, *ref] if r.plan or r.boxes]
-    s2, c2 = build_stage2(plan_bearing, synth, cap=args.stage2_cap, seed=args.seed)
-    write_mixture(s2, c2, "data/mixture_stage2.json")
+    s2, c2 = build_stage2(plan_bearing, synth, cap=args.stage2_cap,
+                          replay=args.replay, seed=args.seed)
+    write_mixture(s2, c2, f"data/mixture_stage2{args.suffix}.json")
 
     for comp in (c1, c2):
         print(f"\n{comp.stage}: {comp.total:,} records")
