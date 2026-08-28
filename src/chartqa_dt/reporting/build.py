@@ -23,6 +23,7 @@ SOURCES = {
     "verification/evaluator_crosscheck.json": "crosscheck",
     "results/headline.json": "headline",
     "results/oracle.json": "oracle",
+    "results/diagnostics.json": "diagnostics",
     "results/stratified.json": "stratified",
     "results/structured_cost.json": "structured_cost",
     "results/compute.json": "compute",

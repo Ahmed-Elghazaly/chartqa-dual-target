@@ -111,7 +111,9 @@ class TestBuild:
     def test_the_summary_reports_incompleteness_rather_than_hiding_it(self,
                                                                      tmp_path: Path) -> None:
         text = summarise(build_tables({}, tmp_path, "all"))
-        assert "0/9 tables complete" in text
+        # Every registered table, none of them complete. Asserted against the registry
+        # rather than a literal, so adding a table does not silently make this pass.
+        assert f"0/{len(BUILDERS)} tables complete" in text
         assert "not final" in text
 
     def test_extra_results_are_keyed_by_filename_stem(self, tmp_path: Path) -> None:

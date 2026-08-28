@@ -2,19 +2,18 @@
 % Do not edit by hand; edits are overwritten on the next build.
 \begin{table}[t]
 \centering
-\caption{Grounding AP@0.5 by target-box area.}
+\caption{Grounding stratified three ways.}
 \label{tab:stratified}
-\begin{tabular}{lrc}
+\begin{tabular}{lrrr}
 \toprule
-Box stratum & $n$ & AP@0.5 \\
+Stratum & $n$ & AP@0.5 & P@F1 \\
 \midrule
-sub-token & \TODO{} & \TODO{} \\
-small & \TODO{} & \TODO{} \\
-medium & \TODO{} & \TODO{} \\
-large & \TODO{} & \TODO{} \\
+\emph{by target-box area} & \TODO{} & \TODO{} & \TODO{} \\
+\emph{by chart type} & \TODO{} & \TODO{} & \TODO{} \\
+\emph{by question kind} & \TODO{} & \TODO{} & \TODO{} \\
 \bottomrule
 \end{tabular}
 
 \vspace{2pt}
-\footnotesize{Sub-token boxes are those narrower than one visual token on at least one axis: 66.7\% of RefChartQA training boxes at 512\,px. A box the encoder cannot resolve is a box the decoder cannot point at precisely, so this stratum bounds what any amount of training can achieve at this resolution.}
+\footnotesize{Sub-token boxes are those narrower than one visual token on at least one axis: 66.7\% of RefChartQA training boxes at 512\,px. A box the encoder cannot resolve is a box the decoder cannot point at precisely, so that stratum bounds what any amount of training achieves at this resolution. AP is recomputed within each group rather than averaged across groups, because AP is not a mean of per-item scores.}
 \end{table}

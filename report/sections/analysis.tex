@@ -6,6 +6,17 @@
 
 \input{tables/tab_oracle}
 
+\subsection{What the plans are like, and whether synthetic transfers}
+\label{sec:analysis:transfer}
+
+\input{tables/tab_plan_diagnostics}
+
+This is not a side ablation. The supply of real chart supervision this project
+can build is 4{,}483 records against 23{,}966 synthetic ones, so synthetic data
+supplies most of both training mixtures. If plan quality collapses when the chart
+is real, the synthetic charts taught a format rather than a skill, and the gap in
+Table~\ref{tab:plan_diagnostics} is the measurement that says so.
+
 Because the answer is recomputed by an interpreter from an explicit expression tree, the pipeline can
 be cut at each stage and fed perfect information:
 

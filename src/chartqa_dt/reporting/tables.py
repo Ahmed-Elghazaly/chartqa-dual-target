@@ -243,24 +243,82 @@ def build_oracle(results: dict[str, Any]) -> str:
 
 
 def build_stratified(results: dict[str, Any]) -> str:
-    """`PLAN.md` 9.2 — AP by target-box area, the axis the model is expected to struggle on."""
-    strata = (results.get("stratified") or {}).get("by_area") or {}
+    """`PLAN.md` 9.2 — AP by target-box area, the axis the model is expected to struggle on.
+
+    Reads the shape `eval/stratified` writes so the table cannot drift from the
+    computation. `by_area` comes from `stratify`, whose buckets follow COCO's area-range
+    semantics; `by_chart_type` and `by_question_kind` come from `stratify_by`, where each
+    group is an independent evaluation.
+    """
+    strata = results.get("stratified") or {}
     facts = results.get("measured_facts") or {}
     sub = _get(facts, "phase4", "stratification") or {}
-    order = ["sub-token", "small", "medium", "large"]
-    rows = [row([escape(name), f"{(strata.get(name) or {}).get('n', TODO):,}"
-                 if isinstance((strata.get(name) or {}).get("n"), int) else TODO,
-                 ci((strata.get(name) or {}).get("value"),
-                    (strata.get(name) or {}).get("lo"),
-                    (strata.get(name) or {}).get("hi"))]) for name in order]
+
+    def block(groups: dict[str, Any], heading: str) -> list[str]:
+        if not groups:
+            return [row([f"\\emph{{{heading}}}", TODO, TODO, TODO])]
+        out = [row([f"\\emph{{{heading}}}", "", "", ""])]
+        for name, g in groups.items():
+            out.append(row([f"\\quad {escape(name)}",
+                            f"{g.get('n', 0):,}",
+                            num(100 * g["ap50"], 2, percent=True)
+                            if g.get("ap50") is not None else TODO,
+                            num(100 * g["p_at_f1"], 2, percent=True)
+                            if g.get("p_at_f1") is not None else TODO]))
+        return out
+
+    rows = (block(strata.get("by_area") or {}, "by target-box area")
+            + block(strata.get("by_chart_type") or {}, "by chart type")
+            + block(strata.get("by_question_kind") or {}, "by question kind"))
     note = ("Sub-token boxes are those narrower than one visual token on at least one "
             f"axis: {num(sub.get('subtoken_fraction_by_axis_pct'), 1, percent=True)} of "
             "RefChartQA training boxes at 512\\,px. A box the encoder cannot resolve is a "
-            "box the decoder cannot point at precisely, so this stratum bounds what any "
-            "amount of training can achieve at this resolution.")
+            "box the decoder cannot point at precisely, so that stratum bounds what any "
+            "amount of training achieves at this resolution. AP is recomputed within each "
+            "group rather than averaged across groups, because AP is not a mean of "
+            "per-item scores.")
     return table("tab_stratified",
-                 "Grounding AP@0.5 by target-box area.", "tab:stratified",
-                 tabular("lrc", ["Box stratum", "$n$", "AP@0.5"], rows), note=note)
+                 "Grounding stratified three ways.", "tab:stratified",
+                 tabular("lrrr", ["Stratum", "$n$", "AP@0.5", "P@F1"], rows), note=note)
+
+
+def build_plan_diagnostics(results: dict[str, Any]) -> str:
+    """`PLAN.md` 9.3 and 9.4 in one float — the per-source view *is* the transfer result."""
+    d = results.get("diagnostics") or {}
+    by_source = d.get("by_source") or {}
+    transfer = d.get("transfer") or {}
+
+    measures = [("valid JSON", "valid_json"), ("schema-valid", "schema_valid"),
+                ("has a plan", "plan_coverage"), ("executor succeeds", "executor_success"),
+                ("executor agrees", "executor_agreement"),
+                ("exact operation tree", "tree_exact"),
+                ("exact operands", "operands_exact")]
+    names = list(by_source) or ["synthetic", "chartqa", "refchartqa"]
+    rows = [row([label, *[num(100 * (by_source.get(n, {}).get(key) or 0), 2, percent=True)
+                          if by_source.get(n, {}).get(key) is not None else TODO
+                          for n in names]])
+            for label, key in measures]
+    header = ["Measure", *[escape(n) for n in names]]
+
+    note = ""
+    if transfer.get("measurable"):
+        drop = transfer.get("drop_points", {})
+        note = ("Transfer (9.4): moving from synthetic charts to real ones costs "
+                + ", ".join(f"{v:+.2f} pts {escape(k.replace('_', ' '))}"
+                            for k, v in drop.items())
+                + f", over {transfer.get('n_synthetic', 0):,} synthetic and "
+                  f"{transfer.get('n_real', 0):,} real records. The real supply is the "
+                  "binding constraint — 4,483 records in total — so these gaps carry wide "
+                  "intervals and are read as direction rather than magnitude.")
+    return table("tab_plan_diagnostics",
+                 "What the emitted plans are actually like, by chart source. Tree and "
+                 "operand exactness are measured only where the true plan is known. "
+                 "Operation-tree comparison allows commutative arguments to be reordered "
+                 "and nothing else: \\texttt{difference} is not symmetric, and scoring it "
+                 "as though it were would report agreement on the error the executor "
+                 "exists to catch.",
+                 "tab:plan_diagnostics",
+                 tabular("l" + "r" * len(names), header, rows), note=note)
 
 
 def _todo_table(name: str, caption: str, columns: list[str]) -> str:
@@ -305,6 +363,7 @@ BUILDERS = {
     "headline": build_headline,
     "oracle": build_oracle,
     "stratified": build_stratified,
+    "plan_diagnostics": build_plan_diagnostics,
     "structured_cost": build_structured_cost,
     "crop": build_crop,
     "resolution": build_resolution,
