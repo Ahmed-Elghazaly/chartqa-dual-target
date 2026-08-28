@@ -18,7 +18,7 @@ tested ahead of its gate.** Phases 0–4 complete. Cost so far: **USD 0**.
 | 7 | table and claim guards built | `Cell` refuses a point estimate without an interval; `Claims` cannot say training was reproduced |
 | 10 | skeleton compiles, generator built | `cdt-report` fills tables from recorded JSON; 16 pages, 0 undefined refs |
 
-**910 tests pass**; `ruff check src tests scripts` clean; preflight green.
+**909 tests pass**; `ruff check src tests scripts` clean; preflight green.
 
 ## Phase 5.2 result — the first properly powered measurement
 
