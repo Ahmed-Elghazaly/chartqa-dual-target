@@ -2,16 +2,16 @@
 % Do not edit by hand; edits are overwritten on the next build.
 \begin{table}[t]
 \centering
-\caption{Oracle decomposition. Substituting gold evidence isolates visual error; substituting the gold plan isolates reasoning error; substituting both leaves only what the executor itself cannot do.}
+\caption{Oracle decomposition. Substituting gold evidence isolates visual error; substituting the gold plan isolates reasoning error; substituting both leaves only what the executor itself cannot do. Every cell is computed on the same records, so the differences are like-for-like.}
 \label{tab:oracle}
-\begin{tabular}{llcl}
+\begin{tabular}{llrrl}
 \toprule
-Evidence & Plan & Relaxed accuracy & Tells you \\
+Evidence & Plan & Relaxed accuracy & Executor refused & Tells you \\
 \midrule
-predicted & predicted & \TODO{} & the real system \\
-\textbf{gold} & predicted & \TODO{} & error from \emph{seeing} \\
-predicted & \textbf{gold} & \TODO{} & error from \emph{reasoning} \\
-\textbf{gold} & \textbf{gold} & \TODO{} & the executor's own ceiling \\
+predicted & predicted & \TODO{} & \TODO{} & the real system \\
+\textbf{gold} & predicted & \TODO{} & \TODO{} & error from \emph{seeing} \\
+predicted & \textbf{gold} & \TODO{} & \TODO{} & error from \emph{reasoning} \\
+\textbf{gold} & \textbf{gold} & \TODO{} & \TODO{} & the executor's own ceiling \\
 \bottomrule
 \end{tabular}
 \end{table}

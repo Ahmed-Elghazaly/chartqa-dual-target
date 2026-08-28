@@ -197,24 +197,49 @@ def build_headline(results: dict[str, Any]) -> str:
 
 
 def build_oracle(results: dict[str, Any]) -> str:
-    """`PLAN.md` 9.1 — where the error actually comes from."""
+    """`PLAN.md` 9.1 — where the error actually comes from.
+
+    Reads the shape `eval/oracle.decompose` writes, so the table cannot drift from the
+    computation. All four cells share their record set by construction there; `n_eligible`
+    is printed once, in the caption, rather than per row, because it is the same number.
+    """
     o = results.get("oracle") or {}
-    configs = [("pred_pred", "predicted", "predicted", "the real system"),
-               ("gold_pred", r"\textbf{gold}", "predicted", "error from \\emph{seeing}"),
-               ("pred_gold", "predicted", r"\textbf{gold}", "error from \\emph{reasoning}"),
-               ("gold_gold", r"\textbf{gold}", r"\textbf{gold}", "the executor's own ceiling")]
+    cells = o.get("cells") or {}
+    labels = {"pred_pred": ("predicted", "predicted", "the real system"),
+              "gold_pred": (r"\textbf{gold}", "predicted", r"error from \emph{seeing}"),
+              "pred_gold": ("predicted", r"\textbf{gold}", r"error from \emph{reasoning}"),
+              "gold_gold": (r"\textbf{gold}", r"\textbf{gold}",
+                            "the executor's own ceiling")}
     rows = []
-    for key, ev, plan, tells in configs:
-        d = o.get(key) or {}
-        rows.append(row([ev, plan, ci(d.get("value"), d.get("lo"), d.get("hi")),
-                         escape(tells) if "\\" not in tells else tells]))
+    for key, (ev, plan, tells) in labels.items():
+        cell = cells.get(key) or {}
+        acc = cell.get("accuracy")
+        rows.append(row([ev, plan,
+                         num(100 * acc, 2, percent=True) if acc is not None else TODO,
+                         num(cell.get("executor_refused"), 0)
+                         if cell.get("executor_refused") is not None else TODO,
+                         tells]))
+    n = o.get("n_eligible")
+    excluded = o.get("n_excluded_no_gold_plan")
+    note = ""
+    if excluded:
+        note = (f"{excluded:,} records are excluded because they carry no gold plan; "
+                "ChartQA supplies one only where a single operation over its gold table "
+                "uniquely reproduces the answer (\\textsc{decisions} 0045). A predicted "
+                "plan that does not fit the gold evidence is counted as a failure in the "
+                "gold-evidence rows, not skipped \\textemdash{} skipping it would flatter "
+                "exactly the records the model got most wrong.")
     return table("tab_oracle",
-                 "Oracle decomposition. Substituting gold evidence isolates visual error; "
-                 "substituting the gold plan isolates reasoning error; substituting both "
-                 "leaves only what the executor itself cannot do.",
+                 "Oracle decomposition"
+                 + (f" over the {n:,} records eligible for all four cells" if n else "")
+                 + ". Substituting gold evidence isolates visual error; substituting the "
+                 "gold plan isolates reasoning error; substituting both leaves only what "
+                 "the executor itself cannot do. Every cell is computed on the same "
+                 "records, so the differences are like-for-like.",
                  "tab:oracle",
-                 tabular("llcl", ["Evidence", "Plan", "Relaxed accuracy", "Tells you"],
-                         rows))
+                 tabular("llrrl", ["Evidence", "Plan", "Relaxed accuracy",
+                                   "Executor refused", "Tells you"], rows),
+                 note=note)
 
 
 def build_stratified(results: dict[str, Any]) -> str:

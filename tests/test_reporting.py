@@ -118,9 +118,12 @@ class TestBuild:
         extra = tmp_path / "results"
         extra.mkdir()
         (extra / "oracle.json").write_text(json.dumps(
-            {"gold_gold": {"value": 99.1, "lo": 97.0, "hi": 99.9}}), encoding="utf-8")
+            {"n_eligible": 120, "n_excluded_no_gold_plan": 8,
+             "cells": {"gold_gold": {"accuracy": 0.991, "executor_refused": 0}}}),
+            encoding="utf-8")
         results = load_results(ROOT, extra)
-        assert "99.1" in BUILDERS["oracle"](results)
+        rendered = BUILDERS["oracle"](results)
+        assert "99.10" in rendered and "120" in rendered
 
 
 @pytest.mark.skipif(shutil.which("pdflatex") is None, reason="no LaTeX toolchain")

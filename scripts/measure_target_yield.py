@@ -173,7 +173,9 @@ def main() -> int:
               f"(max_seq_len {cfg.max_seq_len})...")
         from chartqa_dt.train.feed import MixtureFeed
 
-        feed = MixtureFeed([r for r, _ in sample], answer_only=args.answer_only)
+        feed = MixtureFeed([r for r, _ in sample], shuffle=False,
+                           answer_only=args.answer_only,
+                           image_root=Path(ctx.env.data_root))
         for i, (record, target) in enumerate(sample):
             try:
                 image = feed._image(record)
