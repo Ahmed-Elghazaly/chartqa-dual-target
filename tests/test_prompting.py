@@ -507,3 +507,50 @@ def test_all_three_prompts_are_fingerprinted():
     fp = prompt_fingerprint()
     assert set(fp) == {"structured", "plain", "training"}
     assert len(set(fp.values())) == 3, "three distinct prompts, three distinct hashes"
+
+
+def test_evidence_the_schema_cannot_hold_is_dropped_and_counted():
+    """The third repair category: drop, never add — `DECISIONS.md` 0068.
+
+    Measured on 200 real zero-shot generations: 17 records carried an evidence item with
+    no `bbox`, and 24 of 133 exceeded the eight-item cap by enumerating a whole chart.
+    Either invalidates the record outright, so the choice is between dropping the items
+    and dropping the record. Dropping items took schema validity from 35.5% to 46.5% and
+    usable records from 49 to 61.
+    """
+    from chartqa_dt.plans.schema import MAX_EVIDENCE
+
+    record = {
+        "answerable": True,
+        "evidence": [{"label": "a", "value": 1, "unit": None, "bbox": [1, 2, 3, 4]},
+                     {"label": "no-box", "value": 2},
+                     *[{"label": f"c{i}", "value": i, "unit": None, "bbox": [1, 2, 3, 4]}
+                       for i in range(12)]],
+        "plan": {"op": "lookup", "args": ["a"]},
+        "model_answer": "1",
+    }
+    result = parse_record(json.dumps(record))
+    assert result.ok
+    kept = result.record["evidence"]
+    assert len(kept) == MAX_EVIDENCE
+    assert all("bbox" in e for e in kept)
+    assert kept[0]["label"] == "a", "the model's own ordering is preserved"
+    assert any("no bbox" in r for r in result.repairs)
+    assert any("first 8" in r for r in result.repairs)
+
+
+def test_a_record_within_the_limits_is_left_untouched():
+    """The repair must not fire on healthy records, or the repair rate is meaningless."""
+    result = parse_record(example_record_json())
+    assert result.ok and result.repairs == []
+    assert len(result.record["evidence"]) == 2
+
+
+def test_dropping_never_adds_a_field():
+    """The invariant across all three repair categories: drop, unwrap, never add."""
+    record = {"answerable": True, "evidence": [{"label": "a"}],
+              "plan": {"op": "unanswerable", "args": []}, "model_answer": ""}
+    result = parse_record(json.dumps(record))
+    assert result.ok
+    assert result.record["evidence"] == [], "the box-less item is removed, not invented"
+    assert set(result.record) == set(record), "no key is added"

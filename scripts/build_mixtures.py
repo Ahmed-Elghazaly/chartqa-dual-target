@@ -51,6 +51,29 @@ def archive_path() -> Path:
             / "snapshots" / entry["revision"] / entry["filename"])
 
 
+def balance_by_level(records: list[ChartRecord], total: int, *, seed: int
+                     ) -> list[ChartRecord]:
+    """An equal share of each curriculum level, sampled — not the first `total`.
+
+    `build_stage1` orders L1→L4 and then takes the cap, so handing it every synthetic
+    example fills the whole mixture with L1 and L2 and excludes L3, L4 **and all real
+    grounding data**. Sampling per level keeps the curriculum and leaves room for real
+    charts, which is where the domain actually matters (`DECISIONS.md` 0066).
+    """
+    if not total or total >= len(records):
+        return records
+    rng = random.Random(seed)
+    by_level: dict[str, list[ChartRecord]] = {}
+    for record in records:
+        by_level.setdefault(str(record.meta.get("level")), []).append(record)
+    per_level = max(1, total // max(1, len(by_level)))
+    out: list[ChartRecord] = []
+    for level in sorted(by_level):
+        pool = by_level[level]
+        out.extend(rng.sample(pool, min(per_level, len(pool))))
+    return out
+
+
 def synthetic_records(manifest: Path) -> list[ChartRecord]:
     """Generated examples, read back from the generator's manifest."""
     if not manifest.exists():
@@ -157,6 +180,9 @@ def main() -> None:
                     help="synthetic examples in stage 2. `PLAN.md` 3.7 says ~2,000; the "
                          "plan-rich arm raises it because only 15.7%% of stage 2 teaches "
                          "a compositional plan (DECISIONS.md 0066)")
+    ap.add_argument("--synthetic-stage1", type=int, default=6000,
+                    help="synthetic examples offered to stage 1, balanced across L1-L4. "
+                         "The rest of the cap is real grounding data.")
     ap.add_argument("--suffix", type=str, default="",
                     help="written as data/mixture_stageN<suffix>.json, so the "
                          "pre-registered mixture and the plan-rich arm coexist")
@@ -164,7 +190,8 @@ def main() -> None:
 
     if args.replay is None:
         args.replay = SYNTHETIC_REPLAY
-    synth = synthetic_records(args.synthetic_manifest)
+    synth_all = synthetic_records(args.synthetic_manifest)
+    synth = balance_by_level(synth_all, args.synthetic_stage1, seed=args.seed)
     reader = ArchiveReader(archive_path())
     real = chartqa_records(reader, limit=args.chartqa_limit, seed=args.seed)
     ref = refchartqa_records(cap=args.refchartqa_cap, cache=args.refchartqa_cache)
@@ -181,7 +208,9 @@ def main() -> None:
     # Real records only here; the synthetic replay is the second argument. Passing synth
     # in both would just merge it with itself and the replay size would control nothing.
     plan_bearing = [r for r in [*real, *ref] if r.plan or r.boxes]
-    s2, c2 = build_stage2(plan_bearing, synth, cap=args.stage2_cap,
+    # Stage 2 draws replay from the FULL synthetic pool, not the stage-1 subsample, so
+    # raising `--replay` actually adds plan supervision.
+    s2, c2 = build_stage2(plan_bearing, synth_all, cap=args.stage2_cap,
                           replay=args.replay, seed=args.seed)
     write_mixture(s2, c2, f"data/mixture_stage2{args.suffix}.json")
 

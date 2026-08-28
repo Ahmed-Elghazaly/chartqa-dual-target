@@ -13,8 +13,15 @@ So this module separates two things that are often conflated:
   Recovering here is legitimate, and every recovery is *counted* so the rate is visible.
 * **Invention** — supplying a field the model did not produce. Never done. A record
   missing `model_answer` is a failure, and `ParseResult.ok` is False.
+* **Discarding what the schema cannot represent** — an evidence item with no `bbox`, or
+  the ninth item when the cap is eight. This is a third category and it is allowed: it
+  adds nothing, and the alternative is to throw away an otherwise good record entirely.
+  The model is instructed to order evidence most-important-first, so keeping the first
+  eight respects its own ranking, and `DECISIONS.md` 0014 wants fewer boxes anyway.
 
-The difference is whether the information came from the model or from us.
+The rule across all three: **we may drop, we may unwrap, we never add.** Measured on 200
+real zero-shot generations, dropping and capping took schema validity from 35.5% to 46.5%
+and usable records from 49 to 61.
 """
 
 from __future__ import annotations
@@ -113,9 +120,36 @@ def parse_record(text: str) -> ParseResult:
             # Not repaired: a missing field is the model's failure, not the transport's.
             return ParseResult(False, reason=f"missing required field(s): {missing}",
                                repairs=repairs, raw=text)
-        return ParseResult(True, record=obj, repairs=repairs, raw=text)
+        obj, dropped = _drop_unrepresentable(obj)
+        return ParseResult(True, record=obj, repairs=[*repairs, *dropped], raw=text)
 
     return ParseResult(False, reason=last_error, raw=text)
+
+
+def _drop_unrepresentable(record: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """Remove evidence the schema cannot hold. Adds nothing; every removal is reported.
+
+    Two measured causes, on 200 real generations: 17 records carried an evidence item with
+    no `bbox`, and 24 of 133 exceeded the eight-item cap by enumerating a whole chart.
+    Either invalidates the record outright, so the choice is between dropping the offending
+    items and dropping the record.
+    """
+    from chartqa_dt.plans.schema import MAX_EVIDENCE
+
+    evidence = record.get("evidence")
+    if not isinstance(evidence, list):
+        return record, []
+
+    repairs: list[str] = []
+    kept = [e for e in evidence if isinstance(e, dict) and "bbox" in e]
+    if len(kept) != len(evidence):
+        repairs.append(f"dropped {len(evidence) - len(kept)} evidence item(s) with no bbox")
+    if len(kept) > MAX_EVIDENCE:
+        repairs.append(f"kept the first {MAX_EVIDENCE} of {len(kept)} evidence items")
+        kept = kept[:MAX_EVIDENCE]
+    if not repairs:
+        return record, []
+    return {**record, "evidence": kept}, repairs
 
 
 def coerce_boxes(record: dict[str, Any]) -> list[list[float]]:

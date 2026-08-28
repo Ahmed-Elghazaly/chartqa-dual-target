@@ -3189,3 +3189,55 @@ project reports is no longer undermined by its own training set.
 The generalisable lesson is the third defect: **duplicated construction logic diverges.**
 Two functions that both build a `ChartRecord` will not stay in agreement, and the one used
 by the pipeline was the one that was wrong.
+
+---
+
+## 0068 — Dropping what the schema cannot hold is a third, permitted repair
+
+**Date** 2026-08-28 · **Phase** 5.2 · **Status** adopted
+
+**Context.** The `PLAN.md` 5.2 run on the frozen 200-question slice is the first prompt
+measurement with enough power to mean anything (`DECISIONS.md` 0062). It settles several
+things at once:
+
+| | n=24 probes | **n=200** |
+|---|---:|---:|
+| round-trip agreement | 40–50% | **69.0%** |
+| schema-valid | 42–50% | **35.5%** |
+| relaxed accuracy | — | 50.0% |
+| plans that execute at all | 70–80% | **94.4%** |
+
+The round-trip figure is far better than the small probes suggested, which is exactly what
+0062 predicted would happen once the measurement was powered. Schema validity is now the
+binding constraint, and diagnosing it on 200 real generations gave two dominant causes:
+**17 records carried an evidence item with no `bbox`**, and **24 of 133 exceeded the
+eight-item cap** by enumerating a whole chart.
+
+**Decision.** `parse_record` may now **drop** evidence the schema cannot represent — an
+item without a `bbox`, or the ninth item when the cap is eight — and every removal is
+counted as a repair. This is a third category beside the two the module already had, and
+the rule across all three is: **drop, unwrap, never add.** Nothing is invented; the choice
+is between discarding the offending items and discarding an otherwise good record.
+
+Two things make it legitimate rather than convenient. The model is instructed to order
+evidence most-important-first, so keeping the first eight respects its own ranking; and
+`DECISIONS.md` 0014 measured that fewer boxes score *better* on AP, so the cap is not a
+handicap. The repair applies identically to the baseline and the trained model.
+
+**Measured offline on the same 200 generations**, at no GPU cost:
+
+| | before | after |
+|---|---:|---:|
+| schema-valid | 35.5% | **46.5%** |
+| round-trip of those | 69.0% | 65.6% |
+| **usable records** | 49/200 | **61/200** |
+
+Round-trip dips slightly because the newly admitted records include some that do not
+round-trip; the count of usable records is the figure that matters and it rose by a
+quarter.
+
+**Consequences.** It strengthens the *baseline*, which is the honest direction — a stronger
+baseline makes the eventual improvement harder to claim, not easier. And the whole
+evaluation was done on saved generations, which is the payoff for having separated
+generation from scoring: a parser change can be measured against 200 real model outputs in
+seconds rather than by another GPU run.

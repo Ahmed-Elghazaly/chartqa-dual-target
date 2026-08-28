@@ -402,6 +402,23 @@
         "mean": 1.46,
         "_note": "the 8-evidence cap does not bind here"
       }
+    },
+    "variant_selection_5_2": {
+      "_method": "frozen 200-question ChartQA validation slice, Qwen3-VL-2B-Instruct, 4-bit, 512 px, T4. Adequately powered: n=200 resolves ~10 points.",
+      "n": 200,
+      "variant_chosen": "instruct",
+      "relaxed_accuracy_pct": 50.0,
+      "valid_json_pct": 66.5,
+      "schema_valid_pct_before_repair": 35.5,
+      "schema_valid_pct_after_repair": 46.5,
+      "roundtrip_agreement_pct": 69.0,
+      "roundtrip_executable_pct": 94.4,
+      "median_latency_s": 11.44,
+      "median_new_tokens": 198.5,
+      "hit_token_cap_pct": 26.0,
+      "usable_records_before_repair": 49,
+      "usable_records_after_repair": 61,
+      "_note": "The n=24 probes had reported round-trip at 40-50%; at n=200 it is 69%, confirming DECISIONS.md 0062 that the small probes were noise."
     }
   },
   "phase6": {
