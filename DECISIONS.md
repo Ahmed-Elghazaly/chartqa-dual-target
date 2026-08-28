@@ -3286,3 +3286,50 @@ sizes and the patience, so the rule is fixed before any curve is seen.
 One implementation detail worth its own test: `EarlyStopping` *maximises* its metric while
 loss *falls* with improvement, so the evaluator returns **negative** loss. The wrong sign
 would stop the run at its first evaluation and look exactly like immediate convergence.
+
+---
+
+## 0070 — The eight-evidence cap binds on 2% of RefChartQA records, so it does not cap AP
+
+**Context.** `OUTPUT_SCHEMA` allows at most `MAX_EVIDENCE = 8` evidence entries, and
+`build_target` truncates a RefChartQA record's boxes to that. Ground truth at evaluation
+time is the *full* annotation. If records routinely carried more than eight boxes, the cap
+would put a ceiling on recall, and therefore on AP@0.5, for a reason that has nothing to do
+with what the model learned — and the ceiling would be invisible in the curve, which is the
+dangerous kind.
+
+I noticed this while wiring the Phase 6.5 monitoring metric and stopped to measure it
+rather than reason about it, because the same cap also affects the Phase 7 headline number.
+
+**Measurement.** Box counts per record over the 200-record RefChartQA train audit sample
+(`data/refchartqa_audit.jsonl`, `n_boxes_raw`, before any cap):
+
+| boxes | records | share |
+|---:|---:|---:|
+| 1 | 153 | 76.5% |
+| 2 | 32 | 16.0% |
+| 3 | 2 | 1.0% |
+| 5 | 4 | 2.0% |
+| 6 | 1 | 0.5% |
+| 7 | 2 | 1.0% |
+| 8 | 2 | 1.0% |
+| 9 | 2 | 1.0% |
+| 10 | 2 | 1.0% |
+
+**92.5% of records carry at most two boxes. Four of 200 — 2.0% — exceed the cap.**
+
+**Decision.** Keep `MAX_EVIDENCE = 8`. The cap costs recall on about one record in fifty,
+which is a bounded and reportable cost rather than a structural ceiling. Raising it would
+lengthen the target for every record to accommodate the 2% and would push more examples past
+`max_seq_len` (`DECISIONS.md` 0064), which is the more expensive failure.
+
+**Consequences.** The monitoring metric and the Phase 7 evaluation both score against the
+full annotation, so the 2% shows up as lost recall exactly where it is lost. Recorded in
+`verification/measured_facts.json` under `phase6.evidence_cap` so the number is available to
+the report without re-deriving it.
+
+This also settles a question the monitoring metric raised: for RefChartQA records
+`_evidence_from` takes the `boxes` list wholesale, so predicted and gold sets are the same
+set — the plan-subset selection that applies to ChartQA and synthetic records, where the
+target deliberately points only at what the answer needs, does not apply here. Those records
+carry no grounding annotation, so they are excluded from AP and kept in the answer metric.

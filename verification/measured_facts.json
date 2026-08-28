@@ -1,496 +1,515 @@
 {
-  "_purpose": "Single source of truth for every measured or verified number this project quotes. Documentation must agree with this file; tests/test_docs_consistency.py enforces it. If a number changes, change it HERE and let the tests find every place that disagrees.",
-  "_verified": "2026-08-26",
-  "datasets": {
-    "chartqa_splits": {
-      "train": 28299,
-      "val": 1920,
-      "test": 2500
-    },
-    "refchartqa_splits": {
-      "train": 55789,
-      "validation": 6223,
-      "test": 11690
-    },
-    "refchartqa_test_by_type": {
-      "human": 500,
-      "machine": 1032,
-      "pot": 10158
-    },
-    "chartqapro_test_rows": 1948,
-    "chartqa_archive_bytes": 875370872,
-    "chartqapro_bytes": 193053989
+ "_purpose": "Single source of truth for every measured or verified number this project quotes. Documentation must agree with this file; tests/test_docs_consistency.py enforces it. If a number changes, change it HERE and let the tests find every place that disagrees.",
+ "_verified": "2026-08-26",
+ "datasets": {
+  "chartqa_splits": {
+   "train": 28299,
+   "val": 1920,
+   "test": 2500
   },
-  "published_targets": {
-    "refchartqa_ap50_human_qwen25vl3b": 32.83,
-    "refchartqa_ap50_machine_qwen25vl3b": 59.28,
-    "refchartqa_ap50_pot_qwen25vl3b": 39.32,
-    "refchartqa_answer_without_boxes": 88.8,
-    "refchartqa_answer_with_boxes": 84.8,
-    "chartqa_qwen3vl2b_instruct": 79.1,
-    "chartqa_qwen3vl2b_thinking": 86.6
+  "refchartqa_splits": {
+   "train": 55789,
+   "validation": 6223,
+   "test": 11690
   },
-  "model": {
-    "hf_id": "Qwen/Qwen3-VL-2B-Instruct",
-    "patch_size": 16,
-    "spatial_merge_size": 2,
-    "visual_token_factor": 32,
-    "min_pixels": 65536,
-    "max_pixels": 16777216,
-    "bf16_weights_bytes": 4255140312,
-    "unsloth_4bit_bytes": 2406693586
+  "refchartqa_test_by_type": {
+   "human": 500,
+   "machine": 1032,
+   "pot": 10158
   },
-  "subtoken": {
-    "_method": "800 RefChartQA validation images / 1045 boxes; 'sub-token' = narrower than one visual token on at least one axis",
-    "median_visual_tokens_native": 425,
-    "median_visual_tokens_512": 247,
-    "fraction_native": 41.3,
-    "fraction_512": 53.2,
-    "fraction_448": 60.5,
-    "by_subset_512": {
-      "human": 56.5,
-      "machine": 73.1,
-      "pot": 48.5
-    },
-    "by_subset_448": {
-      "human": 65.0,
-      "machine": 84.3,
-      "pot": 58.2
-    },
-    "median_visual_tokens_448": 176,
-    "_448_vs_512_cost": "Dropping 512 -> 448 removes 29% of visual tokens and costs +9.5 percentage points of sub-token targets overall, +8.5pp on the human subset that carries the published comparison. Measured on RefChartQA validation only (rule 1), 600 rows across all three subsets."
+  "chartqapro_test_rows": 1948,
+  "chartqa_archive_bytes": 875370872,
+  "chartqapro_bytes": 193053989
+ },
+ "published_targets": {
+  "refchartqa_ap50_human_qwen25vl3b": 32.83,
+  "refchartqa_ap50_machine_qwen25vl3b": 59.28,
+  "refchartqa_ap50_pot_qwen25vl3b": 39.32,
+  "refchartqa_answer_without_boxes": 88.8,
+  "refchartqa_answer_with_boxes": 84.8,
+  "chartqa_qwen3vl2b_instruct": 79.1,
+  "chartqa_qwen3vl2b_thinking": 86.6
+ },
+ "model": {
+  "hf_id": "Qwen/Qwen3-VL-2B-Instruct",
+  "patch_size": 16,
+  "spatial_merge_size": 2,
+  "visual_token_factor": 32,
+  "min_pixels": 65536,
+  "max_pixels": 16777216,
+  "bf16_weights_bytes": 4255140312,
+  "unsloth_4bit_bytes": 2406693586
+ },
+ "subtoken": {
+  "_method": "800 RefChartQA validation images / 1045 boxes; 'sub-token' = narrower than one visual token on at least one axis",
+  "median_visual_tokens_native": 425,
+  "median_visual_tokens_512": 247,
+  "fraction_native": 41.3,
+  "fraction_512": 53.2,
+  "fraction_448": 60.5,
+  "by_subset_512": {
+   "human": 56.5,
+   "machine": 73.1,
+   "pot": 48.5
   },
-  "phase2": {
-    "_source": "Kaggle Tesla T4, hf_peft backend, 512-pixel budget, single-device pinned (DECISIONS.md 0025). Values below are the POST-FIX run.",
-    "peak_reserved_gb": 5.572,
-    "seconds_per_step": 11.903,
-    "projected_full_run_hours": 9.92,
-    "loss_first_10": 2.879,
-    "loss_last_10": 0.968,
-    "lora_vision_params": 7208960,
-    "lora_language_params": 17432576,
-    "lora_vision_tensors": 208,
-    "lora_language_tensors": 392,
-    "trainable_params": 24641536,
-    "total_params": 1447530496,
-    "quantised_vision_full": 104,
-    "quantised_language_4bit": 196,
-    "_measured_at_448": {
-      "projected_hours": 7.56,
-      "peak_gb": 5.29,
-      "seconds_per_step": 9.07
-    },
-    "_measured_at_512_three_sessions_hours": [
-      9.92,
-      10.53,
-      10.52
-    ],
-    "_resolution_chosen": "512 (decision 0037); 448 fully specified as the alternative",
-    "resume_deltas": [
-      0.0053,
-      0.0018,
-      0.0014
-    ],
-    "visual_tokens_512": 247,
-    "_superseded_sharded_run": {
-      "peak_reserved_gb": 1.482,
-      "seconds_per_step": 8.664,
-      "projected_full_run_hours": 7.22,
-      "_why": "Measured with device_map='auto', which sharded the model across two T4s while torch.cuda.max_memory_reserved() read device 0 alone \u2014 understating the footprint by ~3.8x and the step time correspondingly (DECISIONS.md 0025). Kept so the history is legible; never quote these."
-    },
-    "_measured_native": {
-      "peak_gb": 6.723,
-      "seconds_per_step": 21.267,
-      "projected_hours": 17.72,
-      "visual_tokens": 425
-    }
+  "by_subset_448": {
+   "human": 65.0,
+   "machine": 84.3,
+   "pot": 58.2
   },
-  "gates": {
-    "memory_gb": 13.5,
-    "full_run_hours": 20.0,
-    "planned_optimizer_steps": 3000,
-    "weekly_gpu_quota_hours": 30,
-    "_gate_revision": "Revised from 10 h to 20 h in decision 0034 and disclosed in 0037: the 10 h figure proxied for 'can this finish', which verified resume now answers directly. The revision also ADDED a requirement (resume verified for the exact configuration) that run 11 would have failed."
+  "median_visual_tokens_448": 176,
+  "_448_vs_512_cost": "Dropping 512 -> 448 removes 29% of visual tokens and costs +9.5 percentage points of sub-token targets overall, +8.5pp on the human subset that carries the published comparison. Measured on RefChartQA validation only (rule 1), 600 rows across all three subsets."
+ },
+ "phase2": {
+  "_source": "Kaggle Tesla T4, hf_peft backend, 512-pixel budget, single-device pinned (DECISIONS.md 0025). Values below are the POST-FIX run.",
+  "peak_reserved_gb": 5.572,
+  "seconds_per_step": 11.903,
+  "projected_full_run_hours": 9.92,
+  "loss_first_10": 2.879,
+  "loss_last_10": 0.968,
+  "lora_vision_params": 7208960,
+  "lora_language_params": 17432576,
+  "lora_vision_tensors": 208,
+  "lora_language_tensors": 392,
+  "trainable_params": 24641536,
+  "total_params": 1447530496,
+  "quantised_vision_full": 104,
+  "quantised_language_4bit": 196,
+  "_measured_at_448": {
+   "projected_hours": 7.56,
+   "peak_gb": 5.29,
+   "seconds_per_step": 9.07
   },
-  "vendored": {
-    "refchartqa_evaluate_py_sha256": "d0c9f87d68d999da7963ea655935a7140fc35f245ad2c26c53e28e4f651c0dd8",
-    "official_max_coord": 999
+  "_measured_at_512_three_sessions_hours": [
+   9.92,
+   10.53,
+   10.52
+  ],
+  "_resolution_chosen": "512 (decision 0037); 448 fully specified as the alternative",
+  "resume_deltas": [
+   0.0053,
+   0.0018,
+   0.0014
+  ],
+  "visual_tokens_512": 247,
+  "_superseded_sharded_run": {
+   "peak_reserved_gb": 1.482,
+   "seconds_per_step": 8.664,
+   "projected_full_run_hours": 7.22,
+   "_why": "Measured with device_map='auto', which sharded the model across two T4s while torch.cuda.max_memory_reserved() read device 0 alone \u2014 understating the footprint by ~3.8x and the step time correspondingly (DECISIONS.md 0025). Kept so the history is legible; never quote these."
   },
-  "pinned_revisions": {
-    "_purpose": "Exact Hub commit SHAs. Every download passes revision=<sha> so a dataset re-upload cannot silently change what we trained or evaluated on. Non-negotiable rule 6 requires the same dataset VERSION for a matched comparison.",
-    "_resolved": "2026-08-27",
-    "_api_note": "hf_hub_download in huggingface_hub 1.28.0 has NO resume_download parameter - it was removed and downloads always resume. Passing it emits a deprecation warning and is ignored. It DOES take revision, which is what matters here.",
-    "ahmed-masry/ChartQA": "af8b6f5c08c95085271561c2a3f9d15f2b5a9031",
-    "omoured/RefChartQA": "c6b6504adb96cf72f0852a5f73ba4c62b718f843",
-    "ahmed-masry/ChartQAPro": "e27c2874825874d6767d2bbc538ed4f0dc2c64c2",
-    "Qwen/Qwen3-VL-2B-Instruct": "89644892e4d85e24eaac8bacfd4f463576704203"
-  },
-  "sequence_budget": {
-    "_purpose": "Measured token costs for the structured output, so Phase 5 prompt design and the max_seq_len setting rest on measurement rather than estimation.",
-    "_measured": "2026-08-27, Qwen3VLProcessor / Qwen2Tokenizer, Qwen3-VL-2B-Instruct",
-    "max_seq_len": 1024,
-    "chat_wrapper_tokens": 20,
-    "record_compact_tokens": 141,
-    "record_pretty_tokens": 253,
-    "record_schema_maximum_tokens": 399,
-    "total_512px": 482,
-    "total_native": 660,
-    "worst_case_512px": 740,
-    "pad_token_id": 151643,
-    "eos_token_id": 151645,
-    "_pretty_printing_penalty": "pretty-printed JSON costs 80% more tokens than compact (253 vs 141) for identical content. The prompt must demand compact.",
-    "_pad_is_not_eos": "pad 151643 != eos 151645, so masking pad tokens does not mask the stop token - the model must still learn to emit <|im_end|>."
-  },
-  "phase3": {
-    "_method": "2,500 random ChartQA TRAIN annotations read from the pinned archive (sha256 1bf310e5...), boxes normalised through the same code path the loaders use. Chart-type shares from a separate 3,000-chart sample.",
-    "chartqa_archive_sha256": "1bf310e5a51101681495c4a24f4f29d22c4f70b52df24e2e4feb0d79cae3c160",
-    "chartqa_train_images": 18317,
-    "chartqa_type_share_pct": {
-      "v_bar": 54.6,
-      "h_bar": 29.3,
-      "line": 12.9,
-      "pie": 3.2
-    },
-    "element_box_coverage_pct": {
-      "v_bar": 96.8,
-      "h_bar": 91.5,
-      "line": 0.0,
-      "pie": 54.8,
-      "overall": 80.8
-    },
-    "element_boxes_per_covered_chart": 12.7,
-    "box_value_alignment_r2": {
-      "v_bar": 0.9999,
-      "h_bar": 1.0,
-      "_note": "median r^2 of bar extent against the gold table value, 1,290 series. Lines are excluded: their bboxes are segments between points (85.6% have len(bboxes) == len(y) - 1), so a point's box size is not stated anywhere."
-    },
-    "synth_verified_examples": 640,
-    "synth_ink_iou_exact_range": [
-      0.841,
-      0.99
-    ],
-    "synth_ink_iou_wrong_max": 0.377,
-    "mining_yield_pct": {
-      "human": 15.41,
-      "machine": 13.6,
-      "all": 14.07,
-      "_basis": "full ChartQA train split, 28,299 questions"
-    },
-    "mining_mined_counts": {
-      "human": 1140,
-      "machine": 2843,
-      "all": 3983
-    },
-    "mining_lookup_share_pct": 73.6,
-    "mining_compositional_pct_of_all_questions": 3.7,
-    "mining_exact_match_pct": 91.5,
-    "mining_by_kind_status_pct": {
-      "human": {
-        "unique": 15.3,
-        "ambiguous": 31.7,
-        "none": 18.6,
-        "non_numeric": 30.5,
-        "category_answer": 3.8,
-        "lookup_share": 8.6
-      },
-      "machine": {
-        "unique": 13.6,
-        "ambiguous": 61.4,
-        "none": 3.5,
-        "non_numeric": 15.4,
-        "category_answer": 6.2,
-        "lookup_share": 100.0
-      },
-      "_basis": "2,500 questions per kind"
-    },
-    "refchartqa_audit": {
-      "rows": 200,
-      "acceptable": 200,
-      "rate_pct": 100.0,
-      "gate": "PASS",
-      "seed": 0,
-      "by_type": {
-        "human": 100.0,
-        "machine": 100.0,
-        "pot": 100.0
-      },
-      "visual_rows_inspected": 9,
-      "visual_rows_correct": 9,
-      "_rejected_criterion": "relative tightness; gating on it gave 84.0% (human 58.2%) and was disproved against rendered ground truth"
-    },
-    "image_overlap": {
-      "_method": "pixel-content SHA-256 of every ChartQA image (all splits) against 4,000 cached RefChartQA train images",
-      "refchartqa_train_on_chartqa_train_pct": 99.9,
-      "refchartqa_train_on_chartqa_val": 2,
-      "refchartqa_train_on_chartqa_test": 2,
-      "chartqa_train_images_identical_to_heldout": 15,
-      "chartqa_train_images": 18317,
-      "file_byte_hash_matches": 0,
-      "sealed_image_hashes": 2563
-    },
-    "mixtures": {
-      "_rebuilt": "2026-08-28, after DECISIONS.md 0067 corrected target construction and 0066 expanded the synthetic pool to 24,000",
-      "stage1": {
-        "total": 12000,
-        "synthetic": 6000,
-        "chartqa": 6000,
-        "with_boxes": 12000,
-        "with_plan": 7003,
-        "compositional": 5345,
-        "levels": {
-          "L1": 1500,
-          "L2": 1500,
-          "L3": 1500,
-          "L4": 1500
-        }
-      },
-      "stage2_preregistered": {
-        "total": 12000,
-        "chartqa": 8465,
-        "synthetic": 1419,
-        "refchartqa": 2116,
-        "with_plan": 2718,
-        "compositional": 1665,
-        "with_boxes": 12000
-      },
-      "stage2_planrich": {
-        "total": 12000,
-        "chartqa": 6453,
-        "synthetic": 3868,
-        "refchartqa": 1679,
-        "with_plan": 4809,
-        "compositional": 3331,
-        "with_boxes": 12000
-      },
-      "dedup_merges": 988,
-      "dedup_chartqa_refchartqa_merges": 949,
-      "_note": "Two stage-2 arms exist as files. Phase 6 trains both and the better is reported (DECISIONS.md 0066); 'more plan data helps' is a hypothesis with a mechanism, not a fact."
-    },
-    "refchartqa_parquet_bytes_recorded": 2884503702,
-    "refchartqa_parquet_files": 9
-  },
-  "phase4": {
-    "_method": "Vendored official evaluate.py (sha256 d0c9f87d\u2026) on vendored filtered_results.jsonl against the pinned RefChartQA test split.",
-    "level_b_reproduction": {
-      "reproduces_32_83": false,
-      "cause": "filtered_results.jsonl is a FORMAT EXAMPLE, not released predictions (RefChartQA README). No per-model prediction files and no checkpoints are published, so 4.4's premise is unsatisfiable.",
-      "official_ap50_on_example_file": {
-        "human": 28.33,
-        "machine": 71.25,
-        "pot": 59.66
-      },
-      "published_ap50": {
-        "human": 32.83,
-        "machine": 59.28,
-        "pot": 39.32
-      },
-      "delta": {
-        "human": -4.5,
-        "machine": 11.97,
-        "pot": 20.34
-      },
-      "claim_level": "C (published, not independently reproduced)"
-    },
-    "crosscheck_vs_official": {
-      "shared_prediction_set_rows": 11690,
-      "ap50_abs_diff_pp": {
-        "human": 0.0,
-        "machine": 0.068,
-        "pot": 0.036
-      },
-      "relaxed_accuracy_disagreements": 0,
-      "relaxed_accuracy_cases": 423,
-      "p_at_f1_disagreements": 0,
-      "synthetic_ap_exact_agreement": "119/120 scenarios < 1e-6; worst 0.0019"
-    },
-    "stratification": {
-      "_method": "7,158 RefChartQA TRAIN boxes, resized to 512 px long side, token 32 px",
-      "subtoken_fraction_by_area_pct": 24.8,
-      "subtoken_fraction_by_axis_pct": 66.7,
-      "plan_4_5_expected_pct": 23.9
-    },
-    "extra_box_cost": {
-      "ap50_clean": 1.0,
-      "ap50_one_spurious_box_per_image": 0.68,
-      "_note": "Official torchmetrics path. Free within a single image when ranked last; expensive across a dataset because the official ties every score at 1.0."
-    }
-  },
-  "phase5": {
-    "reproducible_anchors": {
-      "_finding": "The two halves of this project have very different anchor quality, and it is worth stating before any number is produced.",
-      "chartqa_answer": {
-        "published": 79.1,
-        "source": "arXiv 2511.21631 Table 4, Qwen3-VL 2B Instruct, ChartQA_test",
-        "checkpoint_public": true,
-        "checkpoint": "Qwen/Qwen3-VL-2B-Instruct",
-        "prompt_documented": true,
-        "evaluator_vendored": true,
-        "claim_level": "B, but REACHABLE ONLY AT PHASE 7. The number, the exact checkpoint, the exact prompt and a verified evaluator all exist \u2014 but 79.1 is the TEST split, and rule 1 seals test until the pre-registration is committed. The Phase 5.3 baseline is VALIDATION and is not a reproduction of it.",
-        "published_split": "test",
-        "phase5_baseline_split": "validation"
-      },
-      "refchartqa_grounding": {
-        "published": 32.83,
-        "checkpoint_public": false,
-        "predictions_public": false,
-        "alternative_public_grounding_checkpoints": 0,
-        "claim_level": "C \u2014 cited, not reproducible by anyone (DECISIONS.md 0052)"
-      }
-    },
-    "frozen_slices": {
-      "chartqa_variant_200": {
-        "n": 200,
-        "sha256_prefix": "f2fbf013994d5759",
-        "purpose": "PLAN 5.2 variant selection, balanced"
-      },
-      "chartqa_val": {
-        "n": 1920,
-        "sha256_prefix": "34e889ed16b6899b",
-        "purpose": "PLAN 5.3 zero-shot ChartQA"
-      }
-    },
-    "prompt_iteration": {
-      "_method": "Qwen3-VL-2B-Instruct, 4-bit, 512 px, T4, frozen ChartQA validation slice. PLAN 5.1 iterates on validation only.",
-      "v1_pretty_printed": {
-        "n": 12,
-        "median_new_tokens": 308,
-        "hit_cap_pct": 33,
-        "json_valid_pct": 58.3,
-        "_note": "4 of 5 failures were truncation at the 512 cap"
-      },
-      "v2_compact": {
-        "n": 20,
-        "median_new_tokens": 118,
-        "hit_cap_pct": 20,
-        "json_valid_pct": 75.0,
-        "schema_valid_pct": 50.0,
-        "median_latency_s": 6.97,
-        "_note": "compaction cut tokens 2.6x; schema failures then became the binding constraint \u2014 args too long, duplicate labels, unit too long, op 'average'"
-      },
-      "v3_schema_limits_stated": {
-        "n": 24,
-        "median_new_tokens": 118,
-        "hit_cap_pct": 21,
-        "median_latency_s": 6.91,
-        "json_valid_pct": 75.0,
-        "schema_valid_pct": 50.0,
-        "_note": "schema limits stated and the cap raised to 900 did not move validity: the remaining failures are two syntax slips (a stray quote after a bbox array, 11-21 per affected record; and model_answer nested inside plan) plus run-on enumeration on long charts"
-      },
-      "projected_hours_at_v2": {
-        "variant_slice_200": 0.39,
-        "chartqa_val_1920": 3.72,
-        "refchartqa_val_1200": 2.32
-      }
-    },
-    "chartqa_table_rows": {
-      "_method": "2,000 random ChartQA training tables",
-      "median": 10,
-      "mean": 11.1,
-      "max": 49,
-      "pct_over_8_rows": 58.5,
-      "_why_it_matters": "OUTPUT_SCHEMA caps evidence at 8, deliberately, because extra boxes cost AP (DECISIONS.md 0014). The majority of charts have more elements than that, so a whole-chart aggregate cannot be both fully grounded and fully executable."
-    },
-    "evidence_cap_impact": {
-      "_method": "340 mined ChartQA training plans replayed through the executor with the evidence list truncated to MAX_EVIDENCE=8",
-      "roundtrip_full_evidence_pct": 100.0,
-      "roundtrip_capped_at_8_pct": 100.0,
-      "plans_lost_to_the_cap": 0,
-      "evidence_items_median": 1,
-      "evidence_items_max": 8,
-      "aggregate_plans_over_8_items": 0,
-      "_note": "Corrects an overstated concern in DECISIONS.md 0060. Tables are long (median 10 rows) but questions with a UNIQUE executable plan need very little evidence, so the cap does not bind for them."
-    },
-    "scoring_path_verified": {
-      "_method": "30 real RefChartQA validation rows, oracle predictions, scored through the vendored official evaluate.py \u2014 no GPU",
-      "perfect_oracle": {
-        "accuracy": 100.0,
-        "AP_50": 100.0,
-        "P_at_FI": 100.0
-      },
-      "empty_oracle": {
-        "accuracy": 0.0,
-        "AP_50": 0.0,
-        "P_at_FI": 0.0
-      },
-      "_why": "Verifies every convention between a streamed row and the reported number: {x,y,w,h} ground truth, normalised 0-1000 boxes, clamping, the <box>...<grounding-sep> emitter, and analyse_dataset. An error anywhere in that chain would look like a mediocre model result.",
-      "refchartqa_val_gt_boxes_per_row": {
-        "max": 5,
-        "mean": 1.46,
-        "_note": "the 8-evidence cap does not bind here"
-      }
-    },
-    "variant_selection_5_2": {
-      "_method": "frozen 200-question ChartQA validation slice, Qwen3-VL-2B-Instruct, 4-bit, 512 px, T4. Adequately powered: n=200 resolves ~10 points.",
-      "n": 200,
-      "variant_chosen": "instruct",
-      "relaxed_accuracy_pct": 50.0,
-      "valid_json_pct": 66.5,
-      "schema_valid_pct_before_repair": 35.5,
-      "schema_valid_pct_after_repair": 46.5,
-      "roundtrip_agreement_pct": 69.0,
-      "roundtrip_executable_pct": 94.4,
-      "median_latency_s": 11.44,
-      "median_new_tokens": 198.5,
-      "hit_token_cap_pct": 26.0,
-      "usable_records_before_repair": 49,
-      "usable_records_after_repair": 61,
-      "_note": "The n=24 probes had reported round-trip at 40-50%; at n=200 it is 69%, confirming DECISIONS.md 0062 that the small probes were noise."
-    }
-  },
-  "phase6": {
-    "_method": "Qwen/Qwen3-VL-2B-Instruct tokenizer, measured directly",
-    "tokens": {
-      "structured_prompt": 980,
-      "training_prompt": 117,
-      "plain_prompt": 27,
-      "target_2_evidence": 106,
-      "target_8_evidence": 241,
-      "visual_tokens_512px": 247,
-      "chat_template_overhead": 30
-    },
-    "max_seq_len": 1024,
-    "worst_case_training_example": 635,
-    "headroom": 389,
-    "would_have_been_with_zero_shot_prompt": 1498,
-    "raise_seq_len_rejected": {
-      "1536": ">=14.9 h",
-      "2048": ">=19.8 h",
-      "_gate": "10 h",
-      "_note": "lower bounds; attention is quadratic"
-    },
-    "target_quality": {
-      "_method": "636 ChartQA training records and 1,500 RefChartQA records, targets built and required to parse, satisfy OUTPUT_SCHEMA, and round-trip",
-      "chartqa_executable_of_planned_pct": 69,
-      "chartqa_executable_of_planned": "72 of 105",
-      "chartqa_before_fixes": "1 of 636",
-      "refchartqa_executable_pct": 52,
-      "refchartqa_before_fixes_roundtrip_pct": 0,
-      "defects_found": [
-        "RefChartQA targets used null values with a lookup plan: 100% failed round-trip",
-        "evidence was the first 8 boxes, not the labels the plan references",
-        "build_mixtures.py dropped meta['elements'], so all labels were placeholders",
-        "values read from the annotation while the plan was verified on the table"
-      ]
-    },
-    "early_stopping": {
-      "signal": "validation loss (negated, since EarlyStopping maximises)",
-      "loss_slice": 256,
-      "patience": 2,
-      "metric_slice": 200,
-      "metric_every_steps": 1000,
-      "_why_not_ap": "AP needs generation. At 6 evaluations in a 3,000-step run the 95% CI is +/-12.2 pts at n=64, +/-8.7 at n=128, and only +/-4.9 at n=400 which costs 5.3 h against ~10 h of training. An AP that cannot detect 'has not improved' would stop on noise (DECISIONS.md 0069).",
-      "ap_cost_hours": {
-        "64": 0.9,
-        "128": 1.7,
-        "200": 2.7,
-        "400": 5.3
-      },
-      "ap_ci_points": {
-        "64": 12.2,
-        "128": 8.7,
-        "200": 6.9,
-        "400": 4.9
-      }
-    }
+  "_measured_native": {
+   "peak_gb": 6.723,
+   "seconds_per_step": 21.267,
+   "projected_hours": 17.72,
+   "visual_tokens": 425
   }
+ },
+ "gates": {
+  "memory_gb": 13.5,
+  "full_run_hours": 20.0,
+  "planned_optimizer_steps": 3000,
+  "weekly_gpu_quota_hours": 30,
+  "_gate_revision": "Revised from 10 h to 20 h in decision 0034 and disclosed in 0037: the 10 h figure proxied for 'can this finish', which verified resume now answers directly. The revision also ADDED a requirement (resume verified for the exact configuration) that run 11 would have failed."
+ },
+ "vendored": {
+  "refchartqa_evaluate_py_sha256": "d0c9f87d68d999da7963ea655935a7140fc35f245ad2c26c53e28e4f651c0dd8",
+  "official_max_coord": 999
+ },
+ "pinned_revisions": {
+  "_purpose": "Exact Hub commit SHAs. Every download passes revision=<sha> so a dataset re-upload cannot silently change what we trained or evaluated on. Non-negotiable rule 6 requires the same dataset VERSION for a matched comparison.",
+  "_resolved": "2026-08-27",
+  "_api_note": "hf_hub_download in huggingface_hub 1.28.0 has NO resume_download parameter - it was removed and downloads always resume. Passing it emits a deprecation warning and is ignored. It DOES take revision, which is what matters here.",
+  "ahmed-masry/ChartQA": "af8b6f5c08c95085271561c2a3f9d15f2b5a9031",
+  "omoured/RefChartQA": "c6b6504adb96cf72f0852a5f73ba4c62b718f843",
+  "ahmed-masry/ChartQAPro": "e27c2874825874d6767d2bbc538ed4f0dc2c64c2",
+  "Qwen/Qwen3-VL-2B-Instruct": "89644892e4d85e24eaac8bacfd4f463576704203"
+ },
+ "sequence_budget": {
+  "_purpose": "Measured token costs for the structured output, so Phase 5 prompt design and the max_seq_len setting rest on measurement rather than estimation.",
+  "_measured": "2026-08-27, Qwen3VLProcessor / Qwen2Tokenizer, Qwen3-VL-2B-Instruct",
+  "max_seq_len": 1024,
+  "chat_wrapper_tokens": 20,
+  "record_compact_tokens": 141,
+  "record_pretty_tokens": 253,
+  "record_schema_maximum_tokens": 399,
+  "total_512px": 482,
+  "total_native": 660,
+  "worst_case_512px": 740,
+  "pad_token_id": 151643,
+  "eos_token_id": 151645,
+  "_pretty_printing_penalty": "pretty-printed JSON costs 80% more tokens than compact (253 vs 141) for identical content. The prompt must demand compact.",
+  "_pad_is_not_eos": "pad 151643 != eos 151645, so masking pad tokens does not mask the stop token - the model must still learn to emit <|im_end|>."
+ },
+ "phase3": {
+  "_method": "2,500 random ChartQA TRAIN annotations read from the pinned archive (sha256 1bf310e5...), boxes normalised through the same code path the loaders use. Chart-type shares from a separate 3,000-chart sample.",
+  "chartqa_archive_sha256": "1bf310e5a51101681495c4a24f4f29d22c4f70b52df24e2e4feb0d79cae3c160",
+  "chartqa_train_images": 18317,
+  "chartqa_type_share_pct": {
+   "v_bar": 54.6,
+   "h_bar": 29.3,
+   "line": 12.9,
+   "pie": 3.2
+  },
+  "element_box_coverage_pct": {
+   "v_bar": 96.8,
+   "h_bar": 91.5,
+   "line": 0.0,
+   "pie": 54.8,
+   "overall": 80.8
+  },
+  "element_boxes_per_covered_chart": 12.7,
+  "box_value_alignment_r2": {
+   "v_bar": 0.9999,
+   "h_bar": 1.0,
+   "_note": "median r^2 of bar extent against the gold table value, 1,290 series. Lines are excluded: their bboxes are segments between points (85.6% have len(bboxes) == len(y) - 1), so a point's box size is not stated anywhere."
+  },
+  "synth_verified_examples": 640,
+  "synth_ink_iou_exact_range": [
+   0.841,
+   0.99
+  ],
+  "synth_ink_iou_wrong_max": 0.377,
+  "mining_yield_pct": {
+   "human": 15.41,
+   "machine": 13.6,
+   "all": 14.07,
+   "_basis": "full ChartQA train split, 28,299 questions"
+  },
+  "mining_mined_counts": {
+   "human": 1140,
+   "machine": 2843,
+   "all": 3983
+  },
+  "mining_lookup_share_pct": 73.6,
+  "mining_compositional_pct_of_all_questions": 3.7,
+  "mining_exact_match_pct": 91.5,
+  "mining_by_kind_status_pct": {
+   "human": {
+    "unique": 15.3,
+    "ambiguous": 31.7,
+    "none": 18.6,
+    "non_numeric": 30.5,
+    "category_answer": 3.8,
+    "lookup_share": 8.6
+   },
+   "machine": {
+    "unique": 13.6,
+    "ambiguous": 61.4,
+    "none": 3.5,
+    "non_numeric": 15.4,
+    "category_answer": 6.2,
+    "lookup_share": 100.0
+   },
+   "_basis": "2,500 questions per kind"
+  },
+  "refchartqa_audit": {
+   "rows": 200,
+   "acceptable": 200,
+   "rate_pct": 100.0,
+   "gate": "PASS",
+   "seed": 0,
+   "by_type": {
+    "human": 100.0,
+    "machine": 100.0,
+    "pot": 100.0
+   },
+   "visual_rows_inspected": 9,
+   "visual_rows_correct": 9,
+   "_rejected_criterion": "relative tightness; gating on it gave 84.0% (human 58.2%) and was disproved against rendered ground truth"
+  },
+  "image_overlap": {
+   "_method": "pixel-content SHA-256 of every ChartQA image (all splits) against 4,000 cached RefChartQA train images",
+   "refchartqa_train_on_chartqa_train_pct": 99.9,
+   "refchartqa_train_on_chartqa_val": 2,
+   "refchartqa_train_on_chartqa_test": 2,
+   "chartqa_train_images_identical_to_heldout": 15,
+   "chartqa_train_images": 18317,
+   "file_byte_hash_matches": 0,
+   "sealed_image_hashes": 2563
+  },
+  "mixtures": {
+   "_rebuilt": "2026-08-28, after DECISIONS.md 0067 corrected target construction and 0066 expanded the synthetic pool to 24,000",
+   "stage1": {
+    "total": 12000,
+    "synthetic": 6000,
+    "chartqa": 6000,
+    "with_boxes": 12000,
+    "with_plan": 7003,
+    "compositional": 5345,
+    "levels": {
+     "L1": 1500,
+     "L2": 1500,
+     "L3": 1500,
+     "L4": 1500
+    }
+   },
+   "stage2_preregistered": {
+    "total": 12000,
+    "chartqa": 8465,
+    "synthetic": 1419,
+    "refchartqa": 2116,
+    "with_plan": 2718,
+    "compositional": 1665,
+    "with_boxes": 12000
+   },
+   "stage2_planrich": {
+    "total": 12000,
+    "chartqa": 6453,
+    "synthetic": 3868,
+    "refchartqa": 1679,
+    "with_plan": 4809,
+    "compositional": 3331,
+    "with_boxes": 12000
+   },
+   "dedup_merges": 988,
+   "dedup_chartqa_refchartqa_merges": 949,
+   "_note": "Two stage-2 arms exist as files. Phase 6 trains both and the better is reported (DECISIONS.md 0066); 'more plan data helps' is a hypothesis with a mechanism, not a fact."
+  },
+  "refchartqa_parquet_bytes_recorded": 2884503702,
+  "refchartqa_parquet_files": 9
+ },
+ "phase4": {
+  "_method": "Vendored official evaluate.py (sha256 d0c9f87d\u2026) on vendored filtered_results.jsonl against the pinned RefChartQA test split.",
+  "level_b_reproduction": {
+   "reproduces_32_83": false,
+   "cause": "filtered_results.jsonl is a FORMAT EXAMPLE, not released predictions (RefChartQA README). No per-model prediction files and no checkpoints are published, so 4.4's premise is unsatisfiable.",
+   "official_ap50_on_example_file": {
+    "human": 28.33,
+    "machine": 71.25,
+    "pot": 59.66
+   },
+   "published_ap50": {
+    "human": 32.83,
+    "machine": 59.28,
+    "pot": 39.32
+   },
+   "delta": {
+    "human": -4.5,
+    "machine": 11.97,
+    "pot": 20.34
+   },
+   "claim_level": "C (published, not independently reproduced)"
+  },
+  "crosscheck_vs_official": {
+   "shared_prediction_set_rows": 11690,
+   "ap50_abs_diff_pp": {
+    "human": 0.0,
+    "machine": 0.068,
+    "pot": 0.036
+   },
+   "relaxed_accuracy_disagreements": 0,
+   "relaxed_accuracy_cases": 423,
+   "p_at_f1_disagreements": 0,
+   "synthetic_ap_exact_agreement": "119/120 scenarios < 1e-6; worst 0.0019"
+  },
+  "stratification": {
+   "_method": "7,158 RefChartQA TRAIN boxes, resized to 512 px long side, token 32 px",
+   "subtoken_fraction_by_area_pct": 24.8,
+   "subtoken_fraction_by_axis_pct": 66.7,
+   "plan_4_5_expected_pct": 23.9
+  },
+  "extra_box_cost": {
+   "ap50_clean": 1.0,
+   "ap50_one_spurious_box_per_image": 0.68,
+   "_note": "Official torchmetrics path. Free within a single image when ranked last; expensive across a dataset because the official ties every score at 1.0."
+  }
+ },
+ "phase5": {
+  "reproducible_anchors": {
+   "_finding": "The two halves of this project have very different anchor quality, and it is worth stating before any number is produced.",
+   "chartqa_answer": {
+    "published": 79.1,
+    "source": "arXiv 2511.21631 Table 4, Qwen3-VL 2B Instruct, ChartQA_test",
+    "checkpoint_public": true,
+    "checkpoint": "Qwen/Qwen3-VL-2B-Instruct",
+    "prompt_documented": true,
+    "evaluator_vendored": true,
+    "claim_level": "B, but REACHABLE ONLY AT PHASE 7. The number, the exact checkpoint, the exact prompt and a verified evaluator all exist \u2014 but 79.1 is the TEST split, and rule 1 seals test until the pre-registration is committed. The Phase 5.3 baseline is VALIDATION and is not a reproduction of it.",
+    "published_split": "test",
+    "phase5_baseline_split": "validation"
+   },
+   "refchartqa_grounding": {
+    "published": 32.83,
+    "checkpoint_public": false,
+    "predictions_public": false,
+    "alternative_public_grounding_checkpoints": 0,
+    "claim_level": "C \u2014 cited, not reproducible by anyone (DECISIONS.md 0052)"
+   }
+  },
+  "frozen_slices": {
+   "chartqa_variant_200": {
+    "n": 200,
+    "sha256_prefix": "f2fbf013994d5759",
+    "purpose": "PLAN 5.2 variant selection, balanced"
+   },
+   "chartqa_val": {
+    "n": 1920,
+    "sha256_prefix": "34e889ed16b6899b",
+    "purpose": "PLAN 5.3 zero-shot ChartQA"
+   }
+  },
+  "prompt_iteration": {
+   "_method": "Qwen3-VL-2B-Instruct, 4-bit, 512 px, T4, frozen ChartQA validation slice. PLAN 5.1 iterates on validation only.",
+   "v1_pretty_printed": {
+    "n": 12,
+    "median_new_tokens": 308,
+    "hit_cap_pct": 33,
+    "json_valid_pct": 58.3,
+    "_note": "4 of 5 failures were truncation at the 512 cap"
+   },
+   "v2_compact": {
+    "n": 20,
+    "median_new_tokens": 118,
+    "hit_cap_pct": 20,
+    "json_valid_pct": 75.0,
+    "schema_valid_pct": 50.0,
+    "median_latency_s": 6.97,
+    "_note": "compaction cut tokens 2.6x; schema failures then became the binding constraint \u2014 args too long, duplicate labels, unit too long, op 'average'"
+   },
+   "v3_schema_limits_stated": {
+    "n": 24,
+    "median_new_tokens": 118,
+    "hit_cap_pct": 21,
+    "median_latency_s": 6.91,
+    "json_valid_pct": 75.0,
+    "schema_valid_pct": 50.0,
+    "_note": "schema limits stated and the cap raised to 900 did not move validity: the remaining failures are two syntax slips (a stray quote after a bbox array, 11-21 per affected record; and model_answer nested inside plan) plus run-on enumeration on long charts"
+   },
+   "projected_hours_at_v2": {
+    "variant_slice_200": 0.39,
+    "chartqa_val_1920": 3.72,
+    "refchartqa_val_1200": 2.32
+   }
+  },
+  "chartqa_table_rows": {
+   "_method": "2,000 random ChartQA training tables",
+   "median": 10,
+   "mean": 11.1,
+   "max": 49,
+   "pct_over_8_rows": 58.5,
+   "_why_it_matters": "OUTPUT_SCHEMA caps evidence at 8, deliberately, because extra boxes cost AP (DECISIONS.md 0014). The majority of charts have more elements than that, so a whole-chart aggregate cannot be both fully grounded and fully executable."
+  },
+  "evidence_cap_impact": {
+   "_method": "340 mined ChartQA training plans replayed through the executor with the evidence list truncated to MAX_EVIDENCE=8",
+   "roundtrip_full_evidence_pct": 100.0,
+   "roundtrip_capped_at_8_pct": 100.0,
+   "plans_lost_to_the_cap": 0,
+   "evidence_items_median": 1,
+   "evidence_items_max": 8,
+   "aggregate_plans_over_8_items": 0,
+   "_note": "Corrects an overstated concern in DECISIONS.md 0060. Tables are long (median 10 rows) but questions with a UNIQUE executable plan need very little evidence, so the cap does not bind for them."
+  },
+  "scoring_path_verified": {
+   "_method": "30 real RefChartQA validation rows, oracle predictions, scored through the vendored official evaluate.py \u2014 no GPU",
+   "perfect_oracle": {
+    "accuracy": 100.0,
+    "AP_50": 100.0,
+    "P_at_FI": 100.0
+   },
+   "empty_oracle": {
+    "accuracy": 0.0,
+    "AP_50": 0.0,
+    "P_at_FI": 0.0
+   },
+   "_why": "Verifies every convention between a streamed row and the reported number: {x,y,w,h} ground truth, normalised 0-1000 boxes, clamping, the <box>...<grounding-sep> emitter, and analyse_dataset. An error anywhere in that chain would look like a mediocre model result.",
+   "refchartqa_val_gt_boxes_per_row": {
+    "max": 5,
+    "mean": 1.46,
+    "_note": "the 8-evidence cap does not bind here"
+   }
+  },
+  "variant_selection_5_2": {
+   "_method": "frozen 200-question ChartQA validation slice, Qwen3-VL-2B-Instruct, 4-bit, 512 px, T4. Adequately powered: n=200 resolves ~10 points.",
+   "n": 200,
+   "variant_chosen": "instruct",
+   "relaxed_accuracy_pct": 50.0,
+   "valid_json_pct": 66.5,
+   "schema_valid_pct_before_repair": 35.5,
+   "schema_valid_pct_after_repair": 46.5,
+   "roundtrip_agreement_pct": 69.0,
+   "roundtrip_executable_pct": 94.4,
+   "median_latency_s": 11.44,
+   "median_new_tokens": 198.5,
+   "hit_token_cap_pct": 26.0,
+   "usable_records_before_repair": 49,
+   "usable_records_after_repair": 61,
+   "_note": "The n=24 probes had reported round-trip at 40-50%; at n=200 it is 69%, confirming DECISIONS.md 0062 that the small probes were noise."
+  }
+ },
+ "phase6": {
+  "_method": "Qwen/Qwen3-VL-2B-Instruct tokenizer, measured directly",
+  "tokens": {
+   "structured_prompt": 980,
+   "training_prompt": 117,
+   "plain_prompt": 27,
+   "target_2_evidence": 106,
+   "target_8_evidence": 241,
+   "visual_tokens_512px": 247,
+   "chat_template_overhead": 30
+  },
+  "max_seq_len": 1024,
+  "worst_case_training_example": 635,
+  "headroom": 389,
+  "would_have_been_with_zero_shot_prompt": 1498,
+  "raise_seq_len_rejected": {
+   "1536": ">=14.9 h",
+   "2048": ">=19.8 h",
+   "_gate": "10 h",
+   "_note": "lower bounds; attention is quadratic"
+  },
+  "target_quality": {
+   "_method": "636 ChartQA training records and 1,500 RefChartQA records, targets built and required to parse, satisfy OUTPUT_SCHEMA, and round-trip",
+   "chartqa_executable_of_planned_pct": 69,
+   "chartqa_executable_of_planned": "72 of 105",
+   "chartqa_before_fixes": "1 of 636",
+   "refchartqa_executable_pct": 52,
+   "refchartqa_before_fixes_roundtrip_pct": 0,
+   "defects_found": [
+    "RefChartQA targets used null values with a lookup plan: 100% failed round-trip",
+    "evidence was the first 8 boxes, not the labels the plan references",
+    "build_mixtures.py dropped meta['elements'], so all labels were placeholders",
+    "values read from the annotation while the plan was verified on the table"
+   ]
+  },
+  "early_stopping": {
+   "signal": "validation loss (negated, since EarlyStopping maximises)",
+   "loss_slice": 256,
+   "patience": 2,
+   "metric_slice": 200,
+   "metric_every_steps": 1000,
+   "_why_not_ap": "AP needs generation. At 6 evaluations in a 3,000-step run the 95% CI is +/-12.2 pts at n=64, +/-8.7 at n=128, and only +/-4.9 at n=400 which costs 5.3 h against ~10 h of training. An AP that cannot detect 'has not improved' would stop on noise (DECISIONS.md 0069).",
+   "ap_cost_hours": {
+    "64": 0.9,
+    "128": 1.7,
+    "200": 2.7,
+    "400": 5.3
+   },
+   "ap_ci_points": {
+    "64": 12.2,
+    "128": 8.7,
+    "200": 6.9,
+    "400": 4.9
+   }
+  },
+  "evidence_cap": {
+   "_method": "RefChartQA train, the 200-record audit sample in data/refchartqa_audit.jsonl (n_boxes_raw, before any cap)",
+   "_why": "MAX_EVIDENCE = 8 caps how many boxes a training target can carry. If most records exceeded it the cap would put a ceiling on recall, and so on AP, for reasons unrelated to the model.",
+   "n_records": 200,
+   "boxes_per_record_pct": {
+    "1": 76.5,
+    "2": 16.0,
+    "3": 1.0,
+    "5": 2.0,
+    "6": 0.5,
+    "7": 1.0,
+    "8": 1.0,
+    "9": 1.0,
+    "10": 1.0
+   },
+   "at_most_2_pct": 92.5,
+   "over_cap_pct": 2.0,
+   "_finding": "The cap binds on 2% of records. It is a bounded, small cost, not a structural ceiling on AP."
+  }
+ }
 }
