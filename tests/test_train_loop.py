@@ -164,3 +164,83 @@ def test_resuming_continues_from_the_supplied_state(patched, tmp_path):
     result = train(StubProcessorHolder(), FakeFeed(), cfg, state=state)
     assert len(result.logs) == 2, "only the remaining steps are run"
     assert result.state.step == 4
+
+
+def test_the_validation_holdout_is_excluded_from_training():
+    """Validating on examples the model also trains on measures memorisation.
+
+    And it makes the curve look *better*, which is the dangerous direction — a run that
+    is overfitting would show a falling validation loss and never trigger early stopping.
+    """
+    import types
+
+    from chartqa_dt.cli.train import _holdout_examples
+    from chartqa_dt.train.validate import LOSS_SLICE
+
+    class Feed:
+        def __init__(self, records):
+            self.records = list(records)
+            self.position = 0
+            self.epoch = 0
+
+        def state_dict(self):
+            return {"position": self.position, "epoch": self.epoch,
+                    "n": len(self.records)}
+
+        def load_state_dict(self, state):
+            self.position = state["position"]
+
+        def _example(self, record):
+            return record
+
+    records = list(range(LOSS_SLICE * 3))
+    feed = Feed(records)
+    holdout = _holdout_examples(types.SimpleNamespace(), records, feed)
+
+    assert len(holdout) == LOSS_SLICE
+    assert set(holdout).isdisjoint(set(feed.records)), "no example may appear in both"
+    assert len(feed.records) == len(records) - LOSS_SLICE
+    assert feed.state_dict()["n"] == len(feed.records), "the feed's own count is updated"
+
+
+def test_a_mixture_too_small_to_split_gets_no_holdout():
+    """Better no validation than a holdout that swallows most of the training set."""
+    import types
+
+    from chartqa_dt.cli.train import _holdout_examples
+
+    class Feed:
+        def __init__(self):
+            self.records = [1, 2, 3]
+
+    assert _holdout_examples(types.SimpleNamespace(), [1, 2, 3], Feed()) == []
+
+
+def test_checkpoints_are_offered_to_the_push_callback(patched, tmp_path):
+    """`PLAN.md` 6.3 pushes on every save, including the final one."""
+    pushed = []
+    cfg = TrainConfig(steps=4, save_every=2, eval_every=0, out_dir=tmp_path,
+                      stage="stage2")
+    train(StubProcessorHolder(), FakeFeed(), cfg,
+          on_checkpoint=lambda path, state: pushed.append((path.name, state.step)))
+    assert [name for name, _ in pushed] == ["stage2-step2", "stage2-step4",
+                                            "stage2-final"]
+    assert [step for _, step in pushed] == [2, 4, 4]
+
+
+def test_a_failing_push_does_not_end_the_run(patched, tmp_path):
+    """The checkpoint is already safe on disk; losing an upload must not cost the run."""
+    calls = []
+
+    def flaky(path, state):
+        calls.append(path.name)
+        if len(calls) == 1:
+            raise RuntimeError("network blip")
+
+    cfg = TrainConfig(steps=4, save_every=2, eval_every=0, out_dir=tmp_path)
+    with pytest.raises(RuntimeError):
+        train(StubProcessorHolder(), FakeFeed(), cfg, on_checkpoint=flaky)
+    # The loop does not swallow it — the *pusher* owns the failure policy, and the real
+    # one uses strict=False. This test pins where that responsibility lives.
+    assert calls == ["stage1-step2"]
+    assert (tmp_path / "stage1-step2").exists(), "the checkpoint survived regardless"

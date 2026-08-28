@@ -63,6 +63,7 @@ def _run_stage(ctx) -> None:
     from chartqa_dt.train.feed import MixtureFeed
     from chartqa_dt.train.loop import TrainConfig, train
     from chartqa_dt.train.smoke import build_optimizer
+    from chartqa_dt.train.validate import make_evaluator
 
     args = ctx.args
     stage = args.stage
@@ -99,10 +100,28 @@ def _run_stage(ctx) -> None:
         feed.load_state_dict(state.feed)
         print(f"  resumed at step {state.step}, feed position {state.feed.get('position')}")
 
+    # `PLAN.md` 6.5/6.6. The stopping signal is validation loss, not AP — an AP measured
+    # on an affordable slice has a +/-8.7 point interval and cannot detect "has not
+    # improved" (`DECISIONS.md` 0069).
+    evaluate = None
+    holdout = _holdout_examples(ctx, records, feed)
+    if holdout:
+        evaluate = make_evaluator(loaded, holdout, max_len=cfg.max_len)
+        print(f"  validation: {len(holdout)} held-out examples, "
+              f"early stopping on loss, patience {cfg.patience}")
+
     result = train(loaded, feed, cfg, state=state, optimizer=optimizer,
-                   on_log=_progress)
+                   evaluate=evaluate, on_log=_progress,
+                   on_checkpoint=_hub_pusher(ctx, stage))
     print("\n" + result.summary())
     print(feed.stats.describe())
+
+    if evaluate is not None:
+        report_path = ctx.out_dir / f"{stage}_validation.json"
+        report_path.write_text(
+            json.dumps([r.to_dict() for r in evaluate.reports], indent=2) + "\n",
+            encoding="utf-8")
+        print(f"  validation curve -> {report_path}")
 
     report = {"stage": stage, "steps": result.state.step,
               "stopped_early": result.stopped_early,
@@ -113,6 +132,53 @@ def _run_stage(ctx) -> None:
     out = ctx.out_dir / f"{stage}_report.json"
     out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(f"\nwritten to {out}")
+
+
+def _hub_pusher(ctx, stage: str):
+    """`PLAN.md` 6.3: push to the Hub on every save.
+
+    Non-strict on purpose. A checkpoint is already safe on local disk by the time this
+    runs, so a transient upload failure must not end a run that is otherwise healthy —
+    losing one periodic push costs nothing, losing ten hours costs the phase.
+    """
+    from chartqa_dt.hub import HubStore
+
+    store = HubStore(repo_id=ctx.cfg.hub.repo_id) if getattr(ctx.cfg, "hub", None) \
+        else None
+    if store is None or not store.enabled:
+        print("  hub: disabled (no token or no repo configured); checkpoints stay local")
+        return None
+
+    def push(path, state) -> None:
+        ok = store.push_dir(path, f"{stage}/{path.name}",
+                            commit_message=f"{stage} step {state.step}", strict=False)
+        print(f"  hub: {'pushed' if ok else 'push failed (kept locally)'} {path.name}",
+              flush=True)
+
+    return push
+
+
+def _holdout_examples(ctx, records, feed) -> list:
+    """A fixed slice held out of training, for the loss signal.
+
+    Taken from the **end** of the mixture and excluded from the feed, because validating
+    on examples the model is also training on measures memorisation rather than
+    generalisation — and the curve looks better for it, which is the dangerous direction.
+    """
+    from chartqa_dt.train.validate import LOSS_SLICE
+
+    if len(records) <= LOSS_SLICE * 2:
+        return []
+    holdout = records[-LOSS_SLICE:]
+    feed.records = list(records[:-LOSS_SLICE])
+    feed.load_state_dict({**feed.state_dict(), "n": len(feed.records)})
+
+    examples = []
+    for record in holdout:
+        example = feed._example(record)
+        if example is not None:
+            examples.append(example)
+    return examples
 
 
 def _progress(log) -> None:

@@ -98,7 +98,8 @@ class TrainResult:
 
 def train(loaded: Any, feed: MixtureFeed, cfg: TrainConfig, *,
           evaluate: Any = None, state: TrainState | None = None,
-          optimizer: Any = None, on_log: Any = None) -> TrainResult:
+          optimizer: Any = None, on_log: Any = None,
+          on_checkpoint: Any = None) -> TrainResult:
     """Run `cfg.steps` optimizer steps, checkpointing and evaluating as configured."""
     import torch
 
@@ -150,8 +151,12 @@ def train(loaded: Any, feed: MixtureFeed, cfg: TrainConfig, *,
 
         if cfg.save_every and state.step % cfg.save_every == 0:
             state.feed = feed.state_dict()
-            save_checkpoint(cfg.out_dir / f"{cfg.stage}-step{state.step}", model=model,
-                            optimizer=optimizer, state=state)
+            path = save_checkpoint(cfg.out_dir / f"{cfg.stage}-step{state.step}",
+                                   model=model, optimizer=optimizer, state=state)
+            # `PLAN.md` 6.3 pushes on every save. The callback owns the failure policy:
+            # losing a periodic upload must never end a run that is otherwise healthy.
+            if on_checkpoint is not None:
+                on_checkpoint(path, state)
 
         if evaluate is not None and cfg.eval_every and state.step % cfg.eval_every == 0:
             metric = float(evaluate(model, state.step))
@@ -160,8 +165,10 @@ def train(loaded: Any, feed: MixtureFeed, cfg: TrainConfig, *,
                 break
 
     state.feed = feed.state_dict()
-    save_checkpoint(cfg.out_dir / f"{cfg.stage}-final", model=model, optimizer=optimizer,
-                    state=state)
+    final = save_checkpoint(cfg.out_dir / f"{cfg.stage}-final", model=model,
+                            optimizer=optimizer, state=state)
+    if on_checkpoint is not None:
+        on_checkpoint(final, state)
     return result
 
 
