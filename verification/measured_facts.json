@@ -309,7 +309,9 @@
         "checkpoint": "Qwen/Qwen3-VL-2B-Instruct",
         "prompt_documented": true,
         "evaluator_vendored": true,
-        "claim_level": "B \u2014 reproducible: number, exact checkpoint, exact prompt and verified evaluator all available"
+        "claim_level": "B, but REACHABLE ONLY AT PHASE 7. The number, the exact checkpoint, the exact prompt and a verified evaluator all exist \u2014 but 79.1 is the TEST split, and rule 1 seals test until the pre-registration is committed. The Phase 5.3 baseline is VALIDATION and is not a reproduction of it.",
+        "published_split": "test",
+        "phase5_baseline_split": "validation"
       },
       "refchartqa_grounding": {
         "published": 32.83,

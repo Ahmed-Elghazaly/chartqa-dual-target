@@ -2947,3 +2947,40 @@ compute what it can resolve.** A probe that cannot detect the effect being sough
 numbers that look like evidence and are not, and the resulting decisions feel measured
 while being arbitrary. This sits alongside 0055's lesson — consistency is not truth — as
 the second way this project has produced confident numbers that meant nothing.
+
+---
+
+## 0063 — The ChartQA Level-B reproduction is reachable, but only at Phase 7
+
+**Date** 2026-08-28 · **Phase** 5.3 · **Status** adopted · **Corrects an earlier claim**
+
+**Context.** `DECISIONS.md` 0052 established that RefChartQA's 32.83 cannot be reproduced
+by anyone. Against that, ChartQA looked much healthier: the published **79.1** for
+Qwen3-VL-2B-Instruct comes with a public ungated checkpoint, a documented prompt
+(`verification/phase0.md` F9) and a vendored, verified evaluator. I reported that Phase
+5.3's plain arm *is* that reproduction.
+
+**That was wrong, and the error is a split.** Phase 0 recorded the figure from Table 4, row
+**`ChartQA_test`**. Phase 5.3 runs on **validation**, because rule 1 seals the test split
+until `PREREGISTRATION.md` is committed (`PLAN.md` 5.5) and `assert_split_allowed` enforces
+it. A validation number and a test number are not the same measurement, and calling one a
+reproduction of the other would be exactly the kind of loose comparison this project has
+been careful to avoid elsewhere.
+
+**Decision.** State the anchor's status precisely in three parts:
+
+* the ChartQA reproduction is **reachable** — every artefact required exists, unlike
+  RefChartQA where they do not exist at all;
+* it is **performed at Phase 7**, on the test split, after pre-registration;
+* Phase 5.3's plain arm is an **internal validation baseline**, reported as such, and its
+  distance from 79.1 is a sanity indication rather than a reproduction.
+
+**Consequences.** The substance of the earlier reassurance survives — ChartQA genuinely has
+a full reproduction path and RefChartQA has none — but the timing was misstated and the
+Phase 5 outputs are labelled accordingly. It also gives Phase 7 a second, independent job
+beyond the headline result: **re-deriving a published number with our own pipeline**, which
+is the strongest available evidence that the evaluation is correct end to end.
+
+A useful side effect: if the Phase 7 plain arm lands near 79.1, every component between the
+raw checkpoint and the reported score is validated at once — prompt, decoding, answer
+normalisation, and the evaluator.

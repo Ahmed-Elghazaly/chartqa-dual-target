@@ -323,52 +323,86 @@ def format_variant_table(table: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+#: `PLAN.md` 5.3 says "validation split". All 1,920 questions would resolve ~3 points and
+#: cost up to 7 h of quota; 800 resolves ~5 points for 1.5–2.9 h, which is ample for a
+#: baseline and leaves the budget for Phases 6 and 7. Sized from the power calculation
+#: rather than by taking the whole split because it was there (design pass, step 5).
+STRUCTURED_N = 800
+
+
 def stage_chartqa(args) -> dict[str, Any]:
     """`PLAN.md` 5.3 — zero-shot ChartQA on validation, structured and plain.
 
-    Both prompts on the same items. The plain arm is the published elicitation, so the
-    gap between them is "what structured output costs" measured against the number the
-    published 79.1 came from, with nothing else varying.
+    Both prompts over the same items, so the gap between them is what structured output
+    costs with nothing else varying.
+
+    **The plain arm is not a reproduction of the published 79.1** (`DECISIONS.md` 0063).
+    That figure is the ChartQA **test** split; this runs on validation, because rule 1
+    seals test until the pre-registration is committed. The comparison is a sanity
+    indication here and becomes a real reproduction at Phase 7.
     """
     from chartqa_dt.eval.generate import generate_over, write_generations
     from chartqa_dt.eval.runner import evaluate_predictions, score_item, write_results
+    from chartqa_dt.plans.roundtrip import check_many
+    from chartqa_dt.prompting.parsing import parse_record, schema_ok
 
     reader = chartqa_reader()
-    rows = attach_images(reader, load_slice("chartqa_val"))
+    all_rows = attach_images(reader, load_slice("chartqa_val"))
     if args.limit:
-        rows = rows[:args.limit]
+        all_rows = all_rows[:args.limit]
     loaded = load_model(args.variant)
 
-    report: dict[str, Any] = {"variant": args.variant, "n": len(rows), "arms": {}}
+    report: dict[str, Any] = {
+        "variant": args.variant, "split": "validation",
+        "published_reference": {"value": 79.1, "split": "test",
+                                "note": "NOT comparable to this run — different split "
+                                        "(DECISIONS.md 0063); reproduced at Phase 7"},
+        "arms": {},
+    }
     for mode in ("structured", "plain"):
+        # The plain arm is cheap (0.28 s/item), so it runs on everything; the structured
+        # arm is sized to what it can resolve.
+        rows = all_rows if mode == "plain" else all_rows[:args.structured_n]
         gens, rep = generate_over(loaded, rows, mode=mode)
         write_generations(gens, out_dir() / f"chartqa_val_{mode}.jsonl")
         items = [score_item(r["record_id"], r["answer"], g.answer,
                             subset=r["question_kind"])
                  for r, g in zip(rows, gens)]
         result = evaluate_predictions(items, seeds=[0, 1, 2], ap_resamples=1)
-        write_results(result, out_dir() / f"chartqa_val_{mode}.json",
-                      meta={"variant": args.variant, "mode": mode,
-                            "slice": "chartqa_val",
-                            "valid_json_fraction": rep.parse.valid_fraction})
-        report["arms"][mode] = {
+
+        arm: dict[str, Any] = {
+            "n": len(rows),
             "relaxed_accuracy": result.relaxed_accuracy.mean,
             "ci": [result.relaxed_accuracy.lo, result.relaxed_accuracy.hi],
             "by_subset": {k: v["relaxed_accuracy"] for k, v in result.by_subset.items()},
-            "valid_json_fraction": rep.parse.valid_fraction if mode == "structured" else 1.0,
             "median_latency_s": rep.median_latency,
+            "median_new_tokens": rep.median_new_tokens,
         }
-        print(f"\n{mode}: {result.relaxed_accuracy.as_percent}", flush=True)
+        if mode == "structured":
+            recs = [res.record for g in gens
+                    if (res := parse_record(g.raw)).ok and schema_ok(res.record)[0]]
+            _, rt = check_many(recs)
+            arm.update(valid_json_fraction=rep.parse.valid_fraction,
+                       schema_valid_fraction=rep.parse.schema_valid_fraction,
+                       hit_token_cap_fraction=rep.capped_fraction,
+                       roundtrip_agreement=rt.agreement,
+                       roundtrip_executable=rt.executable,
+                       roundtrip_counts=dict(rt.counts))
+            print(rt.describe(), flush=True)
+        write_results(result, out_dir() / f"chartqa_val_{mode}.json",
+                      meta={"variant": args.variant, "mode": mode, "split": "validation",
+                            **{k: v for k, v in arm.items() if k != "by_subset"}})
+        report["arms"][mode] = arm
+        print(f"\n{mode} (n={len(rows)}): {result.relaxed_accuracy.as_percent}", flush=True)
 
     a, b = report["arms"]["structured"], report["arms"]["plain"]
     report["structured_output_cost_points"] = 100 * (b["relaxed_accuracy"]
                                                      - a["relaxed_accuracy"])
-    report["published_plain_reference"] = 79.1
     (out_dir() / "chartqa_zeroshot.json").write_text(json.dumps(report, indent=2) + "\n")
     print(f"\nstructured costs {report['structured_output_cost_points']:+.2f} points "
-          f"against the plain prompt")
-    print(f"plain arm {100 * b['relaxed_accuracy']:.2f}% vs published 79.1 "
-          f"(same checkpoint, same prompt — this is a Level B reproduction check)")
+          f"against the plain prompt (the elicitation behind the published figure)")
+    print(f"plain arm {100 * b['relaxed_accuracy']:.2f}% on VALIDATION; the published "
+          f"79.1 is TEST and is reproduced at Phase 7, not here (DECISIONS.md 0063)")
     return report
 
 
@@ -467,6 +501,9 @@ def main() -> int:
     ap.add_argument("--max-new-tokens", type=int, default=0,
                     help="override the structured budget; 0 keeps the default")
     ap.add_argument("--refchartqa-n", type=int, default=1200)
+    ap.add_argument("--structured-n", type=int, default=STRUCTURED_N,
+                    help="items for the 5.3 structured arm; sized from what "
+                         "it can resolve, not from the split size")
     ap.add_argument("--variant", default="instruct",
                     help="the variant 5.2 selected; used by the 5.3 and 5.4 stages")
     args = ap.parse_args()

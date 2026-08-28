@@ -462,7 +462,7 @@ def _smoke_command(args) -> list[str]:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("job", nargs="?", default="smoke",
-                   choices=["smoke", "probe", "variant"])
+                   choices=["smoke", "probe", "variant", "chartqa", "refchartqa"])
     p.add_argument("--steps", type=int, default=100)
     p.add_argument("--resolutions", type=str, default="512,native")
     p.add_argument("--batches", type=str, default=None,
@@ -483,6 +483,10 @@ def main() -> int:
     p.add_argument("--limit", type=int, default=0)
     p.add_argument("--probe-n", type=int, default=20)
     p.add_argument("--max-new-tokens", type=int, default=0)
+    p.add_argument("--variant", type=str, default="instruct",
+                   help="the variant 5.2 selected; used by chartqa/refchartqa")
+    p.add_argument("--structured-n", type=int, default=800)
+    p.add_argument("--refchartqa-n", type=int, default=1200)
     args = p.parse_args()
 
     api = _api()
@@ -496,17 +500,24 @@ def main() -> int:
         fetch_output(api, kernel, REPO_ROOT / "outputs" / "kaggle")
         return 0
 
-    if args.job in ("probe", "variant"):
+    if args.job in ("probe", "variant", "chartqa", "refchartqa"):
         # Phase 5 zero-shot. `-m` so the repo root is on sys.path and the script's own
         # `from scripts...` imports resolve the same way they do locally.
-        command = ["python", "-m", "scripts.run_zeroshot", args.job,
-                   "--variants", args.variants]
+        command = ["python", "-m", "scripts.run_zeroshot", args.job]
+        if args.job in ("probe", "variant"):
+            command += ["--variants", args.variants]
+        else:
+            command += ["--variant", args.variant]
         if args.limit:
             command += ["--limit", str(args.limit)]
         if args.job == "probe":
             command += ["--probe-n", str(args.probe_n)]
             if args.max_new_tokens:
                 command += ["--max-new-tokens", str(args.max_new_tokens)]
+        if args.job == "chartqa":
+            command += ["--structured-n", str(args.structured_n)]
+        if args.job == "refchartqa":
+            command += ["--refchartqa-n", str(args.refchartqa_n)]
     else:
         command = _smoke_command(args)
 
