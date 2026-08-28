@@ -21,11 +21,59 @@ import os
 from pathlib import Path
 
 # What the remaining phases are expected to cost, from the Phase 2 measurements.
+#: Measured on a T4 at 512 px, 4-bit (`verification/measured_facts.json`). Everything below
+#: is derived from these two numbers rather than estimated, because the previous estimates
+#: were out by 4x on Phase 5 and nobody noticed until the quota was nearly spent.
+#: `PLAN.md`: the free tier allows this much GPU per account per week.
+WEEKLY_QUOTA_H = 30.0
+SECONDS_PER_STEP = 11.903          # phase2.seconds_per_step
+SECONDS_PER_STRUCTURED_ITEM = 11.44   # phase5.variant_selection_5_2.median_latency_s
+SECONDS_PER_PLAIN_ITEM = 1.2
+#: A fine-tuned model reads the 117-token training prompt rather than the 980-token
+#: zero-shot one, and emits the compact 141-token record rather than 198 tokens with
+#: run-ons. Scaled from the measured zero-shot latency by the token ratio; it is an
+#: estimate and is labelled as one, because nothing has been fine-tuned yet.
+SECONDS_PER_FINETUNED_ITEM = 7.0
+
+#: Steps come from `cli/train.steps_for`: stage 1 is one pass over 10,304 records at
+#: effective batch 8, stage 2 takes the rest of the 24,000-presentation budget.
+STAGE1_STEPS, STAGE2_STEPS = 1288, 1712
+
+
+def _train_h(steps: int) -> float:
+    return steps * SECONDS_PER_STEP / 3600
+
+
+def _gen_h(n: int, seconds: float = SECONDS_PER_STRUCTURED_ITEM) -> float:
+    return n * seconds / 3600
+
+
 COMMITTED_AHEAD: list[tuple[str, float]] = [
-    ("Phase 5 zero-shot, both protocols", 3.0),
-    ("Phase 6 stage 1 + stage 2", 10.0),
-    ("Phase 6 direct-answer control", 3.0),
-    ("Phase 7 test evaluation", 3.0),
+    ("Phase 5.3 ChartQA zero-shot, 1,920 x 2 arms",
+     _gen_h(1920) + _gen_h(1920, SECONDS_PER_PLAIN_ITEM)),
+    ("Phase 5.4 RefChartQA zero-shot, 1,800 rows", _gen_h(1800)),
+    ("Phase 6 stage 1, one pass", _train_h(STAGE1_STEPS)),
+    ("Phase 6 stage 2, pre-registered arm", _train_h(STAGE2_STEPS)),
+    ("Phase 6 stage 2, plan-rich arm", _train_h(STAGE2_STEPS)),
+    ("Phase 6 direct-answer control, both stages",
+     _train_h(STAGE1_STEPS + STAGE2_STEPS)),
+    # Phase 7 is the largest line, so it is costed per arm rather than as one number.
+    # The plain arm is nearly free (32-token cap) and is the condition the published 79.1
+    # was measured under, so the reproduction attempt costs almost nothing; the structured
+    # arms are what the budget actually buys.
+    ("Phase 7 ChartQA test, plain arm (the 79.1 condition)",
+     _gen_h(2500, SECONDS_PER_PLAIN_ITEM)),
+    ("Phase 7 ChartQA test, structured x 3 systems",
+     _gen_h(2500) + 2 * _gen_h(2500, SECONDS_PER_FINETUNED_ITEM)),
+    ("Phase 7 RefChartQA test, 1,800 sampled x 3 systems",
+     _gen_h(1800) + 2 * _gen_h(1800, SECONDS_PER_FINETUNED_ITEM)),
+]
+
+#: Deferred by Ahmed until the core result exists: they document or harden a result rather
+#: than produce one (`STATUS.md`, open items).
+DEFERRED: list[tuple[str, float]] = [
+    ("three training seeds", 3 * _train_h(STAGE1_STEPS + STAGE2_STEPS)),
+    ("RefChartQA scaling ladder, 4k / 10k / 25k rows", 3 * _train_h(STAGE2_STEPS)),
 ]
 
 
@@ -71,7 +119,7 @@ def main() -> int:
     if q["refresh"]:
         print(f"  window resets: {q['refresh']}")
 
-    print("\n  committed ahead:")
+    print("\n  committed ahead (derived from measured s/step and s/item):")
     for name, h in COMMITTED_AHEAD:
         print(f"    {name:<36} ~{h:4.1f} h")
     total = sum(h for _, h in COMMITTED_AHEAD)
@@ -79,6 +127,14 @@ def main() -> int:
 
     if remaining < total:
         print(f"\n  {remaining:.1f} h remain this window against ~{total:.1f} h committed.")
+        weeks = total / WEEKLY_QUOTA_H
+        print(f"  That is {weeks:.1f} account-weeks at {WEEKLY_QUOTA_H:.0f} h/week: "
+              f"one account over {weeks:.1f} weeks, or one week across "
+              f"{int(weeks) + 1} team accounts.")
+        print("\n  deferred (not counted above):")
+        for name, h in DEFERRED:
+            print(f"    {name:<52}~{h:5.1f} h")
+        print(f"    {'total deferred':<52}~{sum(h for _, h in DEFERRED):5.1f} h")
         print("  The window resets weekly, and every long job is resumable with checkpoints")
         print("  pushed on save (verified, DECISIONS.md 0033), so work spans windows.")
     return 0
