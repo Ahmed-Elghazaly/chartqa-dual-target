@@ -229,26 +229,42 @@
       "sealed_image_hashes": 2563
     },
     "mixtures": {
+      "_rebuilt": "2026-08-28, after DECISIONS.md 0067 corrected target construction and 0066 expanded the synthetic pool to 24,000",
       "stage1": {
         "total": 12000,
         "synthetic": 6000,
         "chartqa": 6000,
         "with_boxes": 12000,
-        "with_plan": 6952,
-        "compositional": 5080
+        "with_plan": 7003,
+        "compositional": 5345,
+        "levels": {
+          "L1": 1500,
+          "L2": 1500,
+          "L3": 1500,
+          "L4": 1500
+        }
       },
-      "stage2": {
+      "stage2_preregistered": {
         "total": 12000,
-        "chartqa": 7087,
-        "refchartqa": 3088,
-        "synthetic": 1825,
-        "with_boxes": 12000,
-        "with_plan": 2930,
-        "compositional": 1883
+        "chartqa": 8465,
+        "synthetic": 1419,
+        "refchartqa": 2116,
+        "with_plan": 2718,
+        "compositional": 1665,
+        "with_boxes": 12000
       },
-      "dedup_merges": 628,
-      "dedup_chartqa_refchartqa_merges": 609,
-      "_note": "609 cross-dataset merges. With file-byte hashing this was 0 \u2014 see 0048."
+      "stage2_planrich": {
+        "total": 12000,
+        "chartqa": 6453,
+        "synthetic": 3868,
+        "refchartqa": 1679,
+        "with_plan": 4809,
+        "compositional": 3331,
+        "with_boxes": 12000
+      },
+      "dedup_merges": 988,
+      "dedup_chartqa_refchartqa_merges": 949,
+      "_note": "Two stage-2 arms exist as files. Phase 6 trains both and the better is reported (DECISIONS.md 0066); 'more plan data helps' is a hypothesis with a mechanism, not a fact."
     },
     "refchartqa_parquet_bytes_recorded": 2884503702,
     "refchartqa_parquet_files": 9

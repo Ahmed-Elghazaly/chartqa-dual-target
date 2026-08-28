@@ -401,14 +401,32 @@ def test_level_b_deltas_follow_from_their_operands():
 
 
 def test_mixture_components_sum_to_their_totals():
-    for stage in ("stage1", "stage2"):
-        s = FACTS["phase3"]["mixtures"][stage]
+    """Every arm, not just one — the plan-rich arm is a full mixture in its own right."""
+    mixtures = FACTS["phase3"]["mixtures"]
+    stages = [k for k in mixtures if k.startswith("stage")]
+    assert len(stages) >= 2, "at least stage 1 and one stage-2 arm must be recorded"
+    for stage in stages:
+        s = mixtures[stage]
         parts = sum(s.get(k, 0) for k in ("synthetic", "chartqa", "refchartqa"))
         assert parts == s["total"], f"{stage}: components {parts} != total {s['total']}"
         assert s["compositional"] <= s["with_plan"] <= s["total"], (
             f"{stage}: a compositional plan is a plan, and a plan needs a record"
         )
         assert s["with_boxes"] <= s["total"]
+
+
+def test_the_plan_rich_arm_actually_has_more_compositional_plans():
+    """The whole point of the second arm (`DECISIONS.md` 0066). If it ever stops being
+    true, the comparison Phase 6 runs is measuring nothing."""
+    m = FACTS["phase3"]["mixtures"]
+    base, rich = m.get("stage2_preregistered"), m.get("stage2_planrich")
+    if not (base and rich):
+        pytest.skip("only one stage-2 arm is recorded")
+    assert rich["compositional"] > base["compositional"] * 1.5, (
+        f"plan-rich has {rich['compositional']} compositional plans against "
+        f"{base['compositional']} — not a meaningful contrast"
+    )
+    assert rich["total"] == base["total"], "the arms must be the same size to compare"
 
 
 def test_coverage_percentages_are_bounded_by_their_parts():
