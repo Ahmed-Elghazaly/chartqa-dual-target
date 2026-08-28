@@ -198,14 +198,14 @@ the vendored official evaluators.
 
 | protocol | subset | zero-shot, 95% CI |
 |---|---|---|
-| ChartQA relaxed accuracy | human | **TBD** |
-| ChartQA relaxed accuracy | machine | **TBD** |
-| ChartQA relaxed accuracy | all | **TBD** |
-| ChartQA, plain published prompt | all | **TBD** |
-| RefChartQA AP@0.5 | human | **TBD** |
-| RefChartQA AP@0.5 | machine | **TBD** |
-| RefChartQA AP@0.5 | PoT | **TBD** |
-| RefChartQA P@F1 | all | **TBD** |
+| ChartQA relaxed accuracy | human | **TBD** (n=12; needs n≥1,920) |
+| ChartQA relaxed accuracy | machine | **TBD** (n=12; needs n≥1,920) |
+| ChartQA relaxed accuracy | all | **TBD** (n=12; needs n≥1,920) |
+| ChartQA, plain published prompt | all | **TBD** (n=12; needs n≥1,920) |
+| RefChartQA AP@0.5 | human | **TBD** (no result; needs n≥1,800) |
+| RefChartQA AP@0.5 | machine | **TBD** (no result; needs n≥1,800) |
+| RefChartQA AP@0.5 | PoT | **TBD** (no result; needs n≥1,800) |
+| RefChartQA P@F1 | all | **TBD** (no result; needs n≥1,800) |
 
 The plain-prompt row is the published-prompt condition, kept beside the structured one so
 the cost of asking for a record rather than a bare answer is visible in the same table.

@@ -25,6 +25,11 @@ ROOT = Path(__file__).resolve().parents[1]
 #: report "5.2 has not run" about a measurement that had run, at n=200, weeks earlier.
 _SEARCH = ("", "outputs/kaggle/repo/", "outputs/kaggle_live/repo/")
 
+#: The pre-registered slice sizes. A baseline measured on fewer rows than this is a smoke
+#: run, not the baseline, and section 12 says so rather than quoting it.
+CHARTQA_SLICE = 1_920
+REFCHARTQA_SLICE = 1_800
+
 
 def read_json(rel: str) -> dict:
     for prefix in _SEARCH:
@@ -68,21 +73,42 @@ def main() -> None:
     def n1(key: str) -> str:
         return _count(mixtures.get("stage1", {}), key)
 
-    def baseline(result: dict, *path: str) -> str:
+    def baseline(result: dict, arm: str, subset: str, *, minimum: int) -> str:
         """A zero-shot baseline with its interval, or the marker that keeps test sealed.
 
         Section 11 promises the fine-tuned system will beat *this*. A bar that is not
         written down before the test split opens is a bar that can move, so the seal guard
         refuses to open anything while these read TBD.
+
+        **The `n` guard is the important part.** `kaggle_run.py` unpacks a downloaded run
+        under `outputs/<run>/repo/`, and that directory still held a 12-item smoke run
+        reporting 91.67% with an interval of [75.0, 100.0]. Reading it would have filled
+        this table with real-looking numbers, and because they are not placeholders the
+        seal guard would then have opened the test splits on the strength of twelve
+        questions. A result smaller than the pre-registered slice is not the result.
         """
-        node = result
-        for key in path:
-            node = node.get(key, {}) if isinstance(node, dict) else {}
-        if not isinstance(node, dict) or node.get("value") is None:
+        node = (result.get("arms") or {}).get(arm) or {}
+        n = node.get("n")
+        if not isinstance(n, int) or n < minimum:
+            got = f"n={n}" if n else "no result"
+            return f"**TBD** ({got}; needs n\u2265{minimum:,})"
+        value = (node.get("by_subset") or {}).get(subset) if subset != "all" \
+            else node.get("relaxed_accuracy")
+        if value is None:
             return "**TBD**"
-        lo, hi = node.get("lo"), node.get("hi")
-        interval = f" [{100 * lo:.2f}, {100 * hi:.2f}]" if lo is not None else ""
-        return f"{100 * node['value']:.2f}%{interval}"
+        ci = node.get("ci") if subset == "all" else None
+        interval = f" [{100 * ci[0]:.2f}, {100 * ci[1]:.2f}]" if ci else ""
+        return f"{100 * value:.2f}%{interval} (n={n:,})"
+
+    def ref_baseline(result: dict, metric: str, subset: str, *, minimum: int) -> str:
+        """The RefChartQA half, from the official evaluator's per-subset output."""
+        n = result.get("n")
+        if not isinstance(n, int) or n < minimum:
+            return f"**TBD** ({f'n={n}' if n else 'no result'}; needs n\u2265{minimum:,})"
+        node = (result.get("official_by_subset") or {}).get(subset) \
+            or (result.get("official") or {})
+        value = node.get(metric)
+        return f"{value:.2f}% (n={n:,})" if isinstance(value, (int, float)) else "**TBD**"
 
     def n2(key: str) -> str:
         # `stage2_preregistered` is the arm this document pre-registers; the plan-rich arm
@@ -266,14 +292,14 @@ the vendored official evaluators.
 
 | protocol | subset | zero-shot, 95% CI |
 |---|---|---|
-| ChartQA relaxed accuracy | human | {baseline(cq_zero, "structured", "human")} |
-| ChartQA relaxed accuracy | machine | {baseline(cq_zero, "structured", "machine")} |
-| ChartQA relaxed accuracy | all | {baseline(cq_zero, "structured", "all")} |
-| ChartQA, plain published prompt | all | {baseline(cq_zero, "plain", "all")} |
-| RefChartQA AP@0.5 | human | {baseline(ref_zero, "ap50", "human")} |
-| RefChartQA AP@0.5 | machine | {baseline(ref_zero, "ap50", "machine")} |
-| RefChartQA AP@0.5 | PoT | {baseline(ref_zero, "ap50", "pot")} |
-| RefChartQA P@F1 | all | {baseline(ref_zero, "p_at_f1", "all")} |
+| ChartQA relaxed accuracy | human | {baseline(cq_zero, "structured", "human", minimum=CHARTQA_SLICE)} |
+| ChartQA relaxed accuracy | machine | {baseline(cq_zero, "structured", "machine", minimum=CHARTQA_SLICE)} |
+| ChartQA relaxed accuracy | all | {baseline(cq_zero, "structured", "all", minimum=CHARTQA_SLICE)} |
+| ChartQA, plain published prompt | all | {baseline(cq_zero, "plain", "all", minimum=CHARTQA_SLICE)} |
+| RefChartQA AP@0.5 | human | {ref_baseline(ref_zero, "ap50", "human", minimum=REFCHARTQA_SLICE)} |
+| RefChartQA AP@0.5 | machine | {ref_baseline(ref_zero, "ap50", "machine", minimum=REFCHARTQA_SLICE)} |
+| RefChartQA AP@0.5 | PoT | {ref_baseline(ref_zero, "ap50", "pot", minimum=REFCHARTQA_SLICE)} |
+| RefChartQA P@F1 | all | {ref_baseline(ref_zero, "p_at_f1", "all", minimum=REFCHARTQA_SLICE)} |
 
 The plain-prompt row is the published-prompt condition, kept beside the structured one so
 the cost of asking for a record rather than a bare answer is visible in the same table.
