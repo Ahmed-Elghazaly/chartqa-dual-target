@@ -471,6 +471,26 @@
         "build_mixtures.py dropped meta['elements'], so all labels were placeholders",
         "values read from the annotation while the plan was verified on the table"
       ]
+    },
+    "early_stopping": {
+      "signal": "validation loss (negated, since EarlyStopping maximises)",
+      "loss_slice": 256,
+      "patience": 2,
+      "metric_slice": 200,
+      "metric_every_steps": 1000,
+      "_why_not_ap": "AP needs generation. At 6 evaluations in a 3,000-step run the 95% CI is +/-12.2 pts at n=64, +/-8.7 at n=128, and only +/-4.9 at n=400 which costs 5.3 h against ~10 h of training. An AP that cannot detect 'has not improved' would stop on noise (DECISIONS.md 0069).",
+      "ap_cost_hours": {
+        "64": 0.9,
+        "128": 1.7,
+        "200": 2.7,
+        "400": 5.3
+      },
+      "ap_ci_points": {
+        "64": 12.2,
+        "128": 8.7,
+        "200": 6.9,
+        "400": 4.9
+      }
     }
   }
 }

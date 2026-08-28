@@ -3241,3 +3241,48 @@ baseline makes the eventual improvement harder to claim, not easier. And the who
 evaluation was done on saved generations, which is the payoff for having separated
 generation from scoring: a parser change can be measured against 200 real model outputs in
 seconds rather than by another GPU run.
+
+---
+
+## 0069 — Early stopping uses validation loss, not AP, because AP cannot resolve it
+
+**Date** 2026-08-28 · **Phase** 6.6 · **Status** adopted · **Deviates from `PLAN.md` 6.6**
+
+**Context.** `PLAN.md` 6.6 says *"stop if validation AP has not improved for N
+evaluations"*. Sizing that before building it — design-pass step 5, compute what a
+measurement can resolve — shows it does not work as a *stopping* signal.
+
+AP requires generation, so its cost and its precision trade directly:
+
+| slice | every | evaluations in 3,000 steps | generation cost | AP 95% CI |
+|---:|---:|---:|---:|---:|
+| 64 | 500 | 6 | 0.9 h | **±12.2 pts** |
+| 128 | 500 | 6 | 1.7 h | **±8.7 pts** |
+| 200 | 500 | 6 | 2.7 h | ±6.9 pts |
+| 400 | 500 | 6 | 5.3 h | ±4.9 pts |
+
+Training itself is roughly 10 h. Anything under ±5 points costs more than half the run
+again, and an AP with a ±8.7 interval **cannot detect "has not improved"** — stopping on it
+means stopping on noise, which is precisely the error `DECISIONS.md` 0062 was written
+about. A spurious early stop is worse than no early stopping at all: it ends a run that was
+still improving and the loss curve gives no hint.
+
+**Decision.** Separate the two roles.
+
+* **Early stopping uses validation loss.** No generation — one forward pass per batch, the
+  same computation training already performs — so a 256-example slice is nearly free. It is
+  also far lower variance: hundreds of supervised token positions per example instead of
+  one binary outcome. And because the target *contains the boxes*, the loss responds
+  directly to grounding quality rather than to a proxy for it.
+* **AP, answer accuracy, schema validity and round-trip are still measured** every 1,000
+  steps on 200 examples, for the curves `PLAN.md` 6.5 requires and for the report. They
+  inform; they do not gate.
+
+**Consequences.** The deviation is from 6.6's *mechanism*, not its intent: the intent is to
+stop when the model stops improving, and validation loss detects that more reliably than an
+AP nobody can measure precisely enough. `PREREGISTRATION.md` records the signal, the slice
+sizes and the patience, so the rule is fixed before any curve is seen.
+
+One implementation detail worth its own test: `EarlyStopping` *maximises* its metric while
+loss *falls* with improvement, so the evaluator returns **negative** loss. The wrong sign
+would stop the run at its first evaluation and look exactly like immediate convergence.
