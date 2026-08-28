@@ -230,3 +230,66 @@ def stratify(items: Iterable[Mapping[str, Any]], *, token_px: float = 32.0,
     return report
 
 
+
+
+@dataclass
+class Stratum:
+    """One group of a categorical stratification — `PLAN.md` 9.2's other two axes."""
+
+    name: str
+    n: int = 0
+    n_with_boxes: int = 0
+    ap50: float = 0.0
+    perfect: int = 0
+    correct: int = 0
+
+    @property
+    def p_at_f1(self) -> float:
+        return self.perfect / self.n_with_boxes if self.n_with_boxes else 0.0
+
+    @property
+    def accuracy(self) -> float:
+        return self.correct / self.n if self.n else 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"name": self.name, "n": self.n, "n_with_boxes": self.n_with_boxes,
+                "ap50": self.ap50, "p_at_f1": self.p_at_f1, "accuracy": self.accuracy}
+
+
+def stratify_by(items: Iterable[Mapping[str, Any]], key: str, *,
+                iou: float = 0.5) -> dict[str, dict[str, Any]]:
+    """AP@0.5, P@F1 and answer accuracy grouped by a categorical field.
+
+    `PLAN.md` 9.2 asks for grounding *"by target-box area, by chart type, and by question
+    kind"*. `stratify` handles area, where the buckets are properties of individual boxes
+    and COCO's area-range semantics apply. Chart type and question kind are properties of
+    the *record*, so each group is simply an independent evaluation — which is why AP is
+    recomputed per group rather than averaged from the whole, since AP is not a mean of
+    per-item scores and averaging it would silently produce a different quantity.
+
+    Items missing `key` are grouped under `"unknown"` rather than dropped: a stratification
+    that quietly loses records misstates the population it describes.
+    """
+    groups: dict[str, list[Mapping[str, Any]]] = {}
+    for item in items:
+        name = str(item.get(key) or "unknown")
+        groups.setdefault(name, []).append(item)
+
+    out: dict[str, dict[str, Any]] = {}
+    for name, members in sorted(groups.items()):
+        stratum = Stratum(name=name, n=len(members))
+        gts: dict[str, list[Box]] = {}
+        preds: list[tuple[str, float, Box]] = []
+        for i, item in enumerate(members):
+            pred_boxes = [list(b) for b in (item.get("pred_boxes") or [])]
+            gt_boxes = [list(b) for b in (item.get("gt_boxes") or [])]
+            stratum.correct += bool(item.get("correct"))
+            if gt_boxes:
+                stratum.n_with_boxes += 1
+                key_id = f"{i}:{item.get('id', i)}"
+                gts[key_id] = gt_boxes
+                preds.extend((key_id, 1.0, b) for b in pred_boxes)
+                stratum.perfect += grounding_is_perfect(pred_boxes, gt_boxes)
+        stratum.ap50 = average_precision_coco(preds, gts, iou) if gts else 0.0
+        out[name] = stratum.to_dict()
+    return out

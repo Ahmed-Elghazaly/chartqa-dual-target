@@ -181,3 +181,62 @@ def test_the_dev_fixture_runs_end_to_end():
     assert result.n_items == len(rows)
     assert 0.0 < result.relaxed_accuracy.mean < 1.0, "the fixture must exercise both"
     assert set(result.by_subset) == {"human", "machine", "pot"}
+
+
+# --- `PLAN.md` 9.2's other two axes: chart type and question kind ------------------
+
+CATEGORICAL_ITEMS = [
+    {"id": "a", "chart_type": "v_bar", "kind": "human",
+     "pred_boxes": [[10, 10, 50, 50]], "gt_boxes": [[10, 10, 50, 50]], "correct": True},
+    {"id": "b", "chart_type": "v_bar", "kind": "machine",
+     "pred_boxes": [[0, 0, 5, 5]], "gt_boxes": [[90, 90, 99, 99]], "correct": False},
+    {"id": "c", "chart_type": "pie", "kind": "human",
+     "pred_boxes": [[10, 10, 50, 50]], "gt_boxes": [[10, 10, 50, 50]], "correct": True},
+]
+
+
+def test_stratify_by_scores_each_group_independently():
+    from chartqa_dt.eval.stratified import stratify_by
+
+    out = stratify_by(CATEGORICAL_ITEMS, "chart_type")
+    assert out["pie"]["ap50"] == 1.0
+    assert out["pie"]["n"] == 1 and out["v_bar"]["n"] == 2
+
+
+def test_stratify_by_regroups_the_same_items_on_a_different_field():
+    from chartqa_dt.eval.stratified import stratify_by
+
+    out = stratify_by(CATEGORICAL_ITEMS, "kind")
+    assert set(out) == {"human", "machine"}
+    assert out["human"]["n"] == 2 and out["human"]["ap50"] == 1.0
+
+
+def test_stratify_by_keeps_items_missing_the_field_as_unknown():
+    """A stratification that quietly loses records misstates its own population."""
+    from chartqa_dt.eval.stratified import stratify_by
+
+    out = stratify_by([*CATEGORICAL_ITEMS, {"id": "d", "pred_boxes": [], "gt_boxes": []}],
+                      "chart_type")
+    assert out["unknown"]["n"] == 1
+    assert sum(g["n"] for g in out.values()) == 4
+
+
+def test_stratify_by_excludes_boxless_records_from_p_at_f1_but_not_accuracy():
+    from chartqa_dt.eval.stratified import stratify_by
+
+    out = stratify_by([{"id": "x", "chart_type": "pie", "pred_boxes": [],
+                        "gt_boxes": [], "correct": True}], "chart_type")
+    assert out["pie"]["n"] == 1 and out["pie"]["n_with_boxes"] == 0
+    assert out["pie"]["p_at_f1"] == 0.0 and out["pie"]["accuracy"] == 1.0
+
+
+def test_stratify_by_recomputes_ap_per_group_rather_than_averaging():
+    """AP is not a mean of per-item scores; averaging group APs would silently produce a
+    different quantity from the one the metric names."""
+    from chartqa_dt.eval.stratified import stratify_by
+
+    out = stratify_by(CATEGORICAL_ITEMS, "chart_type")
+    naive_mean = (out["pie"]["ap50"] + out["v_bar"]["ap50"]) / 2
+    whole = stratify_by([{**i, "chart_type": "all"} for i in CATEGORICAL_ITEMS],
+                        "chart_type")["all"]["ap50"]
+    assert whole != naive_mean
