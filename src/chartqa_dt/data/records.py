@@ -83,6 +83,9 @@ def dedup_key(image_sha256: str, question: str) -> str:
     return f"{image_sha256[:16]}:{qh}"
 
 
+ELEMENTS_KEY = "elements"
+
+
 @dataclass(frozen=True)
 class ChartRecord:
     """One (chart, question) example, whatever it came from."""
@@ -99,6 +102,11 @@ class ChartRecord:
     boxes: list[list[float]] | None = None       # 0-1000 normalised [x1,y1,x2,y2]
     plan: dict | None = None                      # typed tree, only when known exactly
     meta: dict[str, Any] = field(default_factory=dict)
+    #: The `meta` key holding per-element label/value/unit/bbox dictionaries. Named here
+    #: because `build_target` joins the plan's labels against it, and a source that spells
+    #: it differently produces records that look complete and refuse silently: the
+    #: synthetic reader wrote `evidence` and all 12,000 stage-1 targets were lost
+    #: (`DECISIONS.md` 0071). Both readers and the target builder use this constant.
 
     @property
     def key(self) -> str:

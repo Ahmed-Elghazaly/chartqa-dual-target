@@ -25,8 +25,11 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from chartqa_dt.eval.metrics import relaxed_correctness
+from chartqa_dt.eval.metrics import relaxed_correctness, to_float
 from chartqa_dt.plans.executor import EvidenceItem, execute
+
+#: The official relaxed tolerance, `max_relative_change` in the published evaluator.
+RELAXED_TOLERANCE = 0.05
 
 Outcome = str  # "agrees" | "disagrees" | "raises" | "no_plan"
 
@@ -59,11 +62,39 @@ def check_record(record: dict[str, Any]) -> RoundTrip:
     except Exception as exc:  # noqa: BLE001 - any executor refusal is the same outcome
         return RoundTrip("raises", stated=stated, error=f"{type(exc).__name__}: {exc}")
 
-    # Compared with the official tolerance, not exactly: the model states a rounded
-    # answer ("35") for a computed 35.0001, and calling that a disagreement would
-    # measure formatting rather than reasoning.
-    agrees = relaxed_correctness(stated, "" if got is None else str(got))
-    return RoundTrip("agrees" if agrees else "disagrees", executed=got, stated=stated)
+    return RoundTrip("agrees" if answers_agree(stated, got) else "disagrees",
+                     executed=got, stated=stated)
+
+
+def answers_agree(stated: str, got: Any) -> bool:
+    """Does a plan's result reproduce the answer stated beside it?
+
+    Compared with the official 5% tolerance rather than exactly: a record states a rounded
+    answer ("35") for a computed 35.0001, and calling that a disagreement would measure
+    formatting rather than reasoning.
+
+    **Zero is handled here rather than deferred to `relaxed_correctness`.** The official
+    implementation computes a *relative* error and guards the division with a truthiness
+    test, so a target of zero falls back to string equality and
+    ``relaxed_correctness("0", "0.0")`` is `False`. That behaviour is faithful to the
+    published evaluator and `eval/metrics.py` keeps it exactly, because a reported score
+    must match what the benchmark's own code would produce.
+
+    This is not scoring. It asks whether a plan reproduces its own answer, and there a
+    correct result of zero is a correct result. Inheriting the quirk discarded **512
+    synthetic L4 records** — every one of them a valid `difference` whose two operands were
+    equal, which is precisely the case a compositional example should cover
+    (`DECISIONS.md` 0071).
+
+    The relative test is also made symmetric, since neither side is a gold reference.
+    """
+    if got is None:
+        return relaxed_correctness(stated, "")
+    a, b = to_float(stated), to_float(str(got))
+    if a is None or b is None:
+        return relaxed_correctness(stated, str(got))
+    scale = max(abs(a), abs(b))
+    return scale == 0.0 or abs(a - b) <= RELAXED_TOLERANCE * scale
 
 
 @dataclass
@@ -128,5 +159,6 @@ def disagreement_examples(records: Sequence[dict[str, Any]], limit: int = 8
     return out
 
 
-__all__ = ["RoundTrip", "RoundTripStats", "check_many", "check_record",
+__all__ = ["RELAXED_TOLERANCE", "RoundTrip", "RoundTripStats", "answers_agree",
+           "check_many", "check_record",
            "disagreement_examples"]

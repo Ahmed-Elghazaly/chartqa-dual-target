@@ -28,7 +28,12 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
-from chartqa_dt.data.records import ChartRecord, image_content_sha256, make_record_id
+from chartqa_dt.data.records import (
+    ELEMENTS_KEY,
+    ChartRecord,
+    image_content_sha256,
+    make_record_id,
+)
 from chartqa_dt.data.refchartqa import xywh_to_norm1000
 
 ROOT = "ChartQA Dataset"
@@ -197,7 +202,7 @@ def row_to_record(row: dict[str, Any], *, split: str, kind: str,
     if annotation is not None:
         elements = annotation_boxes(annotation, width, height)
         meta["chart_type"] = annotation.get("type")
-        meta["elements"] = elements
+        meta[ELEMENTS_KEY] = elements
         meta["axis_labels"] = axis_labels(annotation, width, height)
         boxes = [e["bbox"] for e in elements] or None
 

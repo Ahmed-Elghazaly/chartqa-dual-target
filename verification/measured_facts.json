@@ -434,7 +434,9 @@
    "hit_token_cap_pct": 26.0,
    "usable_records_before_repair": 49,
    "usable_records_after_repair": 61,
-   "_note": "The n=24 probes had reported round-trip at 40-50%; at n=200 it is 69%, confirming DECISIONS.md 0062 that the small probes were noise."
+   "_note": "The n=24 probes had reported round-trip at 40-50%; at n=200 it is 69%, confirming DECISIONS.md 0062 that the small probes were noise.",
+   "_denominators": "relaxed_accuracy, valid_json and schema_valid are over all 200 questions; roundtrip_agreement and roundtrip_executable are over the 71 schema-valid records only (49/71 and 67/71). Re-scored on the 93 post-repair schema-valid records they are 65.6% and 84.9%.",
+   "roundtrip_agreement_pct_of_all_200": 24.5
   }
  },
  "phase6": {

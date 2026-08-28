@@ -28,7 +28,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from chartqa_dt.data.records import ChartRecord
+from chartqa_dt.data.records import ELEMENTS_KEY, ChartRecord
 from chartqa_dt.eval.metrics import to_float
 from chartqa_dt.plans.roundtrip import check_record
 from chartqa_dt.plans.schema import MAX_EVIDENCE, validate_record
@@ -74,6 +74,29 @@ def plan_labels(plan: Any) -> list[str]:
     return out
 
 
+#: Operations that fold over **every** evidence item when their `args` are empty. This is
+#: the compact form `DECISIONS.md` 0041 introduced so an L3 aggregate could stay inside the
+#: schema's `maxItems: 4`. Its consequence is that such a plan's meaning depends on what is
+#: in the evidence list, which is why evidence selection has to know about it.
+FOLD_OPS = frozenset({"sum", "mean", "median", "min", "max", "count",
+                      "argmin", "argmax", "trend"})
+
+
+def folds_over_evidence(plan: Any) -> bool:
+    """Whether any node in the tree folds over the whole evidence list.
+
+    `{"op": "mean", "args": []}` means *the mean of everything on the chart*. Selecting
+    evidence by the labels a plan names — right for every other plan — hands such a node a
+    one-item list, and the fold quietly returns that item instead of the aggregate.
+    """
+    if not isinstance(plan, dict):
+        return False
+    op, args = plan.get("op"), plan.get("args") or []
+    if op in FOLD_OPS and not [a for a in args if isinstance(a, str)]:
+        return True
+    return any(folds_over_evidence(a) for a in args if isinstance(a, dict))
+
+
 def _evidence_from(record: ChartRecord) -> list[dict[str, Any]]:
     """Evidence entries — **the ones the plan needs**, not the first `MAX_EVIDENCE` boxes.
 
@@ -87,7 +110,8 @@ def _evidence_from(record: ChartRecord) -> list[dict[str, Any]]:
     An aggregate with empty args folds over whatever evidence is present
     (`DECISIONS.md` 0041), so those keep the leading elements up to the cap.
     """
-    elements = [e for e in (record.meta.get("elements") or []) if isinstance(e, dict)]
+    elements = [e for e in (record.meta.get(ELEMENTS_KEY) or [])
+                if isinstance(e, dict)]
     boxes = record.boxes or []
     wanted = plan_labels(record.plan)
     # The plan was mined and verified against the gold TABLE, so the table is the
@@ -99,6 +123,28 @@ def _evidence_from(record: ChartRecord) -> list[dict[str, Any]]:
     def entry(label: Any, value: Any, unit: Any, box: Any) -> dict[str, Any]:
         return {"label": str(label), "value": value, "unit": unit,
                 "bbox": clamp_for_official_evaluator(tuple(box))}
+
+    # A plan that folds over the chart needs the *whole* chart in its evidence, even when
+    # it also names labels. `difference("Alpha", mean-of-everything)` names one label; give
+    # it one evidence item and the mean is that item, so the difference is exactly zero.
+    # That is what happened to **all 6,000 L4 records** — the compositional level, and the
+    # scarcest supervision in the mixture (`DECISIONS.md` 0071).
+    if elements and wanted and folds_over_evidence(record.plan):
+        if len(elements) > MAX_EVIDENCE:
+            raise TargetError(
+                f"{record.record_id}: the plan folds over all {len(elements)} elements, "
+                f"more than the schema's {MAX_EVIDENCE}. Truncating would change the "
+                f"aggregate and the target would no longer reproduce its answer.")
+        have = {str(e.get("label")) for e in elements if e.get("bbox") is not None}
+        missing = [label for label in wanted if label not in have]
+        if missing:
+            raise TargetError(
+                f"{record.record_id}: the plan references {missing[0]!r}, which has no "
+                f"element box.")
+        return [entry(e.get("label"), table_values.get(str(e.get("label")),
+                                                       e.get("value")),
+                      e.get("unit"), e["bbox"])
+                for e in elements if e.get("bbox") is not None]
 
     if elements and wanted:
         by_label: dict[str, dict[str, Any]] = {}

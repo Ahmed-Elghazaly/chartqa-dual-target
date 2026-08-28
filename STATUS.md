@@ -14,19 +14,24 @@ tested ahead of its gate.** Phases 0–4 complete. Cost so far: **USD 0**.
 | 5.3 ChartQA zero-shot | running | full 1,920 validation split, ~6 h |
 | 5.4 RefChartQA zero-shot | queued | 1,800 stratified rows |
 | 5.5 pre-registration | drafted | generated from source; the seal guard rejects it while it says "TBD" |
-| 6 | **built, untrained** | feed, collator, checkpointing, loop, validation, kill-and-resume verified |
+| 6 | **built, untrained** | feed, collator, checkpointing, loop, validation, monitoring, kill-and-resume verified |
+| 7 | table and claim guards built | `Cell` refuses a point estimate without an interval; `Claims` cannot say training was reproduced |
+| 10 | skeleton compiles, generator built | `cdt-report` fills tables from recorded JSON; 16 pages, 0 undefined refs |
 
-**783 tests pass**; `ruff check src tests scripts` clean; preflight green.
+**860 tests pass**; `ruff check src tests scripts` clean; preflight green.
 
 ## Phase 5.2 result — the first properly powered measurement
 
-| | value |
-|---|---:|
-| relaxed accuracy | 50.0% |
-| **round-trip agreement** | **69.0%** |
-| plans that execute at all | 94.4% |
-| schema-valid (after repair) | 46.5% |
-| median latency | 11.4 s |
+| | value | of what |
+|---|---:|---|
+| relaxed accuracy | 50.0% | all 200 questions |
+| schema-valid (after repair) | 46.5% | all 200 questions |
+| **round-trip agreement** | **69.0%** | the 71 schema-valid records |
+| plans that execute at all | 94.4% | the 71 schema-valid records |
+| median latency | 11.4 s | per question |
+
+The last two are conditional on a usable record, not on a question. Read as a share of all
+200, agreement is 24.5%: half the loss is records that never parse.
 
 The n=24 probes had reported round-trip at 40–50%. At n=200 it is 69%, confirming
 `DECISIONS.md` 0062: three prompt iterations were run on noise, and the probe could not

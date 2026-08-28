@@ -37,7 +37,12 @@ from chartqa_dt.data.mixture import (
     build_stage2,
     write_mixture,
 )
-from chartqa_dt.data.records import ChartRecord, image_content_sha256, make_record_id
+from chartqa_dt.data.records import (
+    ELEMENTS_KEY,
+    ChartRecord,
+    image_content_sha256,
+    make_record_id,
+)
 from chartqa_dt.env import get_env
 from chartqa_dt.plans.mining import mine_plan
 from chartqa_dt.splits import sealed_image_hashes
@@ -89,8 +94,13 @@ def synthetic_records(manifest: Path) -> list[ChartRecord]:
             question=e["question"], answer=e["answer"], question_kind="synthetic",
             table=e["table"], boxes=[ev["bbox"] for ev in e["evidence"]],
             plan=e["plan"],
+            # `elements`, not `evidence`. `build_target` reads `meta["elements"]` —
+            # ChartQA's reader sets that key, and this one did not, so every synthetic
+            # record fell through to the placeholder branch, got evidence labelled
+            # `item1, item2, ...`, and was then refused because its plan referenced the
+            # real labels. All 12,000 stage-1 records, silently (`DECISIONS.md` 0071).
             meta={"level": e["level"], "chart_type": e["chart_type"],
-                  "evidence": e["evidence"], "style_seed": e["style_seed"],
+                  ELEMENTS_KEY: e["evidence"], "style_seed": e["style_seed"],
                   "data_seed": e["data_seed"]}))
     return out
 
@@ -145,11 +155,13 @@ def chartqa_records(reader: ArchiveReader, *, limit: int, seed: int) -> list[Cha
                       "imgname": row["imgname"], "image_size": [width, height],
                       "n_elements": len(elements),
                       # The per-element label, value and unit — not just the count.
-                      # Dropping them left `meta["elements"]` empty while `boxes` was
-                      # full, so every training target fell back to "item1" placeholders
-                      # and the mined plan's labels matched nothing: 1 of 636 records
-                      # produced an executable target.
-                      "elements": elements}))
+                      # Dropping them left the elements empty while `boxes` was full, so
+                      # every training target fell back to "item1" placeholders and the
+                      # mined plan's labels matched nothing: 1 of 636 records produced an
+                      # executable target (`DECISIONS.md` 0067). The same defect survived
+                      # in `synthetic_records` under a different spelling until 0071,
+                      # which is why the key is now a shared constant.
+                      ELEMENTS_KEY: elements}))
     if dropped:
         print(f"  chartqa: {dropped} rows dropped — a train image identical to a "
               f"held-out chart")

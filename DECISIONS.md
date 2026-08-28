@@ -3333,3 +3333,95 @@ This also settles a question the monitoring metric raised: for RefChartQA record
 set — the plan-subset selection that applies to ChartQA and synthetic records, where the
 target deliberately points only at what the answer needs, does not apply here. Those records
 carry no grounding annotation, so they are excluded from AP and kept in the answer metric.
+
+---
+
+## 0071 — Measuring target yield on CPU found three defects that would have wasted the training run
+
+**Context.** Phase 6 is built and about to consume roughly ten GPU hours per stage. Before
+spending them I asked a question that needs no GPU at all: *of the 12,000 records in each
+mixture, how many actually become training examples?*
+
+The answer for stage 1 was **zero**. Not an error, not a crash — `build_target` refused every
+record, the feed skips a refusal and moves on, and the run would have completed on time
+having trained on almost nothing. `scripts/measure_target_yield.py` now asks this question
+before every run.
+
+Three separate defects, found in the order they masked each other.
+
+### 1. The synthetic reader wrote its element metadata under the wrong key
+
+`build_target` joins a plan's labels against `record.meta["elements"]`. `synthetic_records`
+wrote the identical data under `record.meta["evidence"]`. Every field was present and
+correctly shaped; only the spelling differed.
+
+The consequence is silent and total. With no `elements`, `_evidence_from` falls through to
+its placeholder branch and labels the evidence `item1, item2, …`; the plan then references
+the *real* labels, which match nothing; the round-trip check refuses the record. **All 12,000
+stage-1 targets, lost.**
+
+This is the same defect as `DECISIONS.md` 0067, in the same file, three functions apart — the
+comment there still describes it word for word ("1 of 636 records produced an executable
+target"). It was fixed for ChartQA and left in the synthetic path.
+
+**Decision.** One canonical `ELEMENTS_KEY` in `data/records.py`, used by both readers and by
+the target builder, plus a test that fails on any hand-spelled `"elements"` in those files.
+The test found a third site immediately. A one-off patch would have left the next reader free
+to invent a fourth spelling.
+
+### 2. A plan that folds over the chart was given only the labels it named
+
+`DECISIONS.md` 0041 introduced the empty-args form — `{"op":"mean","args":[]}` means *the
+mean of everything on the chart* — so an L3 aggregate could stay inside the schema's
+`maxItems: 4`. `DECISIONS.md` 0067 made evidence selection pick exactly the labels a plan
+names, which fixed the join for every other plan shape.
+
+Together they break composition. `difference("Alpha", mean-of-everything)` names one label,
+so the evidence list holds one item, so the mean is that item, so the difference is exactly
+**zero**:
+
+```
+executed on full evidence : 64.6   (gold 64.6)
+evidence actually kept    : ['Alpha']
+executed on kept evidence : 0.0
+```
+
+**Every one of the 6,000 L4 records failed** — the compositional level, which
+`DECISIONS.md` 0066 identified as the scarcest supervision in the mixture.
+
+**Decision.** `folds_over_evidence(plan)` walks the tree, and a plan containing such a node
+gets the whole chart as evidence rather than its named labels. When the chart has more
+elements than the schema can hold, the record is refused with that reason stated, because
+truncating would change the aggregate and produce a target that does not reproduce its own
+answer.
+
+### 3. Round-trip agreement inherited the official evaluator's zero quirk
+
+`relaxed_correctness("0", "0.0")` is **`False`**. The published implementation computes a
+relative error and guards the division with a truthiness test, so a target of zero falls back
+to string equality. `eval/metrics.py` reproduces that exactly and will continue to: a
+*reported score* must match what the benchmark's own code produces.
+
+But `check_record` had borrowed it to ask a different question — *does this plan reproduce
+its own answer?* — and there a correct result of zero is a correct result. It discarded **512
+more L4 records**, every one a valid `difference` whose two operands were equal, which is
+exactly the case a compositional example should cover.
+
+**Decision.** `answers_agree` in `plans/roundtrip.py` compares numerically when both sides
+parse, with a symmetric 5% tolerance and zero handled explicitly. Scoring is untouched.
+
+### Result
+
+| | before | after |
+|---|---:|---:|
+| synthetic pool usable | 74.9% | **99.9%** |
+| L1 / L2 / L3 | 100 / 99.7 / 100% | 100 / 100 / 100% |
+| **L4 (compositional)** | **0.0%** | **99.4%** |
+| stage-1 mixture usable | 0.0% | see `STATUS.md` |
+
+**Consequences.** The lesson is not "check keys". All three defects were *silent refusals*:
+each produced a smaller training set rather than an error, and the only symptom would have
+been a run that finished on schedule and learned less than it should have. Wherever this
+project discards data, the discard is now counted and reported — `FeedStats` at training
+time, `measure_target_yield.py` before it — because a pipeline that silently drops 100% of
+its input looks exactly like one that drops none of it.
