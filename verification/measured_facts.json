@@ -383,6 +383,25 @@
       "evidence_items_max": 8,
       "aggregate_plans_over_8_items": 0,
       "_note": "Corrects an overstated concern in DECISIONS.md 0060. Tables are long (median 10 rows) but questions with a UNIQUE executable plan need very little evidence, so the cap does not bind for them."
+    },
+    "scoring_path_verified": {
+      "_method": "30 real RefChartQA validation rows, oracle predictions, scored through the vendored official evaluate.py \u2014 no GPU",
+      "perfect_oracle": {
+        "accuracy": 100.0,
+        "AP_50": 100.0,
+        "P_at_FI": 100.0
+      },
+      "empty_oracle": {
+        "accuracy": 0.0,
+        "AP_50": 0.0,
+        "P_at_FI": 0.0
+      },
+      "_why": "Verifies every convention between a streamed row and the reported number: {x,y,w,h} ground truth, normalised 0-1000 boxes, clamping, the <box>...<grounding-sep> emitter, and analyse_dataset. An error anywhere in that chain would look like a mediocre model result.",
+      "refchartqa_val_gt_boxes_per_row": {
+        "max": 5,
+        "mean": 1.46,
+        "_note": "the 8-evidence cap does not bind here"
+      }
     }
   }
 }

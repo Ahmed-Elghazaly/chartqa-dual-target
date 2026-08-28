@@ -116,3 +116,46 @@ def test_extra_boxes_cost_grounding_but_not_the_answer():
     noisy = score_with_official(build_rows([item(spurious)] * 4))
     assert clean["AP_50"] > noisy["AP_50"], "a spurious box must cost AP"
     assert noisy["accuracy"] == pytest.approx(clean["accuracy"])
+
+
+@pytest.mark.network
+@pytest.mark.slow
+def test_the_whole_5_4_scoring_path_on_real_validation_rows():
+    """End-to-end oracle check, on real data, with no GPU — a design-pass gate.
+
+    Everything between a streamed RefChartQA row and the official evaluator's number:
+    `{x,y,w,h}` ground truth, our normalised 0–1000 boxes, `clamp_for_official_evaluator`,
+    the `<box>…</box><grounding-sep>` emitter, and `analyse_dataset`. A convention error
+    anywhere in that chain would show as a mediocre score that looks like a model result.
+
+    An oracle makes it unambiguous: perfect predictions must score 100 and empty ones 0.
+    Measured 100.0/100.0/100.0 and 0.0/0.0/0.0 on 30 stratified validation rows.
+    """
+    import sys
+    from pathlib import Path as _Path
+
+    sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+    from scripts.run_zeroshot import refchartqa_val
+
+    from chartqa_dt.vision.coords import clamp_for_official_evaluator
+
+    rows = refchartqa_val(15, seed=0)
+    assert rows, "the validation stream returned nothing"
+
+    def score(pred_of, answer_of):
+        return score_with_official(build_rows([
+            {"pred_boxes": [list(map(float, clamp_for_official_evaluator(b)))
+                            for b in pred_of(r)],
+             "answer": answer_of(r), "label": r["answer"],
+             "image_size": r["image_size"], "grounding_bboxes": r["raw_boxes"],
+             "question_kind": r["question_kind"]} for r in rows]))
+
+    perfect = score(lambda r: r["gt_boxes"], lambda r: r["answer"])
+    assert perfect["AP_50"] == pytest.approx(1.0), \
+        "a perfect oracle must score 1.0; anything less is a convention error in the chain"
+    assert perfect["P_at_FI"] == pytest.approx(1.0)
+    assert perfect["accuracy"] == pytest.approx(1.0)
+
+    empty = score(lambda r: [], lambda r: "definitely-not-the-answer")
+    assert empty["AP_50"] == pytest.approx(0.0)
+    assert empty["accuracy"] == pytest.approx(0.0)
