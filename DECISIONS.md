@@ -3480,3 +3480,53 @@ grounding records left unused, and caching costs bandwidth and disk rather than 
 rows to train on is precisely the question `PLAN.md`'s 4,000 / 10,000 / 25,000 scaling ladder
 exists to answer — which is deferred. The number is recorded here so the ladder starts from a
 measurement rather than a guess.
+
+---
+
+## 0073 — Chart images are read from the archive, because the training host never extracts it
+
+**Context.** Measuring real sequence lengths on the rebuilt stage-2 mixture reported *"over
+limit: 78 of 200 (39.0%)"* while also reporting a maximum of 938 tokens against a limit of
+1,024. Both cannot be true, so I looked at the refusals instead of the summary:
+
+```
+refused: [Errno 2] No such file or directory:
+    .../data/ChartQA Dataset/train/png/two_col_81790.png
+```
+
+Not a length problem at all. ChartQA ships as one 875 MB zip and this project **never
+extracts it** — `ArchiveReader` reads members in place, which is what made the mixtures
+buildable on a machine with 6 GiB free. But a record's `image_path` is the zip *member
+name*, and a member name looks exactly like a relative disk path. `MixtureFeed._image` did
+
+```python
+return Image.open(self.image_root / record.image_path)
+```
+
+which succeeds on a host that happens to have extracted the archive and fails everywhere
+else. And the failure is an `OSError`, which `_example` already catches, counts as a
+refusal, and moves past — so it costs records without raising anything.
+
+**Every ChartQA record in both mixtures**: 2,408 of stage 1's 10,304 (23%) and 2,408 of
+stage 2's 6,304 (38%). The run would have trained on synthetic and RefChartQA data only,
+finished on schedule, and reported its step count truthfully.
+
+**Decision.** `MixtureFeed` takes an optional `archive`. `_image` reads from disk when the
+file is there and from the archive when it is not, and raises a message naming both when it
+is in neither — including whether an archive was supplied at all, since "no archive" and
+"not in the archive" call for different fixes. `cli/train.py` opens the ChartQA zip once per
+run and hands it to the feed.
+
+Disk stays the fast path rather than being replaced: reading the zip for every image would
+be slower with no benefit where the file exists.
+
+**Consequences.** This is the fourth silent-refusal defect in two days (0071 ×3, 0072, and
+now this), and they share a shape: **an `except` that counts a failure and continues is
+indistinguishable, from the outside, from there being no failures.** `FeedStats` records
+every refusal with its reason, which is what would have caught this at training time — but
+only by reading the log of a run already underway. The general fix is the one 0072
+introduced: `scripts/measure_target_yield.py --tokens` now exercises the *real* collator on
+the *real* images before any GPU is booked, which is how this was found at all.
+
+I did not find this by reasoning about the code. I found it because a number in a summary
+line contradicted another number three lines above it.

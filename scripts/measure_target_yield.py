@@ -171,11 +171,13 @@ def main() -> int:
         sample = rng.sample(ok, min(args.tokens, len(ok)))
         print(f"\n  tokenising {len(sample)} examples with the real processor "
               f"(max_seq_len {cfg.max_seq_len})...")
+        from chartqa_dt.cli.train import _chartqa_archive
         from chartqa_dt.train.feed import MixtureFeed
 
         feed = MixtureFeed([r for r, _ in sample], shuffle=False,
                            answer_only=args.answer_only,
-                           image_root=Path(ctx.env.data_root))
+                           image_root=Path(ctx.env.data_root),
+                           archive=_chartqa_archive())
         for i, (record, target) in enumerate(sample):
             try:
                 image = feed._image(record)

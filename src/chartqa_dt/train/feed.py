@@ -50,12 +50,18 @@ class MixtureFeed:
     """An ordered, resumable stream of training examples over a list of records."""
 
     def __init__(self, records: Sequence[ChartRecord], *, shuffle: bool, seed: int = 0,
-                 answer_only: bool = False, image_root: Path | None = None) -> None:
+                 answer_only: bool = False, image_root: Path | None = None,
+                 archive: Any = None) -> None:
         self.records = list(records)
         self.shuffle = shuffle
         self.seed = seed
         self.answer_only = answer_only
         self.image_root = Path(image_root) if image_root else None
+        #: An `ArchiveReader`, for the ChartQA images that live inside the zip rather than
+        #: on disk. Without it every ChartQA record is refused with `No such file or
+        #: directory` — 23% of stage 1 and 38% of stage 2, counted and skipped, on a host
+        #: where the archive was never extracted (`DECISIONS.md` 0073).
+        self.archive = archive
         self.stats = FeedStats()
         self.position = 0
         self.epoch = 0
@@ -83,12 +89,29 @@ class MixtureFeed:
         self._order = self._make_order()
 
     def _image(self, record: ChartRecord) -> Any:
+        """The chart image, from disk if it is there and from the archive if it is not.
+
+        ChartQA ships as a single zip and this project never extracts it — `ArchiveReader`
+        reads members in place, which is why the mixtures could be built at all. But a
+        record's `image_path` is the member name, which looks exactly like a relative disk
+        path, so opening it directly succeeds on a host that happens to have extracted the
+        archive and fails everywhere else. The failure is an `OSError`, which `_example`
+        catches and counts as a refusal, so it costs records rather than raising.
+        """
+        import io
+
         from PIL import Image
 
         path = Path(record.image_path)
         if not path.is_absolute() and self.image_root is not None:
             path = self.image_root / path
-        return Image.open(path).convert("RGB")
+        if path.exists():
+            return Image.open(path).convert("RGB")
+        if self.archive is not None and self.archive.exists(record.image_path):
+            return Image.open(io.BytesIO(self.archive.read(record.image_path))).convert("RGB")
+        raise FileNotFoundError(
+            f"{record.image_path} is neither on disk nor in the archive"
+            f"{'' if self.archive is not None else ' (no archive was supplied)'}")
 
     def _example(self, record: ChartRecord) -> Example | None:
         try:

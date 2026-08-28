@@ -145,3 +145,53 @@ def test_the_prereg_generator_runs_before_the_numbers_exist():
     module = importlib.import_module("scripts.write_prereg")
     assert hasattr(module, "main")
     assert module.read_json("verification/does-not-exist.json") == {}
+
+
+class TestAdapterEvaluation:
+    """Phase 7 evaluates the fine-tuned system through the SAME path as Phase 5.
+
+    That is what makes the before/after comparison matched rather than merely adjacent:
+    same prompts, same decoding, same slice logic, same scoring. A second runner would
+    give both arms a chance to differ for reasons nobody chose.
+    """
+
+    def test_the_runner_accepts_an_adapter_and_a_tag(self) -> None:
+        import inspect
+
+        from scripts import run_zeroshot
+
+        source = inspect.getsource(run_zeroshot.main)
+        assert '"--adapter"' in source and '"--tag"' in source
+
+    def test_every_generating_stage_threads_the_adapter_through(self) -> None:
+        """A stage that quietly dropped it would report the base model's numbers as the
+        fine-tuned ones, which is the worst possible silent failure here."""
+        import inspect
+
+        from scripts import run_zeroshot
+
+        for stage in (run_zeroshot.stage_chartqa, run_zeroshot.stage_refchartqa):
+            source = inspect.getsource(stage)
+            assert "adapter=args.adapter" in source, f"{stage.__name__} drops --adapter"
+
+    def test_output_names_carry_the_tag_so_a_baseline_is_not_overwritten(self) -> None:
+        import inspect
+        import types
+
+        from scripts import run_zeroshot
+
+        assert run_zeroshot.run_tag(types.SimpleNamespace(tag="")) == ""
+        assert run_zeroshot.run_tag(types.SimpleNamespace(tag="finetuned")) == "_finetuned"
+        for stage in (run_zeroshot.stage_chartqa, run_zeroshot.stage_refchartqa):
+            assert "run_tag(args)" in inspect.getsource(stage), \
+                f"{stage.__name__} would overwrite the zero-shot baseline it is compared to"
+
+    def test_the_adapter_is_recorded_in_the_result_file(self) -> None:
+        """A results file that does not say which adapter produced it cannot be trusted
+        later to be the fine-tuned arm rather than the baseline."""
+        import inspect
+
+        from scripts import run_zeroshot
+
+        for stage in (run_zeroshot.stage_chartqa, run_zeroshot.stage_refchartqa):
+            assert '"adapter"' in inspect.getsource(stage)

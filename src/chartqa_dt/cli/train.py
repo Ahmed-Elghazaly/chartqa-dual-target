@@ -83,7 +83,8 @@ def _run_stage(ctx) -> None:
     # ordering — only the target differs.
     feed = MixtureFeed(records, shuffle=(stage != "stage1"), seed=ctx.cfg.seed,
                        answer_only=(stage == "control"),
-                       image_root=Path(ctx.env.data_root))
+                       image_root=Path(ctx.env.data_root),
+                       archive=_chartqa_archive())
 
     steps = args.steps or steps_for(stage, len(records), cfg=ctx.cfg)
     cfg = TrainConfig(stage=stage, steps=steps,
@@ -248,6 +249,27 @@ def _stage1_presentations(cfg) -> int:
     if not path.is_file():
         return 0
     return len(json.loads(path.read_text(encoding="utf-8"))["record_ids"])
+
+
+def _chartqa_archive():
+    """The ChartQA zip, opened once for the run, or None if it is not present.
+
+    ChartQA images live inside the archive and this project never extracts it. Without
+    this the feed refuses every ChartQA record with `No such file or directory` and counts
+    it — a silent loss of 23% of stage 1 and 38% of stage 2 (`DECISIONS.md` 0073).
+    """
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+    try:
+        from scripts.build_mixtures import archive_path
+
+        from chartqa_dt.data.chartqa import ArchiveReader
+
+        path = archive_path()
+    except (ImportError, KeyError, FileNotFoundError, OSError):
+        return None
+    return ArchiveReader(path) if Path(path).is_file() else None
 
 
 def _progress(log) -> None:

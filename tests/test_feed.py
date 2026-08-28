@@ -127,3 +127,81 @@ def _take(feed, n):
         if len(out) == n:
             break
     return out
+
+
+class TestImagesFromTheArchive:
+    """`DECISIONS.md` 0073. ChartQA ships as one zip and this project never extracts it.
+
+    A record's `image_path` is the zip member name, which looks exactly like a relative
+    disk path — so opening it directly succeeds on a host that happens to have extracted
+    the archive and fails everywhere else. The failure is an `OSError`, which `_example`
+    catches and counts as a refusal, so it costs records silently rather than raising.
+    """
+
+    class _Archive:
+        def __init__(self, members: dict[str, bytes]) -> None:
+            self.members = members
+            self.reads: list[str] = []
+
+        def exists(self, name: str) -> bool:
+            return name in self.members
+
+        def read(self, name: str) -> bytes:
+            self.reads.append(name)
+            return self.members[name]
+
+    @staticmethod
+    def _png_bytes() -> bytes:
+        import io
+
+        from PIL import Image
+
+        buf = io.BytesIO()
+        Image.new("RGB", (8, 6), (1, 2, 3)).save(buf, format="PNG")
+        return buf.getvalue()
+
+    def _record(self, path: str):
+        from chartqa_dt.data.records import ChartRecord
+
+        return ChartRecord(
+            record_id="r1", source="chartqa", split="train", image_path=path,
+            image_sha256="0" * 64, question="q?", answer="1",
+            question_kind="human")
+
+    def test_an_image_only_in_the_archive_is_still_read(self, tmp_path) -> None:
+        from chartqa_dt.train.feed import MixtureFeed
+
+        name = "ChartQA Dataset/train/png/two_col_81790.png"
+        archive = self._Archive({name: self._png_bytes()})
+        feed = MixtureFeed([], shuffle=False, image_root=tmp_path, archive=archive)
+        image = feed._image(self._record(name))
+        assert image.size == (8, 6) and image.mode == "RGB"
+        assert archive.reads == [name]
+
+    def test_disk_wins_when_the_file_is_actually_there(self, tmp_path) -> None:
+        """The archive is a fallback, not a replacement: reading the zip for every image
+        would be slower for no benefit where the file exists."""
+        from chartqa_dt.train.feed import MixtureFeed
+
+        (tmp_path / "chart.png").write_bytes(self._png_bytes())
+        archive = self._Archive({})
+        feed = MixtureFeed([], shuffle=False, image_root=tmp_path, archive=archive)
+        assert feed._image(self._record("chart.png")).size == (8, 6)
+        assert archive.reads == []
+
+    def test_a_missing_image_says_the_archive_was_not_supplied(self, tmp_path) -> None:
+        import pytest
+
+        from chartqa_dt.train.feed import MixtureFeed
+
+        feed = MixtureFeed([], shuffle=False, image_root=tmp_path)
+        with pytest.raises(FileNotFoundError, match="no archive was supplied"):
+            feed._image(self._record("absent.png"))
+
+    def test_the_training_cli_supplies_an_archive_to_the_feed(self) -> None:
+        """Without this the feed silently loses every ChartQA record."""
+        import inspect
+
+        from chartqa_dt.cli import train
+
+        assert "archive=_chartqa_archive()" in inspect.getsource(train._run_stage)

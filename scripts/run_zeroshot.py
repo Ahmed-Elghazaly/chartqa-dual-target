@@ -127,15 +127,40 @@ def refchartqa_val(limit: int, seed: int = 0) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------- model
 
 
-def load_model(variant: str, *, load_in_4bit: bool = True):
+def load_model(variant: str, *, load_in_4bit: bool = True, adapter: str = ""):
+    """The backbone, optionally with a trained adapter applied.
+
+    Phase 7 evaluates the fine-tuned system on **the same code path** as the Phase 5
+    zero-shot baselines — same prompts, same decoding, same scoring, same slice logic —
+    because that is what makes the before/after comparison matched rather than merely
+    adjacent. So this takes an adapter instead of there being a second runner.
+
+    Loaded with `is_trainable=False`: an adapter left trainable keeps its dropout modules
+    active, and dropout at generation time makes greedy decoding non-deterministic, which
+    would silently break the "greedy, sealed by pre-registration" claim.
+    """
     from chartqa_dt.config import ModelConfig
     from chartqa_dt.modeling.backends.base import get_backend
 
     cfg = ModelConfig(hf_id=VARIANTS[variant], load_in_4bit=load_in_4bit,
                       image_max_pixels=512 * 512)
     loaded = get_backend("hf_peft").load(cfg)
+    if adapter:
+        model = loaded.model
+        if not hasattr(model, "load_adapter"):
+            raise SystemExit(
+                f"backend model {type(model).__name__} cannot load an adapter; "
+                f"--adapter {adapter} would have been silently ignored")
+        model.load_adapter(adapter, adapter_name="default", is_trainable=False)
+        model.eval()
+        print(f"adapter applied: {adapter}", flush=True)
     print(loaded.describe(), flush=True)
     return loaded
+
+
+def run_tag(args) -> str:
+    """Filename suffix so a fine-tuned run cannot overwrite its own baseline."""
+    return f"_{args.tag}" if getattr(args, "tag", "") else ""
 
 
 # --------------------------------------------------------------------- stages
@@ -350,10 +375,10 @@ def stage_chartqa(args) -> dict[str, Any]:
     all_rows = attach_images(reader, load_slice("chartqa_val"))
     if args.limit:
         all_rows = all_rows[:args.limit]
-    loaded = load_model(args.variant)
+    loaded = load_model(args.variant, adapter=args.adapter)
 
     report: dict[str, Any] = {
-        "variant": args.variant, "split": "validation",
+        "variant": args.variant, "split": "validation", "adapter": args.adapter or None,
         "published_reference": {"value": 79.1, "split": "test",
                                 "note": "NOT comparable to this run — different split "
                                         "(DECISIONS.md 0063); reproduced at Phase 7"},
@@ -365,7 +390,7 @@ def stage_chartqa(args) -> dict[str, Any]:
         rows = all_rows if (mode == "plain" or not args.structured_n) \
             else all_rows[:args.structured_n]
         gens, rep = generate_over(loaded, rows, mode=mode)
-        write_generations(gens, out_dir() / f"chartqa_val_{mode}.jsonl")
+        write_generations(gens, out_dir() / f"chartqa_val_{mode}{run_tag(args)}.jsonl")
         items = [score_item(r["record_id"], r["answer"], g.answer,
                             subset=r["question_kind"])
                  for r, g in zip(rows, gens)]
@@ -390,7 +415,7 @@ def stage_chartqa(args) -> dict[str, Any]:
                        roundtrip_executable=rt.executable,
                        roundtrip_counts=dict(rt.counts))
             print(rt.describe(), flush=True)
-        write_results(result, out_dir() / f"chartqa_val_{mode}.json",
+        write_results(result, out_dir() / f"chartqa_val_{mode}{run_tag(args)}.json",
                       meta={"variant": args.variant, "mode": mode, "split": "validation",
                             **{k: v for k, v in arm.items() if k != "by_subset"}})
         report["arms"][mode] = arm
@@ -399,7 +424,7 @@ def stage_chartqa(args) -> dict[str, Any]:
     a, b = report["arms"]["structured"], report["arms"]["plain"]
     report["structured_output_cost_points"] = 100 * (b["relaxed_accuracy"]
                                                      - a["relaxed_accuracy"])
-    (out_dir() / "chartqa_zeroshot.json").write_text(json.dumps(report, indent=2) + "\n")
+    (out_dir() / f"chartqa_zeroshot{run_tag(args)}.json").write_text(json.dumps(report, indent=2) + "\n")
     print(f"\nstructured costs {report['structured_output_cost_points']:+.2f} points "
           f"against the plain prompt (the elicitation behind the published figure)")
     print(f"plain arm {100 * b['relaxed_accuracy']:.2f}% on VALIDATION; the published "
@@ -419,9 +444,9 @@ def stage_refchartqa(args) -> dict[str, Any]:
     rows = refchartqa_val(args.refchartqa_n)
     if args.limit:
         rows = rows[:args.limit]
-    loaded = load_model(args.variant)
+    loaded = load_model(args.variant, adapter=args.adapter)
     gens, rep = generate_over(loaded, rows, mode="structured")
-    write_generations(gens, out_dir() / "refchartqa_val.jsonl")
+    write_generations(gens, out_dir() / f"refchartqa_val{run_tag(args)}.jsonl")
 
     preds: list[tuple[str, float, list[float]]] = []
     gts: dict[str, list[list[float]]] = {}
@@ -464,8 +489,9 @@ def stage_refchartqa(args) -> dict[str, Any]:
         if subset:
             by_subset[kind] = score_with_official(subset)
 
-    write_results(result, out_dir() / "refchartqa_zeroshot.json",
+    write_results(result, out_dir() / f"refchartqa_zeroshot{run_tag(args)}.json",
                   meta={"variant": args.variant, "n": len(rows),
+                        "adapter": args.adapter or None,
                         "valid_json_fraction": rep.parse.valid_fraction,
                         "schema_valid_fraction": rep.parse.schema_valid_fraction,
                         "official": official, "official_by_subset": by_subset,
@@ -507,6 +533,14 @@ def main() -> int:
                          "it can resolve, not from the split size")
     ap.add_argument("--variant", default="instruct",
                     help="the variant 5.2 selected; used by the 5.3 and 5.4 stages")
+    ap.add_argument("--adapter", default="",
+                    help="trained adapter path or hub id. Omit for the zero-shot "
+                         "baseline; supply it at Phase 7 to evaluate the fine-tuned "
+                         "system through the identical path")
+    ap.add_argument("--tag", default="",
+                    help="suffix for output filenames, e.g. --tag finetuned, so a "
+                         "Phase 7 run cannot overwrite the Phase 5 baseline it is "
+                         "compared against")
     args = ap.parse_args()
 
     started = time.time()
