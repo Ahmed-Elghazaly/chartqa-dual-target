@@ -16,8 +16,8 @@ describing a run that never happened.
 | | |
 |---|---|
 | backbone | `Qwen/Qwen3-VL-2B-Instruct` (`DECISIONS.md` 0035, 0036) |
-| variant selected | **TBD — 5.2 has not run** |
-| reason | — |
+| variant selected | **instruct** |
+| reason | only one variant was measured |
 | visual token factor | 32 (derived from the processor, `DECISIONS.md` 0008) |
 | quantisation | 4-bit NF4, vision tower excluded (`DECISIONS.md` 0012) |
 | LoRA | r=16, alpha=32, dropout=0.05, on **both** vision and language |
@@ -25,7 +25,9 @@ describing a run that never happened.
 
 ### 5.2 comparison, on the frozen 200-question slice
 
-_5.2 has not run yet; this section is filled by `scripts/write_prereg.py`._
+| variant | relaxed accuracy | valid JSON | repaired | median latency |
+|---|---:|---:|---:|---:|
+| instruct | 50.00% | 66.5% | 12.0% | 11.44 s |
 
 `PLAN.md` 5.2's gate — Thinking only if **all three** hold: ≥ 2 accuracy points better,
 ≥ 90% valid JSON, ≤ 2× Instruct's median latency. The thresholds were written into
@@ -33,33 +35,56 @@ _5.2 has not run yet; this section is filled by `scripts/write_prereg.py`._
 
 ## 2. Prompts, verbatim
 
-Structured prompt — SHA-256 `fb3ae905d9949c7a6c3c2f474c9793006540a7a903d19b5b3f32c1d428b2bd86`:
+Structured prompt — SHA-256 `8eca79176557b679323770fd2914387584ee206c71153af61d370fa561ed7bd6`:
 
 ```
 Read the chart and answer the question.
 
-Reply with ONE JSON object and nothing else. No markdown, no code fence, no explanation.
+Reply with ONE compact JSON object on a single line. No markdown, no code fence, no
+newlines, no indentation, no explanation.
 
-{
-  "answerable": true or false,
-  "evidence": [{"label": "<axis or series label>", "value": <number or string or null>,
-                "unit": "<unit or null>", "bbox": [x1, y1, x2, y2]}],
-  "plan": {"op": "<operation>", "args": [...]},
-  "model_answer": "<the answer>"
-}
+Format:
+{"answerable":true,"evidence":[{"label":"<label>","value":<number|string|null>,"unit":"<unit|null>","bbox":[x1,y1,x2,y2]}],"plan":{"op":"<operation>","args":[...]},"model_answer":"<answer>"}
+
+Example — "How many stores does Zara have?":
+{"answerable":true,"evidence":[{"label":"Zara","value":99,"unit":"stores","bbox":[340,180,650,200]}],"plan":{"op":"lookup","args":["Zara"]},"model_answer":"99"}
+
+Example — "What is the difference between 2019 and 2018?":
+{"answerable":true,"evidence":[{"label":"2019","value":245,"unit":null,"bbox":[412,180,468,640]},{"label":"2018","value":210,"unit":null,"bbox":[330,240,386,640]}],"plan":{"op":"difference","args":["2019","2018"]},"model_answer":"35"}
+
+Example — the chart does not contain the answer:
+{"answerable":false,"evidence":[],"plan":{"op":"unanswerable","args":[]},"model_answer":""}
 
 Rules:
-- bbox coordinates are integers from 0 to 999, measured on the image as you see it:
-  x1,y1 is the top-left corner and x2,y2 the bottom-right.
-- Put a box on every chart element the answer depends on, and on nothing else.
-  Order them most important first.
-- "op" must be one of: lookup, count, sum, mean, median, min, max, difference, ratio, percent_change, argmax, argmin, compare, rank, trend, filter, boolean, multiple_choice, unanswerable.
-- An argument is either a label string naming one of your evidence items, or a nested
-  {"op": ..., "args": [...]} object.
-- Aggregations over every evidence item take an empty args list, e.g.
-  {"op": "sum", "args": []}.
-- If the chart does not contain the answer, set "answerable" to false, use
-  {"op": "unanswerable", "args": []}, and leave "model_answer" empty.
+- All four keys are required every time, including "plan" and "model_answer".
+- "evidence": NEVER more than 8 items. Fewer is better. Include only the
+  chart elements the answer actually depends on, most important first.
+- If a question covers more elements than that (a whole-chart total or average over a
+  long chart), still stop at 8: give the correct "model_answer" from the
+  whole chart, and ground the 8 most relevant elements. Do NOT keep listing
+  elements — an unfinished record scores zero.
+- Each "label" appears at most ONCE. Never repeat a label.
+- "unit": at most 32 characters, or null. Use "USD" or "%" rather than a phrase.
+- "args" is always a LIST with at most 4 elements. Each element is either a label
+  string naming one of your evidence items, or a nested {"op":...,"args":[...]} object.
+  Never an object with "label" or "value" keys.
+- To aggregate over EVERY evidence item, use an empty list — never list the labels:
+  {"op":"sum","args":[]} means "sum all the evidence".
+- bbox is four integers 0-999: x1,y1 is top-left and x2,y2 is bottom-right.
+- "op" must be EXACTLY one of these strings: lookup, count, sum, mean, median, min, max, difference, ratio, percent_change, argmax, argmin, compare, rank, trend, filter, boolean, multiple_choice, unanswerable.
+  Use "mean" (not "average"), "difference" (not "subtract").
+- Choose the op by WHAT THE ANSWER IS:
+  * the answer is a category name ("which year", "which country") -> "argmax" or
+    "argmin" over the evidence, NOT "lookup". {"op":"argmax","args":[]} returns the
+    label of the largest evidence item.
+  * the answer is a number read straight off the chart -> "lookup" with ONE label.
+  * the answer is a computed number -> "difference", "ratio", "sum", "mean", ...
+  * the answer is "yes"/"no" -> "boolean"; "greater"/"less" -> "compare".
+- Argument counts are fixed: "lookup" takes exactly 1 label; "compare", "difference",
+  "ratio" and "percent_change" take exactly 2; "sum", "mean", "median", "min", "max",
+  "count", "argmax" and "argmin" take either an explicit list or [] for all evidence.
+- The plan must PRODUCE "model_answer" when run against your evidence. If running your
+  own plan would give a different value, the plan is wrong — fix it before answering.
 - "model_answer" is the final answer only: a single word, phrase or number.
 
 Question: {question}
@@ -76,7 +101,7 @@ Answer the question using a single word or phrase.
 
 ## 3. Decoding
 
-Greedy, fixed: `{"do_sample": false, "temperature": null, "top_p": null, "top_k": null, "num_beams": 1}`. Max new tokens: 512
+Greedy, fixed: `{"do_sample": false, "temperature": null, "top_p": null, "top_k": null, "num_beams": 1}`. Max new tokens: 900
 (structured), 32 (plain). Sampling is not used — the "before" number
 must be exactly reproducible from this file, or the before/after comparison inherits noise
 it cannot separate from a real effect.
@@ -119,16 +144,16 @@ Sampled once, before any prompt existed. Test splits are untouched.
 
 | | stage 1 | stage 2 |
 |---|---:|---:|
-| total | 12,000 | 12,000 |
-| synthetic | 6,000 | 1,825 |
-| ChartQA | 6,000 | 7,087 |
-| RefChartQA | 0 | 3,088 |
-| with boxes | 12,000 | 12,000 |
-| with a plan | 6,952 | 2,930 |
-| of those, compositional | 5,080 | 1,883 |
+| total | 10,304 | 6,304 |
+| synthetic | 6,000 | 2,000 |
+| ChartQA | 2,408 | 2,408 |
+| RefChartQA | 1,896 | 1,896 |
+| with boxes | 10,304 | 6,304 |
+| with a plan | 8,406 | 4,406 |
+| of those, compositional | 4,824 | 1,820 |
 
-Deduplicated: 628 merges, of which
-609 across ChartQA and RefChartQA.
+Deduplicated: 179 merges, of which
+162 across ChartQA and RefChartQA.
 Zero validation or test records, asserted in code, at the **image** level as well as the
 split label (`DECISIONS.md` 0048, 0049).
 
@@ -164,7 +189,28 @@ byte-identical official evaluator on the same sealed split. 32.83 is cited as co
 labelled as unverified, because nobody — including its authors' released artefacts — can
 reproduce it.
 
-## 12. Extensions and their entry gates
+## 12. The zero-shot baselines this project must beat
+
+Section 11's success condition is *"beats our own zero-shot baseline, CIs disjoint"*. The
+baselines are recorded here, before any test split is opened, so the bar cannot move
+afterwards. Both are the selected checkpoint on the frozen validation slices, scored with
+the vendored official evaluators.
+
+| protocol | subset | zero-shot, 95% CI |
+|---|---|---|
+| ChartQA relaxed accuracy | human | **TBD** |
+| ChartQA relaxed accuracy | machine | **TBD** |
+| ChartQA relaxed accuracy | all | **TBD** |
+| ChartQA, plain published prompt | all | **TBD** |
+| RefChartQA AP@0.5 | human | **TBD** |
+| RefChartQA AP@0.5 | machine | **TBD** |
+| RefChartQA AP@0.5 | PoT | **TBD** |
+| RefChartQA P@F1 | all | **TBD** |
+
+The plain-prompt row is the published-prompt condition, kept beside the structured one so
+the cost of asking for a record rather than a bare answer is visible in the same table.
+
+## 13. Extensions and their entry gates
 
 Planned only if the core result lands and quota remains: ChartQAPro transfer (entry gate:
 Phase 7 complete and the extension approved), and the RefChartQA scaling ladder at

@@ -19,9 +19,30 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+#: Where a downloaded Kaggle run lands. `kaggle_run.py` unpacks the kernel's output under
+#: `outputs/<run>/repo/`, so a result produced on the GPU is not at the path the code that
+#: produced it would have written. Looking only in the canonical place made this script
+#: report "5.2 has not run" about a measurement that had run, at n=200, weeks earlier.
+_SEARCH = ("", "outputs/kaggle/repo/", "outputs/kaggle_live/repo/")
+
+
 def read_json(rel: str) -> dict:
-    p = ROOT / rel
-    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+    for prefix in _SEARCH:
+        p = ROOT / (prefix + rel)
+        if p.exists():
+            return json.loads(p.read_text(encoding="utf-8"))
+    return {}
+
+
+def _count(node: dict, key: str) -> str:
+    r"""A record count, or a visible marker. Never a crash, and never a silent zero.
+
+    `f"{'?':,}"` raises — a thousands separator is not valid for a string — so a missing
+    fact used to take the whole document down at the last line. A missing fact should be
+    visible in the output instead, the same way `cdt-report` renders `\TODO`.
+    """
+    value = node.get(key)
+    return f"{value:,}" if isinstance(value, int) else "**NOT RECORDED**"
 
 
 def main() -> None:
@@ -35,12 +56,39 @@ def main() -> None:
     facts = read_json("verification/measured_facts.json")
     manifest = read_json("data/MANIFEST.json")
     variant = read_json("outputs/phase5/variant_selection.json")
+    cq_zero = read_json("outputs/phase5/chartqa_zeroshot.json")
+    ref_zero = read_json("outputs/phase5/refchartqa_zeroshot.json")
     slices = {n: read_json(f"data/slices/{n}.json")
               for n in ("chartqa_variant_200", "chartqa_val")}
     refprov = read_json("verification/refchartqa_eval/PROVENANCE.json")
     cqprov = read_json("verification/chartqa_eval/PROVENANCE.json")
     fp = prompt_fingerprint()
     mixtures = facts.get("phase3", {}).get("mixtures", {})
+
+    def n1(key: str) -> str:
+        return _count(mixtures.get("stage1", {}), key)
+
+    def baseline(result: dict, *path: str) -> str:
+        """A zero-shot baseline with its interval, or the marker that keeps test sealed.
+
+        Section 11 promises the fine-tuned system will beat *this*. A bar that is not
+        written down before the test split opens is a bar that can move, so the seal guard
+        refuses to open anything while these read TBD.
+        """
+        node = result
+        for key in path:
+            node = node.get(key, {}) if isinstance(node, dict) else {}
+        if not isinstance(node, dict) or node.get("value") is None:
+            return "**TBD**"
+        lo, hi = node.get("lo"), node.get("hi")
+        interval = f" [{100 * lo:.2f}, {100 * hi:.2f}]" if lo is not None else ""
+        return f"{100 * node['value']:.2f}%{interval}"
+
+    def n2(key: str) -> str:
+        # `stage2_preregistered` is the arm this document pre-registers; the plan-rich arm
+        # is an alternative and is described separately. Reading a plain `stage2` key here
+        # silently produced "?" and then crashed on the thousands separator.
+        return _count(mixtures.get("stage2_preregistered", {}), key)
     phase2 = facts.get("phase2", {})
 
     chosen = (variant.get("decision") or {}).get("choice", "TBD — 5.2 has not run")
@@ -164,13 +212,13 @@ Sampled once, before any prompt existed. Test splits are untouched.
 
 | | stage 1 | stage 2 |
 |---|---:|---:|
-| total | {mixtures.get('stage1', {}).get('total', '?'):,} | {mixtures.get('stage2', {}).get('total', '?'):,} |
-| synthetic | {mixtures.get('stage1', {}).get('synthetic', 0):,} | {mixtures.get('stage2', {}).get('synthetic', 0):,} |
-| ChartQA | {mixtures.get('stage1', {}).get('chartqa', 0):,} | {mixtures.get('stage2', {}).get('chartqa', 0):,} |
-| RefChartQA | 0 | {mixtures.get('stage2', {}).get('refchartqa', 0):,} |
-| with boxes | {mixtures.get('stage1', {}).get('with_boxes', 0):,} | {mixtures.get('stage2', {}).get('with_boxes', 0):,} |
-| with a plan | {mixtures.get('stage1', {}).get('with_plan', 0):,} | {mixtures.get('stage2', {}).get('with_plan', 0):,} |
-| of those, compositional | {mixtures.get('stage1', {}).get('compositional', 0):,} | {mixtures.get('stage2', {}).get('compositional', 0):,} |
+| total | {n1('total')} | {n2('total')} |
+| synthetic | {n1('synthetic')} | {n2('synthetic')} |
+| ChartQA | {n1('chartqa')} | {n2('chartqa')} |
+| RefChartQA | {n1('refchartqa')} | {n2('refchartqa')} |
+| with boxes | {n1('with_boxes')} | {n2('with_boxes')} |
+| with a plan | {n1('with_plan')} | {n2('with_plan')} |
+| of those, compositional | {n1('compositional')} | {n2('compositional')} |
 
 Deduplicated: {mixtures.get('dedup_merges', 0)} merges, of which
 {mixtures.get('dedup_chartqa_refchartqa_merges', 0)} across ChartQA and RefChartQA.
@@ -209,7 +257,28 @@ byte-identical official evaluator on the same sealed split. 32.83 is cited as co
 labelled as unverified, because nobody — including its authors' released artefacts — can
 reproduce it.
 
-## 12. Extensions and their entry gates
+## 12. The zero-shot baselines this project must beat
+
+Section 11's success condition is *"beats our own zero-shot baseline, CIs disjoint"*. The
+baselines are recorded here, before any test split is opened, so the bar cannot move
+afterwards. Both are the selected checkpoint on the frozen validation slices, scored with
+the vendored official evaluators.
+
+| protocol | subset | zero-shot, 95% CI |
+|---|---|---|
+| ChartQA relaxed accuracy | human | {baseline(cq_zero, "structured", "human")} |
+| ChartQA relaxed accuracy | machine | {baseline(cq_zero, "structured", "machine")} |
+| ChartQA relaxed accuracy | all | {baseline(cq_zero, "structured", "all")} |
+| ChartQA, plain published prompt | all | {baseline(cq_zero, "plain", "all")} |
+| RefChartQA AP@0.5 | human | {baseline(ref_zero, "ap50", "human")} |
+| RefChartQA AP@0.5 | machine | {baseline(ref_zero, "ap50", "machine")} |
+| RefChartQA AP@0.5 | PoT | {baseline(ref_zero, "ap50", "pot")} |
+| RefChartQA P@F1 | all | {baseline(ref_zero, "p_at_f1", "all")} |
+
+The plain-prompt row is the published-prompt condition, kept beside the structured one so
+the cost of asking for a record rather than a bare answer is visible in the same table.
+
+## 13. Extensions and their entry gates
 
 Planned only if the core result lands and quota remains: ChartQAPro transfer (entry gate:
 Phase 7 complete and the extension approved), and the RefChartQA scaling ladder at
