@@ -160,9 +160,9 @@ def main() -> int:
     lengths: list[int] = []
     over = 0
     if args.tokens and ok:
-        from chartqa_dt.model.loader import ModelConfig
         from transformers import AutoProcessor
 
+        from chartqa_dt.config import ModelConfig
         from chartqa_dt.train.collate import Example, build_batch
 
         cfg = ModelConfig(image_max_pixels=512 * 512)

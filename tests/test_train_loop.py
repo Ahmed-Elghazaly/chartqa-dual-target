@@ -285,3 +285,61 @@ def test_a_failing_push_does_not_end_the_run(patched, tmp_path):
     # one uses strict=False. This test pins where that responsibility lives.
     assert calls == ["stage1-step2"]
     assert (tmp_path / "stage1-step2").exists(), "the checkpoint survived regardless"
+
+
+class TestStepBudget:
+    """`PLAN.md` 6.6: 24,000 presentations = 3,000 steps, for both stages TOGETHER."""
+
+    @staticmethod
+    def _cfg(batch: int = 2, accum: int = 4):
+        import types
+
+        return types.SimpleNamespace(
+            train=types.SimpleNamespace(per_device_batch=batch, grad_accum=accum))
+
+    def test_the_two_stages_sum_to_the_pre_registered_budget(self) -> None:
+        from chartqa_dt.cli.train import BUDGET_PRESENTATIONS, steps_for
+
+        cfg = self._cfg()
+        per_step = 8
+        s1 = steps_for("stage1", 10_304, cfg=cfg)
+        s2 = steps_for("stage2", 6_304, cfg=cfg)
+        assert (s1 + s2) * per_step == BUDGET_PRESENTATIONS
+        assert s1 + s2 == 3_000
+
+    def test_stage_one_is_exactly_one_pass(self) -> None:
+        """6.1 says one pass. More would be a deviation nobody chose."""
+        from chartqa_dt.cli.train import steps_for
+
+        assert steps_for("stage1", 10_304, cfg=self._cfg()) * 8 == 10_304
+
+    def test_both_stage_two_arms_get_the_same_compute(self) -> None:
+        """The arms differ in data (0072); they must not also differ in step count, or
+        nothing about the comparison is controlled."""
+        from chartqa_dt.cli.train import steps_for
+
+        cfg = self._cfg()
+        assert steps_for("stage2", 6_304, cfg=cfg) == steps_for("stage2", 10_304, cfg=cfg)
+
+    def test_a_smaller_effective_batch_needs_more_steps_for_the_same_budget(self) -> None:
+        from chartqa_dt.cli.train import steps_for
+
+        big = steps_for("stage1", 10_304, cfg=self._cfg(batch=2, accum=4))
+        small = steps_for("stage1", 10_304, cfg=self._cfg(batch=1, accum=4))
+        assert small == big * 2
+
+    def test_a_stage_never_gets_zero_steps(self) -> None:
+        from chartqa_dt.cli.train import steps_for
+
+        assert steps_for("stage1", 1, cfg=self._cfg()) >= 1
+
+    def test_the_steps_flag_is_not_defaulted_to_the_smoke_value(self) -> None:
+        """It was 100, and `args.steps or 3000` made the fallback unreachable — so a real
+        stage would have run 800 presentations of 24,000 and reported success."""
+        import inspect
+
+        from chartqa_dt.cli import train as mod
+        from chartqa_dt.cli.train import main  # noqa: F401
+
+        source = inspect.getsource(mod.main)
+        assert '"--steps", type=int, default=None' in source

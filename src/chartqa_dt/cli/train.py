@@ -22,7 +22,9 @@ def main() -> None:
                    choices=["hf_peft", "unsloth"],
                    help="backends to try; default tries every available one")
     p.add_argument("--resume", type=str, default=None, help="checkpoint dir or hub path")
-    p.add_argument("--steps", type=int, default=100, help="optimizer steps for the smoke test")
+    p.add_argument("--steps", type=int, default=None,
+                   help="optimizer steps. Omit for stage1/stage2/control and the budget is "
+                        "derived from the mixture (PLAN 6.6); the smoke test defaults to 100")
     p.add_argument("--batches", type=str, default=None,
                    help="comma-separated per-device batch sizes to compare, e.g. 2,4,8. "
                         "grad_accum is set so the EFFECTIVE batch stays at the "
@@ -83,7 +85,8 @@ def _run_stage(ctx) -> None:
                        answer_only=(stage == "control"),
                        image_root=Path(ctx.env.data_root))
 
-    cfg = TrainConfig(stage=stage, steps=args.steps or 3000,
+    steps = args.steps or steps_for(stage, len(records), cfg=ctx.cfg)
+    cfg = TrainConfig(stage=stage, steps=steps,
                       batch_size=ctx.cfg.train.per_device_batch,
                       grad_accum=ctx.cfg.train.grad_accum,
                       max_len=ctx.cfg.model.max_seq_len,
@@ -203,6 +206,50 @@ def _holdout_examples(ctx, records, feed) -> tuple[list, list]:
     return examples, items[:METRIC_SLICE]
 
 
+#: `PLAN.md`'s compute table: 24,000 presentations = 3,000 steps at effective batch 8, for
+#: **Stage 1 and Stage 2 together**, not each.
+BUDGET_PRESENTATIONS = 24_000
+
+
+def steps_for(stage: str, n_records: int, *, cfg) -> int:
+    """Optimizer steps for one stage, derived from the mixture rather than a flag.
+
+    Two mistakes this replaces, both of which produce a run that looks finished.
+
+    `--steps` used to default to **100** — the smoke-test value — and the code read
+    ``args.steps or 3000``. Because 100 is truthy the 3,000 fallback was unreachable, so a
+    real stage would have run 100 steps: **800 presentations against a budget of 24,000**,
+    in about twenty minutes, and reported success.
+
+    Passing ``--steps 3000`` to each stage instead gives 6,000 steps and **48,000
+    presentations, twice the pre-registered budget**, which is a silent deviation in the
+    other direction.
+
+    So the split follows the plan instead. `PLAN.md` 6.1 makes stage 1 **one pass** over its
+    mixture; stage 2 gets what is left of the budget. The control (6.4) trains on the same
+    records as the arm it controls for, so it takes that arm's step count.
+    """
+    per_step = max(cfg.train.per_device_batch * cfg.train.grad_accum, 1)
+    if stage == "stage1":
+        return max(1, round(n_records / per_step))          # one pass, 6.1
+    remaining = BUDGET_PRESENTATIONS - _stage1_presentations(cfg)
+    return max(1, round(max(remaining, n_records) / per_step))
+
+
+def _stage1_presentations(cfg) -> int:
+    """How many presentations stage 1 consumed, read from its mixture file.
+
+    Read rather than assumed: if stage 1's mixture changes, stage 2's budget has to move
+    with it or the two together stop summing to 24,000.
+    """
+    import json
+
+    path = Path("data/mixture_stage1.json")
+    if not path.is_file():
+        return 0
+    return len(json.loads(path.read_text(encoding="utf-8"))["record_ids"])
+
+
 def _progress(log) -> None:
     if log.step % 25 == 0 or log.step <= 3:
         print(f"    step {log.step:>5}  loss {log.loss:.4f}  |grad| {log.grad_norm:.2f}  "
@@ -305,7 +352,7 @@ def _run_smoke(ctx) -> None:
                     backend_name=backend_name,
                     image_max_pixels=max_px,
                     label=label,
-                    steps=ctx.args.steps,
+                    steps=ctx.args.steps or 100,
                     per_device_batch=batch,
                     grad_accum=accum,
                     out_dir=ctx.out_dir,
