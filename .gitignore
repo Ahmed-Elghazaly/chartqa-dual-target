@@ -83,3 +83,9 @@ report/**/*.out
 report/**/*.pdf
 report/**/*.toc
 report/.DS_Store
+
+# npm deps for the presentation builder — reinstalled with `npm install pptxgenjs`
+presentation/node_modules/
+presentation/package-lock.json
+presentation/package.json
+presentation/*.pdf
