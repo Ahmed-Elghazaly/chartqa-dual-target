@@ -89,3 +89,9 @@ presentation/node_modules/
 presentation/package-lock.json
 presentation/package.json
 presentation/*.pdf
+
+# Rule 7 ignores *.png so no dataset chart is ever committed. The presentation figures
+# are the one safe exception: scripts/make_presentation_figures.py draws them from our
+# OWN generated charts, which are this project's work rather than ChartQA (GPL-3.0) or
+# RefChartQA (AGPL-3.0) content. Do not widen this to any other path.
+!presentation/figures/*.png
