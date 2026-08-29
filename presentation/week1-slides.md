@@ -1,176 +1,51 @@
-# Week 1 — slide content
-
-Audience: course peers and TAs. Language kept plain; every number below is measured and
-traceable to `verification/measured_facts.json`.
-
-10 slides, ~1 minute each.
-
----
-
-## Slide 1 — Title
-
-**Grounded Chart Question Answering**
-Making a model show *where* it looked and *how* it calculated
-
-Team: [names]  ·  Week 1 of 4
-
----
-
-## Slide 2 — The problem
-
-A chart question-answering model reads a chart and answers a question.
-
-**But it only ever gives you the answer.**
-
-> *"What is the difference between 2019 and 2018?"* → **"35"**
-
-You cannot tell whether it:
-- read the right two bars, or
-- read the wrong bars and got lucky, or
-- ignored the chart and guessed from the question
-
-A right answer and a lucky guess look identical.
-
-*Figure: `fig1_ungrounded.png` — a chart, the question, and a bare answer.*
-
----
-
-## Slide 3 — Our idea
-
-Make the model produce **three things instead of one**:
-
-| what | example |
-|---|---|
-| **where it looked** | boxes around the 2019 and 2018 bars |
-| **what it did** | `difference(2019, 2018)` |
-| **the answer** | 35 |
-
-Then a small program **re-does the arithmetic** from the boxes and checks it gives the
-same answer.
-
-**If they disagree, we know the answer is unreliable — without needing a human to check.**
-
-*Figure: `fig2_grounded.png` — the same chart with the two evidence boxes drawn, the
-expression underneath, and the executor's check.*
-
----
-
-## Slide 4 — The four-week plan
-
-| week | what |
-|---|---|
-| **1** | **Get the data. Build the scoring. Measure the starting point.** ← *we are here* |
-| 2 | Train the model |
-| 3 | Evaluate it properly |
-| 4 | Analyse what worked, and write it up |
-
-**Week 1 is deliberately not about training.** Everything in weeks 2–4 depends on having
-data we trust and scoring we trust.
-
----
-
-## Slide 5 — Week 1 · The data, and what is actually inside it
-
-We collected two public datasets and checked every file against a fingerprint so we know
-exactly which version we have.
-
-| dataset | training | validation | test |
-|---|---:|---:|---:|
-| ChartQA | 28,299 | 1,920 | 2,500 |
-| RefChartQA | 55,789 | 6,223 | 11,690 |
-
-Then we **looked inside 2,500 annotations** rather than trusting the description:
-
-- Bar charts are well annotated — **97%** and **92%** of charts have boxes
-- Pie charts: only **55%**
-- **Line charts: 0%** — no box annotations at all
-- Charts that do have boxes average **12.7** of them
-
-**Why it matters:** we cannot teach the model to point at line charts using this data.
-
----
-
-## Slide 6 — Week 1 · We built the ruler before the thing we measure
-
-Before writing any model code, we wrote the **scoring code** — and then checked it.
-
-We took **11,690 real predictions** and scored them twice: once with the official scoring
-program published with the dataset, once with ours.
-
-| measure | biggest difference |
-|---|---|
-| Box-accuracy score | **0.07 percentage points** |
-| Answer correctness (423 tricky cases) | **0 disagreements** |
-
-**Why it matters:** any improvement we report later is a real improvement, not a bug in
-our own scoring.
-
----
-
-## Slide 7 — What we learned #1: the targets are tiny
-
-The model does not see pixels. It sees the chart as a grid of small blocks.
-
-**Two-thirds of the things it has to point at are thinner than one block.**
-
-- 66.7% of target boxes are narrower than one block on at least one side
-- 24.8% are smaller than one block in total area
-
-*Figure: a generated line chart at the size the model sees it, with the 32×32 block grid
-drawn on, and a zoom showing one target measuring 0.47 × 0.45 blocks.*
-
-**Why it matters:** at normal input size the model physically cannot point at these
-precisely. This is not something more training fixes — it tells us to test higher
-resolutions later.
-
----
-
-## Slide 8 — What we learned #2: there is very little to teach with
-
-To teach the model *how* to calculate, we need questions where we know the calculation.
-
-We searched all **28,299** training questions for one where exactly one arithmetic step
-reproduces the correct answer.
-
-- **14%** of questions gave a clear, single calculation
-- Of those, **74% were just "read one number off the chart"**
-- So only about **4 in 100** questions teach real multi-step reasoning
-
-**Why it matters:** the real data can barely teach reasoning at all.
-
----
-
-## Slide 9 — So we generate our own charts
-
-We built a chart generator where **we already know the right answer and the right boxes**,
-because we drew them.
-
-- **8 chart types** × **4 difficulty levels** (read one value → compare → aggregate → combine)
-- **24,000 examples**
-
-**How we know the boxes are correct:** we measure how well each box overlaps where the
-chart's ink actually is. A box is kept only if that overlap is **at least 0.70**.
-
-*Figure: the same box, correct (0.95 → KEPT) and moved 26 pixels (0.43 → REJECTED).*
-
-Across the 640 examples we verified by hand, correct boxes scored **0.84–0.99**. No box
-that fails the check ever reaches training.
-
----
-
-## Slide 10 — Where we start, and what is next
-
-**The untouched model, before any training:**
-
-| | |
-|---|---:|
-| Answers correct | **50%** |
-| Produces a usable structured output | **47%** |
-| Its own calculation matches its own answer *(when usable)* | **69%** |
-
-That last number is the interesting one — even when it answers correctly, its stated
-reasoning often does not support its answer. **That is the gap we are trying to close.**
-
-**Next:** week 2 — training.
-
-**Cost so far: $0.** Everything runs on free GPUs.
+# Week 1 — slide outline (20 slides, ~20 minutes)
+
+The deck is built by `build_deck.js`, which is authoritative. This is the same content in
+readable form. Every number is measured; sources are in `BRIEFING.md` §"traceable".
+
+Each content slide carries a tag: **BUILT** (we made it), **MEASURED** (we measured it),
+**FOUND** (what it told us).
+
+| # | tag | slide | the one thing it says |
+|---|---|---|---|
+| 1 | — | Title | Grounded Chart Question Answering · Week 1 of 4 |
+| 2 | — | The problem | A model gives only an answer, so a right answer and a lucky guess look identical |
+| 3 | — | Our idea | Ask for evidence boxes + the arithmetic + the answer, then re-run the arithmetic to check |
+| 4 | — | The four-week plan | W1 data & measurement ← here · W2 train · W3 evaluate · W4 analyse |
+| 5 | — | **What week 1 delivered** | Five things built, five measured, four found — the summary slide |
+| 6 | BUILT | The data pipeline | Two datasets, 875 MB + 2.88 GB, hash-pinned; 18,317 charts, 28,299 questions; 12.7 boxes per annotated chart |
+| 7 | FOUND | Inside the annotations | Bars 96.8% / 91.5%, pie 54.8%, **line 0.0%**; where boxes exist they track values at r² 0.9999 |
+| 8 | MEASURED | Are the boxes any good? | RefChartQA audit: **200 / 200 acceptable**, all three question types. A gate set before looking |
+| 9 | FOUND | The same chart under two names | Comparing files: **0 of 4,000** matches. Comparing pixels: **99.9%** |
+| 10 | BUILT | The measuring instrument | Official scoring vendored and hashed; our own for intervals and breakdowns. Official wins on conflict |
+| 11 | MEASURED | Do they agree? | **11,690** predictions · largest gap **0.07 points** · **0** disagreements on 423 borderline answers |
+| 12 | FOUND | The targets are tiny | **67%** thinner than one 32-px block on some side; **25%** smaller than one block in area |
+| 13 | BUILT | The plan miner | Try every operation over the gold table; accept only if exactly one explains the answer |
+| 14 | FOUND | Little teaches reasoning | 28,299 → **14%** have one clear calculation → **74%** of those are "read one number" → **4 in 100** |
+| 15 | BUILT | The chart generator | 8 types × 4 levels = **24,000**; **6,000** are level 4 — the kind real data supplies 4 in 100 of |
+| 16 | MEASURED | Proving the boxes | Overlap against rendered ink; kept only above **0.70**; correct boxes score **0.84–0.99** |
+| 17 | BUILT | Prompts and the parser | Three prompts, hashed and frozen. Parser may drop and unwrap, **never add** |
+| 18 | MEASURED | Where the model starts | 50.0% correct · 66.5% valid JSON · 46.5% schema-valid · 94.4% runs · **69.0%** reproduces its own answer |
+| 19 | FOUND | The gap | It answers half correctly, but its own arithmetic backs its answer only 69% of the time |
+| 20 | — | What is next | W2 train · W3 evaluate on sealed test · W4 analyse. **Cost so far: $0** |
+
+## Figures
+
+All four are drawn from **our own generated charts**, never from ChartQA or RefChartQA
+images (GPL-3.0 / AGPL-3.0 — a chart with boxes drawn on it is a derivative work).
+Regenerate with `python scripts/make_presentation_figures.py`.
+
+| figure | on slides | shows |
+|---|---|---|
+| `fig1_ungrounded.png` | 2 | a chart, a question, a bare answer, a question mark |
+| `fig2_grounded.png` | 1, 3 | the same chart with evidence boxes and `144 − 70 = 74 ✓` |
+| `fig3_subtoken.png` | 12 | the 32×32 grid the model sees, with a target of 0.47 × 0.45 blocks |
+| `fig4_verification.png` | 16 | the box check running: 0.95 KEPT vs 0.43 REJECTED |
+
+## Denominators to state correctly
+
+- Slide 18's last two rows are **of the 71 usable records**, not of all 200. As a share of
+  all 200, the plan reproduces the answer **24.5%** of the time. Both are honest; say which.
+- Slide 12's 67% is the **training** split. Validation gives 53.2% on the same definition.
+- Slide 7's 0.0% for line charts is a **decision**, not missing data: their boxes are the
+  segments *between* points, so a marker size would have to be invented.
