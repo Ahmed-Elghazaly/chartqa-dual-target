@@ -200,7 +200,7 @@ function card(slide, x, y, w, h, fill) {
   s.addImage({ path: FIG("fig3_subtoken.png"), x: 0.62, y: 1.72, w: 9.1, h: 4.17 });
   stat(s, 9.95, 2.0, 2.8, "67%", "of targets are narrower than\none block on at least one side", RED);
   stat(s, 9.95, 3.75, 2.8, "25%", "are smaller than one block\nin total area", TEAL);
-  s.addText("Measured on RefChartQA at the model's normal input size.", {
+  s.addText("Measured on 7,158 boxes from RefChartQA’s training split, at 512 px.", {
     ...SMALL, fontSize: 11.5, x: 9.95, y: 5.3, w: 2.8, h: 0.6, isTextBox: true });
   card(s, 0.62, 6.05, 12.1, 0.95, "FBEAE8");
   s.addText("More training cannot fix this — it tells us to test higher resolutions in week 3.",
