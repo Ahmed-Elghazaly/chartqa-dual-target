@@ -136,9 +136,15 @@ else runs it. The advantage is that a program can be executed and checked; prose
 | validation | 1,920 | 6,223 |
 | test | 2,500 | 11,690 |
 | has answers | yes | yes |
-| has evidence boxes | no | **yes** |
+| marks every element in the chart | **yes** | — |
+| marks what each *question* needs | no | **yes** |
 
-RefChartQA is built *on top of* ChartQA's images — it adds the box annotations. That
+RefChartQA is built *on top of* ChartQA's images. Both mark regions, but they mark
+different things, and the distinction matters: **ChartQA labels every element of the chart**
+(each bar, each pie slice) as a description of its structure, with no link to any particular
+question. **RefChartQA labels, for each question, the regions a correct answer should point
+at.** So RefChartQA can be scored directly for grounding; for ChartQA we have to *derive*
+per-question evidence by selecting the elements a question's calculation actually uses. That
 overlap matters and we measured it: **99.9% of the RefChartQA training images we cached also
 appear in ChartQA's training set**. Which means a naive setup could easily train on an
 image and then "test" on the same image through the other dataset. We check for that by

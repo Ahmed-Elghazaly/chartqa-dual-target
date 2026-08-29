@@ -12,7 +12,7 @@ Each content slide carries a tag — **BUILT**, **MEASURED** or **FOUND**.
 | 3 | — | Our idea | Ask it to mark what it used and state the calculation, then have a program redo the calculation and check |
 | 4 | — | The four-week plan | W1 data & measurement ← here · W2 train · W3 evaluate · W4 analyse |
 | 5 | — | **What week 1 delivered** | Four things built, four measured, five found |
-| 6 | BUILT | The data foundation | ~86,000 chart questions across two datasets, version-locked; test data sealed from day one |
+| 6 | BUILT | The data foundation | ~86,000 chart questions. ChartQA marks every element in a chart; RefChartQA marks what each question needs. Test data sealed from day one |
 | 7 | FOUND | The annotations are patchy | Bar charts 92–97%, pie 55%, **line charts 0%**. Where they exist, they are accurate |
 | 8 | MEASURED | Is the grounding data usable? | **200 / 200** sampled annotations acceptable. Pass mark set before looking |
 | 9 | FOUND | The datasets overlap | Comparing files: **0 of 4,000**. Comparing the pictures: **99.9%** |

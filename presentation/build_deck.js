@@ -174,13 +174,13 @@ const bullets = (items, size) => items.map((t, i) => ({
      { text: "Training", options: { bold: true, color: PAPER, fill: { color: DEEP }, align: "right" } },
      { text: "Validation", options: { bold: true, color: PAPER, fill: { color: DEEP }, align: "right" } },
      { text: "Test", options: { bold: true, color: PAPER, fill: { color: DEEP }, align: "right" } },
-     { text: "Marks where to look?", options: { bold: true, color: PAPER, fill: { color: DEEP } } }],
-    ["ChartQA", { text: "28,299", options: { align: "right" } }, { text: "1,920", options: { align: "right" } }, { text: "2,500", options: { align: "right" } }, "no"],
-    ["RefChartQA", { text: "55,789", options: { align: "right" } }, { text: "6,223", options: { align: "right" } }, { text: "11,690", options: { align: "right" } }, "yes"],
+     { text: "What it marks on the chart", options: { bold: true, color: PAPER, fill: { color: DEEP } } }],
+    ["ChartQA", { text: "28,299", options: { align: "right" } }, { text: "1,920", options: { align: "right" } }, { text: "2,500", options: { align: "right" } }, "every element — each bar, each slice"],
+    ["RefChartQA", { text: "55,789", options: { align: "right" } }, { text: "6,223", options: { align: "right" } }, { text: "11,690", options: { align: "right" } }, "the regions each question needs"],
   ], { x: 0.62, y: 2.05, w: 12.15, rowH: 0.46, fontFace: "Calibri", fontSize: 14,
        color: INK, border: { type: "solid", color: "D9E2E8", pt: 1 }, valign: "middle" });
   s.addText(bullets([
-    "questions with answers, and for one dataset, the regions a good answer should point at",
+    "one dataset marks every element in the chart; the other marks what each question needs",
     "every file locked to a specific version, so any number can be reproduced later",
     "four different sources brought into one common format",
     "test data set aside from day one and not looked at"]),

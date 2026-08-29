@@ -29,10 +29,17 @@ class ChartRecord:
 
 Most fields are obvious. Four are worth stopping on.
 
-**`boxes` is `None`, not `[]`, when there are none.** These mean different things: `None`
-is "this source does not annotate boxes" (ChartQA), `[]` would be "annotated, and there are
-zero". Collapsing them would make a missing annotation indistinguishable from a chart with
-nothing to point at.
+**`boxes` is `None`, not `[]`, when there are none.** These mean different things: `None` is
+"no annotation exists for this record" — a ChartQA line chart, say, or a chart whose
+annotation file is missing — while `[]` would be "annotated, and there are genuinely zero
+regions". Collapsing them would make a missing annotation indistinguishable from a chart
+with nothing to point at.
+
+📘 Both datasets populate this field, but they mean different things by it. **ChartQA**
+annotates *every element of the chart* — each bar, each slice — independently of any
+question. **RefChartQA** annotates, per question, *the regions that question's answer needs*.
+So RefChartQA is directly scorable for grounding, while ChartQA's boxes are raw material from
+which per-question evidence is selected (Chapter 5 recovers which elements a question uses).
 
 **`plan` carries the comment "only when known exactly".** A plan is the arithmetic (Chapter
 4). We only fill it when we can prove it — never a guess. Chapter 5 is entirely about that
