@@ -178,6 +178,23 @@ Line charts have **no** element box annotations at all. So ChartQA's own annotat
 teach a model to point at anything on a line chart. Charts that *do* have boxes carry
 **12.7** of them on average.
 
+**What these annotations are for.** ChartQA has no per-question grounding — it labels every
+element of a chart, not the ones a given question needs. We derive the link: plan mining
+(§7) works out that a question is, say, `West − South`, which tells us the answer depends on
+the labels "West" and "South", and we then take *those two* elements' boxes. A ChartQA
+question thereby becomes a fully grounded training example. Without the element annotations
+it could only teach the answer and the reasoning, never the pointing.
+
+⚠️ **Do not confuse 12.7 with the 8-item evidence cap.** They count different things: 12.7 is
+elements *on a chart*, 8 is the most evidence items *one answer* may contain. A chart with 12
+bars whose question needs two of them uses two. Measured on RefChartQA questions, **76.5%
+need exactly one box and 92.5% need two or fewer**; only **2%** need more than eight. Pointing
+at everything would be actively harmful — one spurious box per image drops the grounding
+score from 1.00 to 0.68, and three drop it to 0.32. The cap does bite on aggregate questions
+("what is the average?"), which genuinely need every element: on a chart with more than eight
+we refuse the record rather than truncate, because dropping bars would change the average and
+the example would no longer reproduce its own answer.
+
 **Finding: the boxes are geometrically sound where they exist.** We checked whether a bar's
 box height actually tracks its value in the gold table, across 1,290 series. The median
 r² was **0.9999** for vertical bars and **1.0** for horizontal bars. So where annotations
