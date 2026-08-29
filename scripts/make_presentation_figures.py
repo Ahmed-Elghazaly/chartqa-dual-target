@@ -75,7 +75,7 @@ def figure_ungrounded(example: dict, out: Path) -> Path:
             ha="center", va="center", fontweight="bold")
     ax.set_title(f'"{example["question"]}"', fontsize=13, color=INK, pad=12)
     ax.set_xlabel(f'Model answers:  {example["answer"]}          '
-                  "— but did it read the right bars?",
+                  "— but did it look at the right bars?",
                   fontsize=12, color="#c0392b", labelpad=10)
     fig.tight_layout()
     fig.savefig(out, bbox_inches="tight", facecolor="white")
@@ -97,13 +97,12 @@ def figure_grounded(example: dict, out: Path) -> Path:
                 fontsize=10.5, color=GREEN, ha="center", va="bottom", fontweight="bold")
 
     plan = example["plan"]
-    args = ", ".join(str(a) for a in plan["args"])
     operands = [values[a] for a in plan["args"] if a in values]
     arithmetic = (f"{operands[0]:g} − {operands[1]:g} = {example['answer']}"
                   if len(operands) == 2 else example["answer"])
     ax.set_title(f'"{example["question"]}"', fontsize=13, color=INK, pad=12)
-    ax.set_xlabel(f"evidence →  {plan['op']}({args})\n"
-                  f"executor re-computes:  {arithmetic}   ✓  matches the answer",
+    ax.set_xlabel(f"it used these two bars, and subtracted one from the other\n"
+                  f"checked:  {arithmetic}   ✓  matches the answer it gave",
                   fontsize=12, color=GREEN, labelpad=10, fontweight="bold")
     fig.tight_layout()
     fig.savefig(out, bbox_inches="tight", facecolor="white")
@@ -135,8 +134,8 @@ def figure_subtoken(example: dict, out: Path) -> Path:
                                     fill=False, edgecolor=RED, linewidth=2.0))
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.set_title(f"what the model sees: {rw}×{rh} px in {TOKEN_PX}×{TOKEN_PX} blocks",
-                 fontsize=11.5, color=INK)
+    ax.set_title("what the model sees: the chart divided into blocks",
+                 fontsize=12.5, color=INK)
 
     pad = TOKEN_PX * 1.6
     cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
@@ -153,11 +152,13 @@ def figure_subtoken(example: dict, out: Path) -> Path:
     zoom.set_ylim(box[3], box[1])
     zoom.set_xticks([])
     zoom.set_yticks([])
-    zoom.set_title(f'target "{ev["label"]}" is {tw:.2f} × {th:.2f} blocks',
-                   fontsize=11.5, color=RED, fontweight="bold")
+    # Kept short: a longer title is wider than the zoom panel and spills over the
+    # left-hand chart.
+    zoom.set_title("smaller than one block",
+                   fontsize=12.5, color=RED, fontweight="bold")
 
-    fig.suptitle("A target smaller than one block cannot be located precisely",
-                 fontsize=13, color=INK, y=1.01)
+    fig.suptitle("If a target is smaller than one block, it cannot be located precisely",
+                 fontsize=13.5, color=INK, y=1.01)
     fig.tight_layout()
     fig.savefig(out, bbox_inches="tight", facecolor="white")
     plt.close(fig)
@@ -186,19 +187,19 @@ def figure_verification(example: dict, out: Path, *, shift_px: int = 26) -> dict
 
     fig, axes = plt.subplots(1, 2, figsize=(10.4, 4.6), dpi=200)
     for ax, box, score, colour, label in (
-            (axes[0], good, score_good, GREEN, "box the generator produced"),
-            (axes[1], bad, score_bad, RED, f"the same box moved {shift_px} px")):
+            (axes[0], good, score_good, GREEN, "the region we drew"),
+            (axes[1], bad, score_bad, RED, "the same region, nudged sideways")):
         verdict = "KEPT" if score >= MIN_INK_IOU else "REJECTED"
         ax.imshow(array)
         ax.add_patch(mpatches.Rectangle((box[0], box[1]), box[2] - box[0], box[3] - box[1],
                                         fill=False, edgecolor=colour, linewidth=2.6))
         ax.set_xticks([])
         ax.set_yticks([])
-        ax.set_title(f"{label}\noverlap with the ink: {score:.2f}   →   {verdict}",
-                     fontsize=12, color=colour, fontweight="bold")
-    fig.suptitle("Every generated box is checked against where the ink actually is"
-                 f"   ·   kept only if overlap ≥ {MIN_INK_IOU:.2f}",
-                 fontsize=12.5, color=INK, y=1.02)
+        ax.set_title(f"{label}\nmatches the picture: {100 * score:.0f}%   →   {verdict}",
+                     fontsize=12.5, color=colour, fontweight="bold")
+    fig.suptitle("Every generated example is checked against its own picture, "
+                 "and thrown away if it does not match",
+                 fontsize=13, color=INK, y=1.02)
     fig.tight_layout()
     fig.savefig(out, bbox_inches="tight", facecolor="white")
     plt.close(fig)
