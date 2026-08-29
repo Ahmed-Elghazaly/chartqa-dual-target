@@ -184,21 +184,12 @@ Same divide-round-multiply idiom, with two changes:
 
 ### Branch two: too few pixels
 
-```python
-    elif h_bar * w_bar < min_pixels:
-        beta = math.sqrt(min_pixels / (height * width))
-        h_bar = math.ceil(height * beta / factor) * factor
-        w_bar = math.ceil(width * beta / factor) * factor
-```
+The exact mirror. β is now what to *multiply* by — note the ratio is inverted,
+`min_pixels / area` — and `ceil` replaces `floor` because we are enforcing a *lower* bound
+and must not land under it. No `max(factor, …)` is needed: we are enlarging.
 
-The mirror image. β is now the factor to *multiply* by (note the ratio is inverted:
-`min_pixels / area` rather than `area / max_pixels`), and `ceil` is used because we are
-enforcing a *lower* bound and must not land under it.
-
-There is no `max(factor, ...)` here, and none is needed: we are enlarging.
-
-`elif` matters — an image cannot be simultaneously over the maximum and under the minimum,
-and using `if` twice would let the second branch act on values the first just set.
+`elif` matters. An image cannot be both over the maximum and under the minimum, and two
+separate `if`s would let the second branch act on values the first just set.
 
 ### Worked example
 
