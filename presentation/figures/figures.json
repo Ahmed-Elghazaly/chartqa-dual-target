@@ -1,0 +1,24 @@
+{
+ "grounded_example": "synth_vbar_L2_31_697938",
+ "question": "What is the difference between West and South?",
+ "answer": "74",
+ "plan": {
+  "op": "difference",
+  "args": [
+   "West",
+   "South"
+  ]
+ },
+ "subtoken_example": "synth_line_L3_51_483713",
+ "subtoken_label": "Jul",
+ "subtoken_tokens": [
+  0.47,
+  0.45
+ ],
+ "resized_to": [
+  640,
+  384
+ ],
+ "verification_correct_box": 0.954,
+ "verification_shifted_box": 0.43
+}

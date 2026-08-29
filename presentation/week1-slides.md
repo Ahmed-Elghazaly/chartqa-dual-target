@@ -31,7 +31,7 @@ You cannot tell whether it:
 
 A right answer and a lucky guess look identical.
 
-*Visual: a bar chart with a question and a bare "35" answer, question mark over the chart.*
+*Figure: `fig1_ungrounded.png` — a chart, the question, and a bare answer.*
 
 ---
 
@@ -50,7 +50,8 @@ same answer.
 
 **If they disagree, we know the answer is unreliable — without needing a human to check.**
 
-*Visual: same chart, now with two boxes drawn, the expression underneath, and a tick.*
+*Figure: `fig2_grounded.png` — the same chart with the two evidence boxes drawn, the
+expression underneath, and the executor's check.*
 
 ---
 
@@ -115,7 +116,8 @@ The model does not see pixels. It sees the chart as a grid of small blocks.
 - 66.7% of target boxes are narrower than one block on at least one side
 - 24.8% are smaller than one block in total area
 
-*Visual: a chart with the block grid overlaid, and a thin bar sitting inside a single block.*
+*Figure: a generated line chart at the size the model sees it, with the 32×32 block grid
+drawn on, and a zoom showing one target measuring 0.47 × 0.45 blocks.*
 
 **Why it matters:** at normal input size the model physically cannot point at these
 precisely. This is not something more training fixes — it tells us to test higher
@@ -146,15 +148,13 @@ because we drew them.
 - **8 chart types** × **4 difficulty levels** (read one value → compare → aggregate → combine)
 - **24,000 examples**
 
-**How we know the boxes are correct:** we re-draw each chart in test colours and check the
-box actually contains the right coloured shape.
+**How we know the boxes are correct:** we measure how well each box overlaps where the
+chart's ink actually is. A box is kept only if that overlap is **at least 0.70**.
 
-| | overlap score |
-|---|---:|
-| Correct boxes | **0.84 – 0.99** |
-| Deliberately wrong boxes | never above **0.38** |
+*Figure: the same box, correct (0.95 → KEPT) and moved 26 pixels (0.43 → REJECTED).*
 
-The check clearly separates right from wrong, so no bad example reaches training.
+Across the 640 examples we verified by hand, correct boxes scored **0.84–0.99**. No box
+that fails the check ever reaches training.
 
 ---
 
