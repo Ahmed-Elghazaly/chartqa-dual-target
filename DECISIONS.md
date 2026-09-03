@@ -3848,3 +3848,52 @@ actually fail rather than passing by construction.
 This also establishes a **calibration set**: 3,405 records where gold operand identity
 exists. Any future miner — deterministic or LLM-assisted — can have its semantic precision
 measured here before being trusted on ChartQA, where no such check exists.
+
+---
+
+## 0079 — When the operands are gold, search only for the operation
+
+**Context.** `mine_plan` searches the whole table, so it must find the operation **and** the
+operands. Measured on 3,405 aligned RefChartQA records (0078), its dominant failure is
+**ambiguity at 45.7%**: several combinations reproduce the gold answer and nothing in the
+search can say which the question meant.
+
+But on an aligned record RefChartQA has **already fixed the operands** — the regions it
+marks. Only the operation is unknown, and that is a search over about a dozen candidates
+rather than every subset of the table.
+
+**Decision.** When the table search fails, `operation_over_marked` tries each candidate
+operation over exactly the marked regions and accepts one **only if exactly one** reproduces
+the answer. `argmax`/`argmin` are included separately because their result is a label, which
+is what *"in which year was it highest?"* asks for.
+
+**Result.**
+
+| | |
+|---|---:|
+| plan-less but semantically grounded records | 1,116 |
+| **unique operation found** | **197 (17.7%)** |
+| still ambiguous | 598 (53.6%) |
+| no operation fits | 321 (28.8%) |
+
+Operations recovered: `sum` 67, `ratio` 66, `difference` 30, `mean` 15, `count` 14,
+`min` 3, `max` 2.
+
+RefChartQA plans **660 → 857** and usable targets **2,021 → 2,187 (54.7%)**.
+
+**What the remainder says, and it is the important part.** Even with the operands handed to
+it, a deterministic search settles only 17.7%. The 53.6% that stay ambiguous are questions
+whose *wording* names the operation outright:
+
+> *"What is the **ratio** of the value of Height in CTF Finance Centre to …"*
+> *"What is the **sum** of Laborer and Professional?"*
+
+The answer is in the question, and no amount of arithmetic search can read it. This is the
+concrete, quantified case for question-aware mining: not because the deterministic miner is
+inaccurate — it is 94% precise — but because it is structurally deaf to the one signal that
+would resolve its dominant failure.
+
+**Consequences.** The task that remains for a language model is narrow and safe: **given gold
+operands and the question, choose the operation.** That is a selection among about a dozen
+options, not free-form program generation, and every choice is verified by executing it and
+requiring the gold answer. A wrong choice is rejected, not absorbed.
