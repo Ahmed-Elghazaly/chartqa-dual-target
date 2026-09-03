@@ -93,5 +93,22 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 
 | item | blocker | how to finish |
 |---|---|---|
-| LLM-assisted mining at scale | No API key. A Claude/ChatGPT **subscription** cannot drive a pipeline over ~15,000 questions. | An Anthropic or OpenAI **console API key** (pay-per-token). Then `scripts/mine_with_llm.py` (to be written) with caching, model+prompt pinning, and deterministic verification. |
+| LLM-assisted mining at scale | No API key. A Claude/ChatGPT **subscription** cannot drive a pipeline over ~15,000 questions. | `scripts/mine_with_llm.py` is **written, tested and verified end to end** — prompt building, caching keyed by record+model+prompt hash, provenance, and the five-gate verifier. Measured on 40 unbiased records with Claude as the teacher: **22 verified plans (55%)**, 88% of proposals accepted. Only the model call is missing. Set `ANTHROPIC_API_KEY` and run `python scripts/mine_with_llm.py --source chartqa --limit 20000`. Proposals produced elsewhere can be scored today with `--proposals <file>`, no key needed. |
 | Phase 6 training | Audit in progress; mixtures will need rebuilding after | rebuild, then `cdt-train --stage stage1` |
+
+---
+
+## Session log — what moved, and what it cost
+
+| finding | how it was found | outcome |
+|---|---|---|
+| DSL is 93.3% sufficient, not 55% | checked 0080's biased sample against 60 random questions **before** writing any operator | 0080 partly withdrawn; no operators written |
+| `lookup` vs extremum collision = 26.6% of all rows | `audit/measure_ambiguity_shape.py`, n=4,000 | `AUDIT.md` H4; the quantitative case for LLM mining |
+| two parsers 100x apart on every percentage | ran the LLM path end to end; it accepted 0 of 25 correct proposals | 0082; LLM yield 44% → 88% |
+| bare aggregate silently truncated to 8 items | reading the fold guard while diagnosing the above | 0082; 64.4% of charts affected |
+| a first pass measured human questions only | iterating rows in order instead of sampling | corrected before publishing the number |
+| I guessed a label that wasn't in the annotation | the verifier's `operand_not_in_evidence` gate caught it | the gate works on its author |
+
+**Largest remaining blocker, measured:** of the teacher's 15 refusals on 40 records,
+**6 are duplicate labels across series** — `AUDIT.md` H3. That is 15% of all records, and it
+is now the single biggest recoverable loss.
