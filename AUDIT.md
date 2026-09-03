@@ -32,6 +32,7 @@ because ChartQA has no per-question grounding to score against.
 | H2 | The dedup **merge is discarded** before training sees it | **HIGH** | high, by construction |
 | H3 | Labels are non-unique on **74.2%** of charts; target builder and executor resolve duplicates *differently* | **HIGH** | high, measured |
 | M1 | The processor pixel budget is applied inside a silent `except: pass` | MEDIUM | high |
+| **H4** | **The miner's dominant refusal is a `lookup` vs `max`/`min` tie — 26.6% of all rows.** The table cannot say which the question asked for; one word of the question can | **HIGH** | high, measured (n=4,000) |
 | G1 | **No double resize** — the processor owns resizing and our coordinate port matches it exactly | *no change* | high, verified |
 
 ---
@@ -280,3 +281,40 @@ port reproduces it exactly — an 800×600 chart gives 234 visual tokens by both
 and the real processor.
 
 **Recommended action: none.** The design already matches what Idea 12 concludes it should be.
+
+---
+
+## H4 — Half the supervision is lost to a collision the question text resolves
+
+**The finding.** The deterministic miner refuses 53.9% of ChartQA training rows as
+`ambiguous`, and `ambiguous` is easy to misread: it does not mean two cells hold the answer,
+it means **two operations reproduce it**, so the uniqueness rule cannot choose. Measured over
+4,000 rows sampled at random across both question kinds:
+
+| what collided | share of ambiguous | share of all rows |
+|---|---:|---:|
+| **`lookup` vs an extremum (`max`/`min`/`argmax`/`argmin`)** | **49.3%** | **26.6%** |
+| `lookup` vs `mean`/`median`/`sum` | 44.2% | 23.8% |
+| everything else | 6.5% | 3.5% |
+
+The single most common collision is `lookup+max`, 775 times. ChartQA charts are usually
+sorted and questions often ask about the top row, so the answer cell is simultaneously
+`lookup(<its label>)` and `max` of its column.
+
+**Why it matters.** These are not hard questions. *"How many internet users did Nigeria
+have as of December 2020?"* wants `lookup('Nigeria')`; *"which country had the most?"* wants
+`argmax`. The two are one word apart in the question and identical in the table. The miner
+reads only the table, so it must refuse both.
+
+**Not an expressiveness problem.** On an unbiased sample of 60 random training questions,
+93.3% (95% CI 84.1–97.4%) are expressible in the current DSL, and of the 41 that the miner
+loses, 25 wanted a plain `lookup`. Adding operators addresses ~7% of the corpus; letting the
+mining step read the question addresses the 50.4% lost to collisions involving `lookup`.
+
+**Recommendation.** Adopt LLM mining with the five-gate verifier
+(`src/chartqa_dt/plans/llm_mining.py`), which is built and tested. Leave the uniqueness rule
+untouched for the deterministic path — at 94% precision it is not too strict, it is
+under-informed. Defer new operators until the residual failures can be measured.
+
+**Evidence.** `audit/measure_ambiguity_shape.py`, `audit/measure_miner_on_unbiased_sample.py`,
+`audit/judge_dsl_sample.py`, `audit/measure_dsl_coverage.py`; decisions 0080, 0081.

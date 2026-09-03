@@ -3970,3 +3970,101 @@ experiment is cheap to repeat: `audit/llm_teacher_proposals.py` re-runs the scor
 seeded sample, so a later teacher (a different model, or a different prompt) can be compared to
 this one on identical records. The blind spot means a teacher's precision measured only on
 single-element evidence is optimistic, and should be reported as such.
+
+> **Partly superseded by 0081.** The 45% figure is correct for this sample but the sample
+> is drawn from miner failures, which over-represents hard question types. Measured on an
+> unbiased sample the corpus rate is ~7%, and the recommendation "audit the DSL, not the
+> miner" is withdrawn. The teacher's 21/21 precision and the single-element blind spot
+> stand unchanged.
+
+---
+
+## 0081 — The DSL is not the constraint; the uniqueness rule is. Correcting 0080
+
+**Context.** 0080 measured an LLM teacher on 40 records the deterministic miner could not
+settle and found 18 of 40 (45%) blocked by three missing operators. That number described
+the sample it was drawn from, and the sample was **drawn from miner failures** — a pool
+enriched by construction for exactly the hardest question types. Reading it as a corpus rate
+would set the wrong priority, so it was checked against an unbiased sample before any
+operator was written.
+
+**Experiment.** `audit/make_unbiased_dsl_sample.py` drew 60 ChartQA training questions at
+random (seed 0) from all 28,299, with no filtering on whether the miner succeeded, and
+attached each gold table. Claude judged each on one question only: does *some* plan in the
+current DSL compute the gold answer? Finding that plan is a separate matter, measured next.
+
+**Result — the DSL is nearly sufficient.**
+
+| | |
+|---|---:|
+| expressible in the current DSL | **56/60 (93.3%**, 95% CI 84.1–97.4%) |
+| blocked by a missing operator | 3/60 (5.0%) |
+| gold answer contradicts the gold table | 1/60 (1.7%) |
+
+The corpus-wide regex census agrees: `audit/measure_dsl_coverage.py` puts positively
+identifiable inexpressible questions at 2,736 of 36,715 (**7.5%**). **The 45% in 0080 is a
+property of the miner's failure pool, not of ChartQA.** 0080's conclusion — "the next work is
+a DSL audit, not a better miner" — is withdrawn.
+
+**Where the supervision actually goes.** `audit/measure_miner_on_unbiased_sample.py` runs the
+deterministic miner over those same 60 records:
+
+| | |
+|---|---:|
+| expressible in the DSL | 56/60 (93.3%) |
+| the miner settles | 15/60 (25.0%) |
+| **expressible but not mined** | **41/60 (68.3%)** |
+
+Of the 41 lost, **25 wanted a plain `lookup`** and 12 an argmax/argmin. Nothing exotic.
+
+**The mechanism, at scale.** `audit/measure_ambiguity_shape.py` over 4,000 rows sampled at
+random across both question kinds. (A first pass iterated in order and silently measured
+human rows only, which are the harder half — the numbers below are from the corrected
+random sample.)
+
+| miner status | share |
+|---|---:|
+| **ambiguous** | **53.9%** |
+| non_numeric | 18.8% |
+| unique — settled | 15.2% |
+| none | 6.7% |
+| category_answer | 5.4% |
+
+`ambiguous` does not mean two cells hold the answer. It means **two operations reproduce
+it** (`mining.py:282`), so the uniqueness rule cannot say which the question asked for. Its
+shape:
+
+| what collided | share of ambiguous | share of all rows |
+|---|---:|---:|
+| **`lookup` vs an extremum** | **49.3%** | **26.6%** |
+| `lookup` vs mean/median/sum | 44.2% | 23.8% |
+| everything else | 6.5% | 3.5% |
+
+Top colliding set: **`lookup+max`, 775 occurrences.** ChartQA charts are usually sorted and
+questions often ask about the top row, so the answer cell is simultaneously
+`lookup(<label>)` and `max` of its column. *"How many internet users did Nigeria have"* wants
+the lookup; *"which country had the most"* wants the extremum. The table cannot tell them
+apart. **One word of the question can, and the miner never sees the question.**
+
+**Decision.**
+
+1. **Confirm LLM-first mining as the priority**, on much stronger evidence than before:
+   50.4% of all rows are refused on a collision involving `lookup`, and the question text
+   names the label in precisely the lookup case. This is Ahmed's argument, and it is right —
+   but the reason is more specific than "an LLM is smarter", and the specific reason is what
+   makes it verifiable.
+2. **Do not add operators yet.** They are worth ~7%, not 45%, and two of the three
+   (`rank`, `filter`) are already declared in `OPS` and merely unimplemented. Revisit after
+   LLM mining, when the residual failures can be measured rather than guessed.
+3. Keep the uniqueness rule exactly as it is for the deterministic path. It is not too
+   strict — at 94% precision it is doing its job; it simply lacks the disambiguating input.
+
+**Consequences.** The audit's headline changes: this is a supervision-*recall* problem with a
+known cause, not an expressiveness problem. The recoverable pool is now bounded from below
+by measurement — 26.6% of rows on the `lookup`-vs-extremum collision alone — which is a far
+better justification for the API-key spend than a recall figure with no attributed cause.
+Both experiments are seeded and re-runnable, so a later change can be scored against the same
+records. The one record whose gold answer contradicts its gold table (`[24]`, *"Uruguay's
+bestselling car brand"* — gold says Chevrolet at 14.97%, the table's maximum is Suzuki at
+18.45%) is a reminder that a ceiling below 100% exists in the data itself and is not
+recoverable by any mining method.
