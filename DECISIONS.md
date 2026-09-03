@@ -3897,3 +3897,76 @@ would resolve its dominant failure.
 operands and the question, choose the operation.** That is a selection among about a dozen
 options, not free-form program generation, and every choice is verified by executing it and
 requiring the gold answer. A wrong choice is rejected, not absorbed.
+
+---
+
+## 0080 — What an LLM teacher can and cannot mine, measured on 40 records
+
+**Context.** Ahmed's position: use a strong LLM to propose plans and verify every one, and
+defer the deterministic miner. The reasoning is sound — the deterministic miner is 94%
+precise and 19% recall, and its dominant failure is ambiguity, which the question text
+resolves and which it structurally cannot read (0078, 0079).
+
+Rather than assume how well a teacher would do, it was measured. `src/chartqa_dt/plans/
+llm_mining.py` is the verifier: five gates — shape, operands present in evidence, executes,
+reproduces the gold answer at the answer's own precision, and operands inside the marked
+regions. A proposal failing any gate is **discarded, never repaired**; repairing would make
+the pipeline the author of its own supervision.
+
+**Experiment.** `scripts/make_llm_mining_sample.py` drew a seeded 40-record sample from the
+915 aligned RefChartQA records the deterministic miner could not settle — i.e. exactly the
+cases a question-reading teacher is meant to fix. Claude (this session) read each question,
+its marked regions and its gold answer, and either proposed a plan or refused. Proposals were
+written before the verifier was run.
+
+**Result.**
+
+| | |
+|---|---:|
+| proposed a plan | **21 of 40 (52%)** |
+| of those, passed every gate | **21 (100%)** |
+| refused | 19 (48%) |
+
+**The refusals are the finding, and they are not mining failures.**
+
+| reason | n | |
+|---|---:|---|
+| no Yes/No comparison operator | **9** | *"Is the value in X less than that in Y?"* → `Yes`. `compare` returns `greater`/`less`/`equal`; `boolean` takes one argument. |
+| no reverse lookup | **5** | *"Which Characteristic has the 2016 of 769?"* — the value is given, the **label** is asked for. |
+| rank, not extremum | **3** | *"second highest"*. `rank` is **declared in `OPS` but unimplemented** (`NEEDS_TABLE`). |
+| argmax over a computed quantity | 1 | *"which leader had the maximum difference between confidence and no confidence"* — `argmax` takes labels, not a computed series. |
+| marked region carries no value | 1 | |
+
+**18 of 40 — 45% — are blocked by three missing operators.** No amount of mining effort,
+deterministic or LLM, recovers them.
+
+⚠️ **A blind spot in the verifier, found by refusing rather than by failing.** Three records
+ask for the *second* highest, and RefChartQA marks a single region — the answer. Proposing
+`argmax` there passes **every gate**: it executes, it returns that label, it uses the marked
+region. It is also wrong. Where the marked evidence has one element, `argmax`, `argmin` and
+`lookup` all trivially return it, so **arithmetic verification cannot distinguish them**. A
+careless teacher scores 100% here while being semantically wrong three times.
+
+This bounds what "verify every plan" can promise: verification catches a plan that computes
+the wrong number, not one that computes the right number for the wrong reason on a
+single-element evidence set.
+
+**Decision.**
+
+1. Adopt the LLM-first mining direction, with this verifier as the gate. On the evidence it
+   is high precision, and its refusals are informative rather than silent.
+2. Treat the three missing operators as the **binding constraint** and audit the DSL against
+   real questions before mining at scale — mining harder cannot recover 45%.
+3. Record the single-element blind spot as a known limit of arithmetic verification, and
+   prefer multi-element evidence when measuring a teacher's semantic precision.
+
+**Blocked.** Running this at scale needs a console API key; a Claude or ChatGPT subscription
+cannot drive a pipeline over ~15,000 questions. Everything except the model call is built and
+tested, and the sample is seeded so the measurement is repeatable.
+
+**Consequences.** Mining strategy is no longer the bottleneck it appeared to be — expressiveness
+is. The next work is a DSL audit driven by real question text (Idea 10), not a better miner. The
+experiment is cheap to repeat: `audit/llm_teacher_proposals.py` re-runs the scoring against a
+seeded sample, so a later teacher (a different model, or a different prompt) can be compared to
+this one on identical records. The blind spot means a teacher's precision measured only on
+single-element evidence is optimistic, and should be reported as such.
