@@ -33,6 +33,8 @@ because ChartQA has no per-question grounding to score against.
 | H3 | Labels are non-unique on **74.2%** of charts; target builder and executor resolve duplicates *differently* | **HIGH** | high, measured |
 | M1 | The processor pixel budget is applied inside a silent `except: pass` | MEDIUM | high |
 | **H4** | **The miner's dominant refusal is a `lookup` vs `max`/`min` tie — 26.6% of all rows.** The table cannot say which the question asked for; one word of the question can | **HIGH** | high, measured (n=4,000) |
+| **C3** | **`mining` and `executor` parsed every percentage 100x apart**, and spaced thousands raised — invisible to the old pipeline, halves the new one | **CRITICAL** | ✅ **FIXED** (0082) |
+| **C4** | **A bare aggregate lost its evidence silently** — `argmax()` on a chart with >8 elements kept the first 8 and the round-trip blamed the plan | **CRITICAL** | ✅ **FIXED** (0082) |
 | G1 | **No double resize** — the processor owns resizing and our coordinate port matches it exactly | *no change* | high, verified |
 
 ---
@@ -318,3 +320,34 @@ under-informed. Defer new operators until the residual failures can be measured.
 
 **Evidence.** `audit/measure_ambiguity_shape.py`, `audit/measure_miner_on_unbiased_sample.py`,
 `audit/judge_dsl_sample.py`, `audit/measure_dsl_coverage.py`; decisions 0080, 0081.
+
+---
+
+## C3/C4 — Defects only the new pipeline could see
+
+Both were found by building the LLM mining path and running it end to end on 40 unbiased
+ChartQA records, which accepted **0 of 25 correct proposals**. Full reasoning and the
+measurements are in `DECISIONS.md` 0082; the short form:
+
+**C3 — one value, two scales.** `mining.to_number('5.3%')` returned 5.3 and
+`executor.to_number('5.3%')` returned 0.053, so a plan mined against the table was executed
+against evidence 100x smaller. **0 of 32,719 ChartQA answers and 0 of 3,996 RefChartQA
+answers carry a `%`**, so the divided form could never match. Separately, `'3 071'` — carried
+by 20.7% of charts in one of four space characters — raised outright. Now one parser,
+`executor.parse_numeric`, with a test asserting the two modules agree on every value.
+
+**C4 — a bare aggregate kept the first eight elements.** The fold guard required the plan to
+name a label, so it caught `difference("Alpha", mean-of-everything)` and missed a bare
+`argmax()`. The median ChartQA chart has 10 elements; **64.4% have more than eight**. The
+round-trip refused these records, so nothing wrong shipped — but it refused them with *"own
+plan does not reproduce its own answer"*, blaming the plan for evidence we had cut.
+
+**Why they survived.** Fixing them changed the deterministic pipeline's output by **exactly
+zero targets**, and doubled the LLM path from 44% to 88% accepted. The old miner only
+produces a plan where the two parsers happened to agree — it refuses percentage charts as
+`ambiguous` and drops spaced thousands as unparsable before the executor ever sees them. A
+component can be correct under every input the current system gives it and wrong under the
+inputs the next one will.
+
+**Evidence.** `audit/measure_evidence_defects.py`, `audit/measure_target_yield.py`,
+`audit/teacher_proposals_chartqa.py`, `tests/test_executor.py`.

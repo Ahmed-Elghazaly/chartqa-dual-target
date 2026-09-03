@@ -63,6 +63,82 @@ def plan_depth(node: Any) -> int:
     return 1 + max([plan_depth(a) for a in args], default=0)
 
 
+#: Every space character that appears as a thousands separator in Statista charts:
+#: ordinary, non-breaking, narrow non-breaking, thin.
+_SEPARATORS = str.maketrans({",": "", "$": "", " ": "", "\xa0": "", "\u202f": "",
+                             "\u2009": ""})
+
+
+def parse_numeric(x: Any) -> float | None:
+    """**The** parser for a chart value. One function, because two disagreed by 100x.
+
+    `mining.to_number` stripped a trailing `%` and `executor.to_number` divided by it, so a
+    plan mined against a table value of `5.3` was executed against an evidence value of
+    `0.053` and the round-trip failed on every percentage chart. Measured: 21.4% of ChartQA
+    charts are all-percent, and **0 of 32,719 ChartQA gold answers and 0 of 3,996 RefChartQA
+    answers carry a `%` sign** — so the divided form could never match an answer, and the
+    scale that agrees with the data is the undivided one. `%` is dropped here and kept in
+    `EvidenceItem.unit`, where `check_units` can still see it.
+
+    This is a different question from `eval.metrics.to_float`, which parses gold ANSWERS and
+    stays byte-faithful to the official evaluator, division and all (`DECISIONS.md` 0045).
+    That function is unchanged.
+
+    Thousands separators are removed, including the four space characters Statista uses:
+    20.7% of ChartQA charts carry at least one value like `'3 071'`, which the executor
+    previously refused outright. Separators are stripped before parsing and the result must
+    still be a number, so `'5 apples'` is still rejected.
+    """
+    if isinstance(x, bool):
+        return None
+    if isinstance(x, (int, float)):
+        return None if math.isnan(x) or math.isinf(x) else float(x)
+    if not isinstance(x, str):
+        return None
+    s = x.strip().translate(_SEPARATORS).rstrip("%")
+    try:
+        v = float(s)
+    except ValueError:
+        return None
+    return None if math.isnan(v) or math.isinf(v) else v
+
+
+def plan_labels(plan: Any) -> list[str]:
+    """Every evidence label a plan refers to, in order, depth-first."""
+    out: list[str] = []
+    if not isinstance(plan, dict):
+        return out
+    for arg in plan.get("args") or []:
+        if isinstance(arg, str):
+            out.append(arg)
+        elif isinstance(arg, dict):
+            out.extend(plan_labels(arg))
+    return out
+
+
+#: Operations that fold over **every** evidence item when their `args` are empty. This is
+#: the compact form `DECISIONS.md` 0041 introduced so an L3 aggregate could stay inside the
+#: schema's `maxItems: 4`. Its consequence is that such a plan's meaning depends on what is
+#: in the evidence list, which is why evidence selection has to know about it.
+FOLD_OPS = frozenset({"sum", "mean", "median", "min", "max", "count",
+                      "argmin", "argmax", "trend"})
+
+
+def folds_over_evidence(plan: Any) -> bool:
+    """Whether any node in the tree folds over the whole evidence list.
+
+    `{"op": "mean", "args": []}` means *the mean of everything on the chart*. Selecting
+    evidence by the labels a plan names — right for every other plan — hands such a node a
+    one-item list, and the fold quietly returns that item instead of the aggregate.
+    """
+    if not isinstance(plan, dict):
+        return False
+    op, args = plan.get("op"), plan.get("args") or []
+    if op in FOLD_OPS and not [a for a in args if isinstance(a, str)]:
+        return True
+    return any(folds_over_evidence(a) for a in args if isinstance(a, dict))
+
+
 def to_number(x: Any) -> float:
     """Coerce to a finite float, or raise.
 
@@ -71,21 +147,12 @@ def to_number(x: Any) -> float:
     """
     if isinstance(x, bool):
         raise ExecutorError("boolean where number expected")
-    if isinstance(x, (int, float)):
-        if math.isnan(x) or math.isinf(x):
+    v = parse_numeric(x)
+    if v is None:
+        if isinstance(x, (int, float)):
             raise ExecutorError("non-finite number")
-        return float(x)
-    if isinstance(x, str):
-        s = x.strip().replace(",", "")
-        pct = s.endswith("%")
-        if pct:
-            s = s[:-1]
-        try:
-            v = float(s)
-        except ValueError as e:
-            raise ExecutorError(f"not numeric: {x!r}") from e
-        return v / 100.0 if pct else v
-    raise ExecutorError(f"not numeric: {x!r}")
+        raise ExecutorError(f"not numeric: {x!r}")
+    return v
 
 
 def execute(node: Any, evidence: list[EvidenceItem], *, _depth_checked: bool = False) -> Any:

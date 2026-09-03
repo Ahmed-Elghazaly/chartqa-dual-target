@@ -28,7 +28,12 @@ import statistics
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from chartqa_dt.plans.executor import EvidenceItem, ExecutorError, execute
+from chartqa_dt.plans.executor import (
+    EvidenceItem,
+    ExecutorError,
+    execute,
+    parse_numeric,
+)
 
 Flattening = Literal["all_cells", "per_row", "per_column", "union"]
 FLATTENINGS: tuple[Flattening, ...] = ("all_cells", "per_row", "per_column", "union")
@@ -104,11 +109,14 @@ def answer_is_a_category(target: Any, rows: list[list[str]]) -> bool:
 
 
 def to_number(cell: Any) -> float | None:
-    """Parse a table cell, or None. Never raises — most cells are labels."""
-    try:
-        return float(str(cell).replace(",", "").replace("$", "").rstrip("%").strip())
-    except (TypeError, ValueError):
-        return None
+    """Parse a table cell, or None. Never raises — most cells are labels.
+
+    Delegates to `executor.parse_numeric` so the miner and the executor cannot disagree
+    about a value's scale. They did: this function stripped a trailing `%` and the
+    executor's divided by it, so every percentage chart mined a plan the executor then
+    evaluated 100x smaller.
+    """
+    return parse_numeric(cell)
 
 
 # A candidate set of one value cannot discriminate between operations: with a

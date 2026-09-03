@@ -121,10 +121,47 @@ def test_non_finite_numbers_raise(bad):
         to_number(bad)
 
 
-def test_percentages_and_thousands_separators_parse():
-    assert to_number("50%") == pytest.approx(0.5)
+def test_a_percent_keeps_the_scale_the_chart_is_drawn_in():
+    """`'50%'` is 50, not 0.5.
+
+    This assertion was the other way round, and it cost every percentage chart its
+    supervision. `mining.to_number` stripped the `%` and this one divided by it, so a plan
+    mined against a table value of 5.3 was executed against an evidence value of 0.053 and
+    the round-trip failed. The scale that matches the data is the undivided one: **0 of
+    32,719 ChartQA gold answers and 0 of 3,996 RefChartQA answers carry a `%` sign**, so
+    the divided form could never agree with an answer.
+
+    `eval.metrics.to_float` is a different function on different input -- it parses gold
+    ANSWERS and stays byte-faithful to the official evaluator, division included.
+    """
+    assert to_number("50%") == pytest.approx(50.0)
     assert to_number("1,234") == pytest.approx(1234.0)
     assert to_number(" 42 ") == pytest.approx(42.0)
+
+
+@pytest.mark.parametrize("text", ["3 071", "1\xa0234", "12\u202f345", "9\u2009876"])
+def test_spaces_are_thousands_separators(text):
+    """20.7% of ChartQA charts carry a value like `'3 071'`, in one of four space
+    characters. The executor used to refuse all of them outright."""
+    assert to_number(text) == pytest.approx(float(text.translate(
+        {ord(c): None for c in " \xa0\u202f\u2009"})))
+
+
+def test_stripping_separators_does_not_invent_a_number():
+    with pytest.raises(ExecutorError, match="not numeric"):
+        to_number("5 apples")
+
+
+def test_the_miner_and_the_executor_agree_on_every_value():
+    """The regression guard. These two parsers disagreed by a factor of 100 on every
+    percentage, and nothing in the suite noticed, because each was tested alone."""
+    from chartqa_dt.plans.mining import to_number as mining_to_number
+    for cell in ["5.3%", "81.9%", "3 071", "1,234", "-4.5", "0", "1\xa0000", "$12"]:
+        assert mining_to_number(cell) == pytest.approx(to_number(cell)), cell
+    for cell in ["Nigeria", "", "n/a", "5 apples"]:
+        assert mining_to_number(cell) is None, cell
+        with pytest.raises(ExecutorError):
+            to_number(cell)
 
 
 # ----------------------------------------------------------------------- depth

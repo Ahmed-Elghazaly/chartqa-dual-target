@@ -34,7 +34,15 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from chartqa_dt.plans.executor import MAX_DEPTH, OPS, EvidenceItem, execute, plan_depth
+from chartqa_dt.plans.executor import (
+    MAX_DEPTH,
+    OPS,
+    EvidenceItem,
+    execute,
+    folds_over_evidence,
+    plan_depth,
+    plan_labels,
+)
 from chartqa_dt.plans.mining import matches_gold
 from chartqa_dt.plans.schema import MAX_EVIDENCE
 
@@ -51,6 +59,7 @@ UNKNOWN_LABEL = "rejected:operand_not_in_evidence"
 RAISES = "rejected:executor_refused"
 WRONG_ANSWER = "rejected:does_not_reproduce_the_answer"
 WRONG_OPERANDS = "rejected:operands_outside_the_marked_regions"
+TOO_MUCH_EVIDENCE = "rejected:needs_more_evidence_than_the_schema_allows"
 
 
 @dataclass
@@ -137,8 +146,16 @@ def verify(plan: Any, *, answer: Any, evidence: Sequence[dict[str, Any]],
 
     items = [EvidenceItem(str(e.get("label")), e.get("value"), e.get("unit"))
              for e in evidence]
-    if len(items) > MAX_EVIDENCE:
-        return Verdict(BAD_SHAPE, detail=f"{len(items)} evidence items")
+    # The cap applies to the evidence the TARGET will carry, which `train.targets`
+    # selects as the items the plan names -- not to the pool of candidates it chose from.
+    # Applying it to the pool rejected `lookup('2019')` on any chart with more than eight
+    # elements, which is 64.4% of ChartQA, and reported it as a malformed plan. Only a
+    # plan that folds over everything needs the whole chart, and for those the cap is real.
+    needed = len(items) if folds_over_evidence(plan) else len(set(plan_labels(plan)))
+    if needed > MAX_EVIDENCE:
+        return Verdict(TOO_MUCH_EVIDENCE, plan=plan,
+                       detail=f"the plan needs {needed} evidence items, over the "
+                              f"schema's {MAX_EVIDENCE}")
     known = {i.label for i in items}
     used = set(_labels_in(plan))
     missing = sorted(used - known)
@@ -158,7 +175,10 @@ def verify(plan: Any, *, answer: Any, evidence: Sequence[dict[str, Any]],
         return Verdict(WRONG_ANSWER, plan=plan, executed=got,
                        detail=f"executed {got!r} against answer {answer!r}")
 
-    if marked_labels is not None and used and not used <= marked_labels:
+    # An EMPTY set means "this source has no grounding", not "nothing may be used". Passing
+    # `set()` for an ungrounded ChartQA record put every operand outside the marked regions
+    # and rejected all 25 correct proposals in the first end-to-end run.
+    if marked_labels and used and not used <= marked_labels:
         outside = sorted(used - marked_labels)
         return Verdict(WRONG_OPERANDS, plan=plan, executed=got,
                        detail=f"{outside[0]!r} is not a marked region")
@@ -187,6 +207,7 @@ __all__ = [
     "RAISES",
     "TOO_DEEP",
     "TOO_MANY_ARGS",
+    "TOO_MUCH_EVIDENCE",
     "UNKNOWN_LABEL",
     "WRONG_ANSWER",
     "WRONG_OPERANDS",

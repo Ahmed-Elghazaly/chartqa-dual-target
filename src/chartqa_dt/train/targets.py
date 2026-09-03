@@ -30,6 +30,10 @@ from typing import Any
 
 from chartqa_dt.data.records import ELEMENTS_KEY, ChartRecord
 from chartqa_dt.eval.metrics import to_float
+from chartqa_dt.plans.executor import (
+    folds_over_evidence,
+    plan_labels,
+)
 from chartqa_dt.plans.roundtrip import check_record
 from chartqa_dt.plans.schema import MAX_EVIDENCE, validate_record
 from chartqa_dt.prompting.parsing import parse_record
@@ -59,42 +63,6 @@ def _table_values(record: ChartRecord) -> dict[str, Any]:
                 out.setdefault(label, number)
                 break
     return out
-
-
-def plan_labels(plan: Any) -> list[str]:
-    """Every evidence label a plan refers to, in order, depth-first."""
-    out: list[str] = []
-    if not isinstance(plan, dict):
-        return out
-    for arg in plan.get("args") or []:
-        if isinstance(arg, str):
-            out.append(arg)
-        elif isinstance(arg, dict):
-            out.extend(plan_labels(arg))
-    return out
-
-
-#: Operations that fold over **every** evidence item when their `args` are empty. This is
-#: the compact form `DECISIONS.md` 0041 introduced so an L3 aggregate could stay inside the
-#: schema's `maxItems: 4`. Its consequence is that such a plan's meaning depends on what is
-#: in the evidence list, which is why evidence selection has to know about it.
-FOLD_OPS = frozenset({"sum", "mean", "median", "min", "max", "count",
-                      "argmin", "argmax", "trend"})
-
-
-def folds_over_evidence(plan: Any) -> bool:
-    """Whether any node in the tree folds over the whole evidence list.
-
-    `{"op": "mean", "args": []}` means *the mean of everything on the chart*. Selecting
-    evidence by the labels a plan names — right for every other plan — hands such a node a
-    one-item list, and the fold quietly returns that item instead of the aggregate.
-    """
-    if not isinstance(plan, dict):
-        return False
-    op, args = plan.get("op"), plan.get("args") or []
-    if op in FOLD_OPS and not [a for a in args if isinstance(a, str)]:
-        return True
-    return any(folds_over_evidence(a) for a in args if isinstance(a, dict))
 
 
 #: How far the gold table's value for a label may sit from the value of the element whose
@@ -170,7 +138,14 @@ def _evidence_from(record: ChartRecord) -> list[dict[str, Any]]:
     # it one evidence item and the mean is that item, so the difference is exactly zero.
     # That is what happened to **all 6,000 L4 records** — the compositional level, and the
     # scarcest supervision in the mixture (`DECISIONS.md` 0071).
-    if elements and wanted and folds_over_evidence(record.plan):
+    # `wanted` is deliberately NOT required here. A plan that folds and also names a
+    # label -- `difference("Alpha", mean-of-everything)` -- was caught; a plan that
+    # only folds -- a bare `argmax()`, the common case -- has no labels at all and fell
+    # through to the truncating branch below, silently keeping the first eight elements
+    # of a chart with more. The round-trip then refused the record with *"own plan does
+    # not reproduce its own answer"*, blaming the plan for evidence we had cut. The
+    # median ChartQA chart has 10 elements and 64.4% have more than eight.
+    if elements and folds_over_evidence(record.plan):
         if len(elements) > MAX_EVIDENCE:
             raise TargetError(
                 f"{record.record_id}: the plan folds over all {len(elements)} elements, "

@@ -4068,3 +4068,76 @@ records. The one record whose gold answer contradicts its gold table (`[24]`, *"
 bestselling car brand"* — gold says Chevrolet at 14.97%, the table's maximum is Suzuki at
 18.45%) is a reminder that a ceiling below 100% exists in the data itself and is not
 recoverable by any mining method.
+
+---
+
+## 0082 — Two parsers disagreed by 100x, and only the new pipeline could see it
+
+**Context.** Building the LLM mining path end to end and running it on 40 unbiased ChartQA
+records accepted **0 of 25** correct proposals. None of the failures were the teacher's.
+Four defects were behind it, each measured over real data before anything was changed.
+
+**1. `mining.to_number` and `executor.to_number` disagreed about every percentage.**
+
+| cell | miner | executor | |
+|---|---|---|---|
+| `'5.3%'` | 5.3 | 0.053 | **100x apart** |
+| `'3 071'` | `None` | *raises* | |
+
+A plan mined against a table value of 5.3 was executed against an evidence value of 0.053, so
+every percentage chart failed its own round-trip. Which scale is right is not a matter of
+taste: **0 of 32,719 ChartQA gold answers and 0 of 3,996 RefChartQA answers carry a `%`
+sign**, so the divided form can never agree with an answer. The undivided one is correct and
+the `%` is kept in `EvidenceItem.unit`, where `check_units` can still see it.
+
+This is a *different function* from `eval.metrics.to_float`, which parses gold ANSWERS,
+stays byte-faithful to the official evaluator and keeps its division (0045). Confusing the
+two is how this survived — an earlier proposal to remove the division from `to_float` was
+correctly reversed by measurement, and the reversal did not reach `to_number`.
+
+**2. Spaced thousands.** `'3 071'` is what 20.7% of ChartQA charts carry, in one of four
+space characters. `scripts/align_refchartqa.py` already normalised these, but that fix was
+local to the aligner and never reached the shared parser.
+
+**3. A bare aggregate lost its evidence silently.** `_evidence_from`'s fold guard required
+the plan to *name* a label, so it caught `difference("Alpha", mean-of-everything)` and missed
+a bare `argmax()` — the common case, which has no labels at all and fell through to the
+branch that keeps the first eight elements. On a 12-element chart, `argmax()` over the first
+eight returns the wrong label. **The median ChartQA chart has 10 elements and 64.4% have more
+than eight.** Nothing wrong shipped — `build_target`'s round-trip refused the record — but it
+refused it with *"own plan does not reproduce its own answer"*, blaming the plan for evidence
+we had cut, and the loss was invisible.
+
+**4. Two bugs in the new verifier itself.** It applied `MAX_EVIDENCE` to the *pool of
+candidates* rather than to the evidence the plan needs, rejecting `lookup('2019')` on any
+chart with more than eight elements and reporting it as a malformed plan; and it treated
+`marked_labels=set()` — an ungrounded ChartQA record — as "nothing may be used" rather than
+"no grounding here".
+
+**Decision.** One parser, `executor.parse_numeric`, used by both modules, with a test that
+asserts they agree on every value. `plan_labels`, `FOLD_OPS` and `folds_over_evidence` move
+to `executor.py`, where a plan-tree property belongs, so the verifier and the target builder
+share one definition of "folds over everything" instead of two. The fold guard no longer
+requires named labels. The verifier's cap applies to the evidence a plan needs, and an empty
+marked set means absent.
+
+**Evidence.**
+
+| | accepted |
+|---|---|
+| LLM path, before | 11/25 (44%) |
+| LLM path, after | **22/25 (88%)** |
+| deterministic path, before | 158 targets |
+| deterministic path, after | 158 targets — **no change** |
+
+**Consequences.** The most useful thing here is the zero. The parser inconsistency changed
+nothing for the deterministic miner, because that miner only produces a plan in the cases
+where the two parsers happened to agree — it refuses percentage charts as `ambiguous` and
+drops spaced thousands as unparsable long before the executor sees them. The defect was
+therefore **invisible for as long as only the old pipeline ran, and halves the yield of the
+new one**. It is a warning about the audit itself: a component can be correct under every
+input the current system gives it and wrong under the inputs the next system will.
+
+End to end on 40 unbiased ChartQA records, the teacher now yields **22 verified plans (55%)**
+against the deterministic miner's 15–25%. Of the 15 refusals, **6 are duplicate labels across
+series** — `AUDIT.md` H3, still open, and now the largest single blocker.
