@@ -451,6 +451,46 @@
    "_note": "The n=24 probes had reported round-trip at 40-50%; at n=200 it is 69%, confirming DECISIONS.md 0062 that the small probes were noise.",
    "_denominators": "relaxed_accuracy, valid_json and schema_valid are over all 200 questions; roundtrip_agreement and roundtrip_executable are over the 71 schema-valid records only (49/71 and 67/71). Re-scored on the 93 post-repair schema-valid records they are 65.6% and 84.9%.",
    "roundtrip_agreement_pct_of_all_200": 24.5
+  },
+  "chartqa_zeroshot_5_3": {
+   "_method": "PLAN 5.3. Full frozen ChartQA VALIDATION split, 1,920 questions, both prompts over the same items so the gap is attributable to the output format alone. Qwen3-VL-2B-Instruct, 4-bit, 512 px, T4.",
+   "_measured": "2026-08-29",
+   "n": 1920,
+   "structured": {
+    "relaxed_accuracy_pct": 48.75,
+    "ci_pct": [
+     46.56,
+     50.99
+    ],
+    "by_subset_pct": {
+     "human": 43.44,
+     "machine": 54.06
+    },
+    "valid_json_pct": 67.5,
+    "schema_valid_pct": 49.48,
+    "roundtrip_agreement_pct": 58.84,
+    "roundtrip_executable_pct": 77.26,
+    "median_latency_s": 10.49,
+    "median_new_tokens": 177.5,
+    "hit_token_cap_pct": 26.04,
+    "_denominators": "relaxed_accuracy, valid_json and schema_valid are over all 1,920 questions; roundtrip_* are over the schema-valid records"
+   },
+   "plain": {
+    "relaxed_accuracy_pct": 72.55,
+    "ci_pct": [
+     70.52,
+     74.53
+    ],
+    "by_subset_pct": {
+     "human": 62.6,
+     "machine": 82.5
+    },
+    "median_latency_s": 0.33,
+    "median_new_tokens": 4.0
+   },
+   "structured_output_cost_points": 23.8,
+   "_finding": "Asking for the full structured record costs 23.80 points of relaxed accuracy against the plain published prompt, on identical items. Published work reports 4-9 points for requesting JSON alone; this asks for evidence boxes, a typed plan and an answer.",
+   "_vs_n200_probe": "The n=200 slice gave 50.0% accuracy and 69.0% round-trip. At n=1,920 they are 48.75% and 58.84%. Accuracy was inside the probe's interval; round-trip was 10 points optimistic, which is the small-sample lesson of DECISIONS.md 0062 recurring."
   }
  },
  "phase6": {
