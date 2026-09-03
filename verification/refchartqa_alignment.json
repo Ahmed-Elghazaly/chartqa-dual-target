@@ -2,9 +2,16 @@
  "min_iou": 0.9,
  "min_margin": 0.5,
  "cached_records": 3996,
+ "plan:miner:ambiguous": 1557,
  "aligned": 3405,
+ "plan:agreed": 660,
  "no_chartqa_elements": 522,
+ "plan:miner:category_answer": 196,
+ "plan:miner:non_numeric": 771,
+ "plan:miner:none": 179,
  "refused_low_confidence_or_ambiguous": 69,
+ "plan:operands_outside_the_marked_regions": 41,
+ "plan:marked_regions_unused_by_the_plan": 1,
  "aligned_pct": 85.21,
  "_note": "Counts only. The aligned records themselves hold labels and values, which are dataset content, so they live in the data cache (rule 7)."
 }

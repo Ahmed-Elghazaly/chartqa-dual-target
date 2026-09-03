@@ -1,0 +1,52 @@
+{
+ "stats": {
+  "charts": 5132,
+  "elements": 63069,
+  "exact": 58961,
+  "no_relation": 1821,
+  "element_is_a_PREFIX_of_a_table_label": 1964,
+  "table_label_is_a_prefix_of_the_element": 323
+ },
+ "examples": [
+  {
+   "element": "Postgraduate",
+   "table": "Postgraduate College grad Some college HS for less",
+   "chart": "7b6a2e77cd8a"
+  },
+  {
+   "element": "Postgraduate",
+   "table": "Postgraduate College grad Some college HS for less",
+   "chart": "7b6a2e77cd8a"
+  },
+  {
+   "element": "Postgraduate",
+   "table": "Postgraduate College grad Some college HS for less",
+   "chart": "7b6a2e77cd8a"
+  },
+  {
+   "element": "Postgraduate",
+   "table": "Postgraduate College grad Some college HS for less",
+   "chart": "7b6a2e77cd8a"
+  },
+  {
+   "element": "August to",
+   "table": "August to October 2012",
+   "chart": "b2c0daa109a1"
+  },
+  {
+   "element": "November",
+   "table": "November 2012 to January 2013",
+   "chart": "b2c0daa109a1"
+  },
+  {
+   "element": "March to May",
+   "table": "March to May 2013",
+   "chart": "b2c0daa109a1"
+  },
+  {
+   "element": "March to May",
+   "table": "March to May 2013",
+   "chart": "b2c0daa109a1"
+  }
+ ]
+}

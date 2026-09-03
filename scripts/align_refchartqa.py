@@ -41,6 +41,8 @@ sys.path.insert(0, str(_ROOT))
 from chartqa_dt.config import build_config  # noqa: E402
 from chartqa_dt.data.records import ELEMENTS_KEY, ChartRecord  # noqa: E402
 from chartqa_dt.env import get_env  # noqa: E402
+from chartqa_dt.plans.mining import mine_plan  # noqa: E402
+from chartqa_dt.train.targets import plan_labels  # noqa: E402
 
 #: Deliberately strict. 98.9% of boxes already clear IoU 0.9, so precision costs ~nothing.
 MIN_IOU = 0.90
@@ -127,6 +129,72 @@ def align_record(record: ChartRecord, elements: list[dict]) -> dict | None:
     return {"record_id": record.record_id, ELEMENTS_KEY: matched}
 
 
+def labels_cover(used: set[str], marked: set[str]) -> bool:
+    """Is every operand the miner read one of the regions the annotation marks?
+
+    Compared with truncation tolerance. ChartQA's *element* labels are stored as drawn and
+    are clipped: the table says `'MSCI Global, excluding U.S.'` where the annotation says
+    `'MSCI Global, excluding'`. Measured over 63,069 elements — 93.5% match the table
+    exactly, **3.1% are a prefix of it**, 0.5% the reverse. Comparing on equality alone
+    counted those as the miner reading the wrong rows, which they are not.
+
+    A prefix is accepted only when it is **unambiguous**: if the truncated label prefixes two
+    different marked regions, the pairing is unknown and the record is not certified.
+    """
+    for operand in used:
+        exact = operand in marked
+        if exact:
+            continue
+        prefixes = [m for m in marked
+                    if operand.startswith(m) or m.startswith(operand)]
+        if len(prefixes) != 1:
+            return False
+    return True
+
+
+def mine_grounded_plan(record: ChartRecord, table: dict | None,
+                       marked: list[dict]) -> tuple[dict | None, str]:
+    """Mine a plan, and keep it only if it uses **the regions RefChartQA marked**.
+
+    This is the check the deterministic miner cannot make on its own. `mine_plan` accepts an
+    operation when exactly one reproduces the gold answer — but *numerical agreement is not
+    semantic correctness*, and a plan can hit the right number through the wrong rows
+    (`Prompt.md` Idea 7; `DECISIONS.md` 0045 recorded `difference -> 2096` explaining a gold
+    answer of `2019`).
+
+    RefChartQA independently states which regions a correct answer uses. So when the miner's
+    operands are exactly those regions, two independent sources agree on both the *value*
+    and the *operands*, which is far stronger than either alone. When they disagree, the
+    mined plan reached the right number from the wrong marks and is **rejected** — the
+    grounding is trusted over the arithmetic, because the grounding is gold and the plan is
+    inferred.
+
+    Returns the plan and a status, so the rejection rate is measurable rather than silent.
+    """
+    if not table or record.answer is None:
+        return None, "no_table"
+    rows = [table.get("columns") or [], *(table.get("rows") or [])]
+    if len(rows) < 2:
+        return None, "no_table"
+
+    mined = mine_plan(rows, record.answer)
+    if mined.plan is None:
+        return None, f"miner:{mined.status}"
+
+    wanted = {str(label) for label in plan_labels(mined.plan)}
+    if not wanted:
+        return None, "plan_uses_no_named_operand"
+    marked_labels = {str(e.get("label")) for e in marked}
+    if not labels_cover(wanted, marked_labels):
+        return None, "operands_outside_the_marked_regions"
+    if not labels_cover(marked_labels, wanted):
+        # The question marks regions the plan never reads. That is not necessarily wrong —
+        # a grounding annotation may include context — but it is not the clean agreement
+        # this path exists to certify, so it is recorded rather than accepted.
+        return None, "marked_regions_unused_by_the_plan"
+    return mined.plan, "agreed"
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out", type=Path, default=None,
@@ -168,8 +236,13 @@ def main() -> int:
             if aligned is None:
                 stats["refused_low_confidence_or_ambiguous"] += 1
                 continue
-            aligned["table"] = table_by_image.get(r.image_sha256)
+            table = table_by_image.get(r.image_sha256)
+            aligned["table"] = table
             aligned["n_boxes"] = len(r.boxes or [])
+            plan, plan_status = mine_grounded_plan(r, table, aligned[ELEMENTS_KEY])
+            if plan is not None:
+                aligned["plan"] = plan
+            stats[f"plan:{plan_status}"] += 1
             fh.write(json.dumps(aligned) + "\n")
             written += 1
             stats["aligned"] += 1

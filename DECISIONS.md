@@ -3779,3 +3779,72 @@ because a record is either ChartQA-sourced or RefChartQA-sourced.
 **Consequences.** 1,864 records now carry real labels, real chart values and a round-trip
 that can actually fail. Still open: **1,933 multi-box records have no plan**, but now have
 labels, values *and* a table — so they are minable, which is the natural next step.
+
+---
+
+## 0078 — Gold grounding certifies a mined plan's operands, and measures the miner
+
+**Context.** `Prompt.md` Idea 7 states the concern precisely: *numerical agreement is not
+semantic correctness*. `mine_plan` accepts an operation when exactly one reproduces the gold
+answer, and a plan can reach the right number through the wrong rows. The brief proposed a
+hand-built audit set to measure this, because nothing automatic could.
+
+**The observation.** RefChartQA independently states **which regions a correct answer uses**.
+Once its boxes carry semantic identity (0077), a mined plan's operands can be compared with
+those regions. Two independent gold sources then have to agree on the *value* and on the
+*operands* — a far stronger acceptance test than either alone, and a measurement of the
+miner that needs no hand-labelling.
+
+**Decision.** `mine_grounded_plan` mines against the chart's table and keeps the plan only if
+its operands and the marked regions cover each other. A plan that reaches the right number
+from marks the annotation does not consider relevant is **rejected**: the grounding is gold
+and the plan is inferred, so the grounding wins.
+
+⚠️ **The first version of this measurement was wrong, and the error is instructive.** It
+compared labels by equality and reported a 12.7% semantic error rate. Inspecting the
+disagreements showed most were not errors:
+
+```
+miner reads   'MSCI Global, excluding U.S.'      (from the table)
+annotation    'MSCI Global, excluding'           (as drawn on the axis)
+```
+
+ChartQA's **element labels are truncated** relative to its table labels — measured over
+63,069 elements: 93.5% exact, **3.1% a prefix**, 0.5% the reverse, 2.9% unrelated
+(`audit/measure_label_truncation.py`). `labels_cover` now tolerates an **unambiguous** prefix
+in either direction; a truncated label that prefixes two marked regions is still refused,
+because the pairing is unknown.
+
+**Result — the deterministic miner, measured against gold operand identity:**
+
+| | |
+|---|---:|
+| unique plans mined on aligned records | 702 |
+| operands agree with the gold grounding | **660** |
+| operands disagree | **41** |
+| **semantic precision** | **94.0%** |
+
+And its failure profile on 3,405 aligned records:
+
+| outcome | | share |
+|---|---:|---:|
+| **ambiguous** — several operations give the answer | **1,557** | **45.7%** |
+| answer is not numeric | 771 | 22.6% |
+| **plan accepted** | **660** | **19.4%** |
+| answer is a category | 196 | 5.8% |
+| nothing fits | 179 | 5.3% |
+| wrong operands | 41 | 1.2% |
+
+**The finding that matters.** The deterministic miner is **not inaccurate — it is
+low-recall**. 94% of what it accepts is semantically right; it simply accepts very little,
+and its dominant failure (45.7%) is *ambiguity*, which is a question-understanding problem it
+structurally cannot solve because it never reads the question.
+
+**Consequences.** RefChartQA usable targets are 2,021 of 3,996 (50.6%), against 2,063 before
+alignment — nearly the same count from an entirely different composition: real labels, real
+chart values, 660 plans certified on both value and operands, and a round-trip that can
+actually fail rather than passing by construction.
+
+This also establishes a **calibration set**: 3,405 records where gold operand identity
+exists. Any future miner — deterministic or LLM-assisted — can have its semantic precision
+measured here before being trusted on ChartQA, where no such check exists.

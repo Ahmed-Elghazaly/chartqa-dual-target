@@ -208,7 +208,8 @@ def refchartqa_records(*, cap: int, cache: Path) -> list[ChartRecord]:
                 out.append(r)
                 continue
             meta = {**r.meta, ELEMENTS_KEY: a[ELEMENTS_KEY], "aligned_to_chartqa": True}
-            out.append(replace(r, meta=meta, table=r.table or a.get("table")))
+            out.append(replace(r, meta=meta, table=r.table or a.get("table"),
+                               plan=r.plan or a.get("plan")))
             enriched += 1
         records = out
         print(f"  refchartqa: {enriched:,} of {len(records):,} records enriched with "
