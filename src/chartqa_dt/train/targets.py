@@ -97,6 +97,47 @@ def folds_over_evidence(plan: Any) -> bool:
     return any(folds_over_evidence(a) for a in args if isinstance(a, dict))
 
 
+#: How far the gold table's value for a label may sit from the value of the element whose
+#: box we are about to emit, before we call them different marks. 2% is loose enough for the
+#: two sources rounding differently and tight enough to catch the swapped pairs below.
+VALUE_AGREEMENT_TOLERANCE = 0.02
+
+
+def values_agree(table_value: Any, element_value: Any) -> bool:
+    """Do the gold table and the chart annotation describe the *same mark*?
+
+    An evidence entry takes its **value** from the table and its **box** from the
+    annotation, joined only by a label string. On 110 of 1,893 measured entries the two
+    sources disagree, and they disagree in *swapped pairs* — the table says Finland is 9.4
+    and Hungary 9.9 while the annotation has them the other way round. Emitting such an
+    entry teaches the model to box one mark and state another's number, which is exactly
+    the association this project exists to teach (`DECISIONS.md` 0075).
+
+    **The 100x case is not a disagreement.** `to_float` divides a "%" cell by 100 because
+    the *official metric* does: `relaxed_correctness(gold="81.9%", pred="0.819")` is True
+    and `pred="81.9"` is False. So a table value of 0.819 beside an annotation value of
+    81.9 is the convention the evaluator requires, not an error. Measured: all 29 records
+    in that state ship scale-invariant plans (27 `ratio`, 2 `count`) and every one of them
+    round-trips.
+    """
+    a, b = to_float(table_value), to_float(element_value)
+    if a is None or b is None:
+        return True                      # nothing to compare; other guards handle it
+    if abs(a - b) <= VALUE_AGREEMENT_TOLERANCE * max(abs(a), abs(b), 1e-9):
+        return True
+    return abs(a * 100.0 - b) <= VALUE_AGREEMENT_TOLERANCE * max(abs(b), 1e-9)
+
+
+def _refuse_on_value_disagreement(record: ChartRecord, label: str,
+                                  table_value: Any, element: dict[str, Any]) -> None:
+    if not values_agree(table_value, element.get("value")):
+        raise TargetError(
+            f"{record.record_id}: the gold table says {label!r} is {table_value!r} but the "
+            f"annotated element we would box has value {element.get('value')!r}. The two "
+            f"sources disagree about which mark this label names, so the target would "
+            f"point at one mark and state another's number.")
+
+
 def _evidence_from(record: ChartRecord) -> list[dict[str, Any]]:
     """Evidence entries — **the ones the plan needs**, not the first `MAX_EVIDENCE` boxes.
 
@@ -141,10 +182,15 @@ def _evidence_from(record: ChartRecord) -> list[dict[str, Any]]:
             raise TargetError(
                 f"{record.record_id}: the plan references {missing[0]!r}, which has no "
                 f"element box.")
-        return [entry(e.get("label"), table_values.get(str(e.get("label")),
-                                                       e.get("value")),
-                      e.get("unit"), e["bbox"])
-                for e in elements if e.get("bbox") is not None]
+        folded = []
+        for e in elements:
+            if e.get("bbox") is None:
+                continue
+            label = str(e.get("label"))
+            value = table_values.get(label, e.get("value"))
+            _refuse_on_value_disagreement(record, label, value, e)
+            folded.append(entry(label, value, e.get("unit"), e["bbox"]))
+        return folded
 
     if elements and wanted:
         by_label: dict[str, dict[str, Any]] = {}
@@ -160,6 +206,7 @@ def _evidence_from(record: ChartRecord) -> list[dict[str, Any]]:
                     f"element box. Emitting the record without it would train a plan "
                     f"that cannot execute.")
             value = table_values.get(label, element.get("value"))
+            _refuse_on_value_disagreement(record, label, value, element)
             picked.append(entry(label, value, element.get("unit"), element["bbox"]))
         if len(picked) > MAX_EVIDENCE:
             raise TargetError(f"{record.record_id}: the plan needs {len(picked)} evidence "

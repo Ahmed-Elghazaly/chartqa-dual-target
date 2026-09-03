@@ -3570,3 +3570,141 @@ Nothing real lives between 90% and 62%.
 `scripts/measure_target_yield.py`; it is the backstop for the defect of this shape that has
 not been written yet. A run that legitimately needs to refuse more than a tenth of its
 mixture is a run whose mixture should be rebuilt, and the exception says so.
+
+---
+
+## 0075 — An evidence entry's value and its box must describe the same mark
+
+**Context.** The deep audit (`Prompt.md`, `AUDIT.md` C1) traced how a ChartQA evidence entry
+is built. It takes its **value** from the gold table and its **box** from the chart
+annotation, joined by nothing but a label string:
+
+```python
+value = table_values.get(label, element.get("value"))   # first numeric cell of that row
+bbox  = by_label[label]["bbox"]                          # first element with that label
+```
+
+`DECISIONS.md` 0067 made the table the value authority for a good reason — reading values
+from the annotation made 35 of 105 records disagree with their own answer. It did not check
+that the two sources agree about *which mark* a label names.
+
+**Measurement.** `audit/measure_value_box_agreement.py` over the 2,401 ChartQA records in
+`data/mixture_stage2.json` that shipped a target:
+
+| | |
+|---|---:|
+| evidence entries examined | 1,893 |
+| entries whose emitted value ≠ the boxed element's value | **174 (9.2%)** |
+| — genuine table↔annotation disagreement | **110** |
+| — percent convention (100×) | 61 |
+| — rounding | 3 |
+| records shipping at least one | **86 (3.6%)** |
+
+The genuine disagreements arrive in **swapped pairs**:
+
+```
+Finland         table 9.4    annotation 9.9
+Hungary         table 9.9    annotation 9.4
+United Kingdom  table 12.5   annotation 14.2
+Portugal        table 14.2   annotation 12.5
+```
+
+So the target boxed one mark and stated another's number — the exact association this
+project exists to teach.
+
+**Why nothing caught it.** The round-trip check executes the plan and compares with the
+stated answer. When the plan does not consume the mismatched value — a `count`, an `argmax`,
+a plan over other labels — it passes with the wrong value in place. This is the concrete
+instance of *executor agreement is not semantic correctness*.
+
+**The 100× cases are NOT a defect, and this is the part the audit got wrong first.** My
+initial recommendation was to stop dividing percentages by 100. Measurement reversed it:
+
+```
+to_float("81.9%")                              -> 0.819
+relaxed_correctness(gold="81.9%", pred="0.819") -> True
+relaxed_correctness(gold="81.9%", pred="81.9")  -> False
+```
+
+The **official metric** parses a percentage as a fraction, so emitting 0.819 is what scores
+correctly and emitting 81.9 scores wrong. The convention is required, not accidental. All 29
+records in that state ship scale-invariant plans (27 `ratio`, 2 `count`) and every one
+round-trips. Removing the conversion would have broken working supervision.
+
+**Decision.** `values_agree(table_value, element_value)` accepts a match within 2%, accepts
+the 100× percent relation, and accepts an unparseable value (other guards own that case).
+Anything else raises `TargetError` naming both numbers. Applied in both the by-label branch
+and the fold-over-evidence branch.
+
+**Result.**
+
+| | before | after |
+|---|---:|---:|
+| genuine value/box disagreements | 110 | **0** |
+| percent convention (kept) | 61 | 61 |
+| rounding (kept) | 3 | 3 |
+| stage-2 usable records | 6,304 | **6,244** |
+
+**55 records — 0.9% of yield — to remove 110 entries of wrong grounding supervision.**
+
+**Consequences.** The audit's wider point stands: this defect was invisible to every gate the
+project had, because each gate checks a *different* property. Schema validity, plan
+executability and round-trip agreement are all satisfied by a target that boxes the wrong
+mark. The only thing that catches it is comparing the two provenances directly, which is now
+done.
+
+It also means the annotation and the table disagree on roughly 6% of labels. Which of the two
+is right is not established here — the gate refuses the record either way rather than
+choosing, because choosing wrongly would keep bad supervision rather than remove it.
+
+---
+
+## 0076 — The grounding monitor scores only question-specific ground truth
+
+**Context.** `PLAN.md` 6.5 asks for validation grounding AP during training.
+`cli/train.py` built the monitoring items with `"boxes": list(record.boxes or [])`, and
+`train/monitor.py` uses that as ground truth for AP@0.5.
+
+The audit found that `record.boxes` has no single meaning:
+
+| writer | what it holds |
+|---|---|
+| `data/chartqa.py` | **every element in the chart** |
+| `data/refchartqa.py` | **this question's** gold grounding |
+| synthetic reader | **this question's** exact evidence |
+| `data/dedup.py` | the union of whichever two merged |
+
+**Measurement.** `audit/measure_boxes_semantics.py` on `data/mixture_stage2.json`:
+
+| source | records | median `boxes` | median elements |
+|---|---:|---:|---:|
+| chartqa | 2,408 | **10** | 10 |
+| refchartqa | 1,896 | 1 | 0 |
+| synthetic | 2,000 | 2 | 2 |
+
+> **2,321 of 2,403 ChartQA records (96.6%) carried more ground-truth boxes than their own
+> target emits, by a median factor of 10×.**
+
+**Problem.** AP was being computed against every bar in the chart while the model is trained
+to emit only what the answer needs. Recall is capped near 1/10 for a reason that has nothing
+to do with the model, and `PLAN.md` 6.6 uses that curve to decide whether to extend training.
+The number was not merely noisy; it was measuring a different quantity.
+
+**Decision.** `grounding_truth_for(record)` returns question-specific grounding only —
+RefChartQA and synthetic — and `[]` for ChartQA. A ChartQA record contributes to the answer
+metrics and to nothing else, which is correct: ChartQA has no per-question grounding to score
+against. `MetricOutcome.ap50` already excludes box-less samples, so the exclusion needs no
+second mechanism.
+
+**Alternative rejected.** Deriving per-question ground truth for ChartQA from the mined
+plan's labels. That would score the model against *our own derivation* rather than an
+annotation, so a grounding error and a mining error would be indistinguishable. Excluding
+the record measures less and claims less.
+
+**Consequences.** Validation AP now reflects only records that have real question grounding —
+about 3,896 of the 6,244 stage-2 records. That is a smaller sample and a correct one.
+
+The deeper problem remains open and is recorded as `AUDIT.md` C2: one field with three
+meanings is the kind of interface that produces this class of bug repeatedly. Separating
+chart **elements** from question **evidence** in the record is the structural fix, and it is
+a schema change that needs its own decision.

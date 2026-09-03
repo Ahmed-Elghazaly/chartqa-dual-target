@@ -1,14 +1,13 @@
 {
  "stats": {
-  "records": 2401,
-  "unparseable_value": 878,
-  "records_with_a_mismatch": 86,
-  "evidence_entries": 1893,
-  "entries_on_ambiguous_label": 45,
-  "MISMATCH": 174,
+  "records": 2346,
+  "unparseable_value": 876,
+  "records_with_a_mismatch": 31,
+  "evidence_entries": 1777,
+  "entries_on_ambiguous_label": 44,
+  "MISMATCH": 64,
   "cause_percent_scale": 61,
-  "mismatch_on_ambiguous_label": 3,
-  "cause_genuine_disagreement": 110,
+  "mismatch_on_ambiguous_label": 2,
   "cause_rounding": 3
  },
  "examples": [
@@ -69,60 +68,60 @@
    "question": "How many segments are there?"
   },
   {
-   "record": "chartqa_train_8f2d9e596486978e",
-   "label": "Finland",
-   "emitted_value_from_table": 9.4,
-   "value_of_the_boxed_element": 9.9,
+   "record": "chartqa_train_71a96235744384bc",
+   "label": "France",
+   "emitted_value_from_table": 0.12,
+   "value_of_the_boxed_element": 12.0,
    "label_names_n_elements": 1,
    "all_values_for_that_label": [
-    "9.9"
+    12.0
    ],
    "series": [
-    "bars"
+    "pie"
    ],
-   "question": "Calculate the average of all the bars in this graph?"
+   "question": "What's the ratio of red segment and largest segment of pie?"
   },
   {
-   "record": "chartqa_train_8f2d9e596486978e",
-   "label": "Hungary",
-   "emitted_value_from_table": 9.9,
-   "value_of_the_boxed_element": 9.4,
+   "record": "chartqa_train_71a96235744384bc",
+   "label": "Luxembourg",
+   "emitted_value_from_table": 0.27,
+   "value_of_the_boxed_element": 27.0,
    "label_names_n_elements": 1,
    "all_values_for_that_label": [
-    "9.4"
+    27.0
    ],
    "series": [
-    "bars"
+    "pie"
    ],
-   "question": "Calculate the average of all the bars in this graph?"
+   "question": "What's the ratio of red segment and largest segment of pie?"
   },
   {
-   "record": "chartqa_train_8f2d9e596486978e",
-   "label": "United Kingdom",
-   "emitted_value_from_table": 12.5,
-   "value_of_the_boxed_element": 14.2,
+   "record": "chartqa_train_8833fdac134f1be9",
+   "label": "Disagree",
+   "emitted_value_from_table": 0.8440000000000001,
+   "value_of_the_boxed_element": 84.4,
    "label_names_n_elements": 1,
    "all_values_for_that_label": [
-    "14.2"
+    84.4
    ],
    "series": [
-    "bars"
+    "pie"
    ],
-   "question": "Calculate the average of all the bars in this graph?"
+   "question": "What is the ratio of disagree to agree?"
   },
   {
-   "record": "chartqa_train_8f2d9e596486978e",
-   "label": "Portugal",
-   "emitted_value_from_table": 14.2,
-   "value_of_the_boxed_element": 12.5,
+   "record": "chartqa_train_8833fdac134f1be9",
+   "label": "Agree",
+   "emitted_value_from_table": 0.156,
+   "value_of_the_boxed_element": 15.6,
    "label_names_n_elements": 1,
    "all_values_for_that_label": [
-    "12.5"
+    15.6
    ],
    "series": [
-    "bars"
+    "pie"
    ],
-   "question": "Calculate the average of all the bars in this graph?"
+   "question": "What is the ratio of disagree to agree?"
   }
  ]
 }

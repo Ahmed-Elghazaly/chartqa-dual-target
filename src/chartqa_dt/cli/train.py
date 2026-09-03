@@ -203,8 +203,27 @@ def _holdout_examples(ctx, records, feed) -> tuple[list, list]:
         examples.append(example)
         items.append({"record_id": record.record_id, "question": record.question,
                       "image": example.image, "answer": str(record.answer or ""),
-                      "boxes": list(record.boxes or [])})
+                      "boxes": grounding_truth_for(record)})
     return examples, items[:METRIC_SLICE]
+
+
+def grounding_truth_for(record) -> list[list[float]]:
+    """The boxes a *correct answer to this question* should point at — or none.
+
+    `record.boxes` does not mean one thing. `data/chartqa.py` fills it with **every element
+    in the chart**; `data/refchartqa.py` fills it with **this question's** gold grounding;
+    the synthetic reader fills it with **this question's** exact evidence. Feeding all three
+    to the AP monitor as ground truth scored 2,321 of 2,403 ChartQA records (96.6%) against
+    a median of **10x** more boxes than their own target emits, capping recall near 1/10 for
+    a reason unrelated to the model (`AUDIT.md` C2, `DECISIONS.md` 0076).
+
+    ChartQA carries no question-specific grounding, so a ChartQA record contributes to the
+    answer metrics and to nothing else. Returning `[]` excludes it from AP, which is what
+    `MetricOutcome.ap50` already does with box-less samples.
+    """
+    if record.source in ("refchartqa", "synthetic"):
+        return [list(b) for b in (record.boxes or [])]
+    return []
 
 
 #: `PLAN.md`'s compute table: 24,000 presentations = 3,000 steps at effective batch 8, for

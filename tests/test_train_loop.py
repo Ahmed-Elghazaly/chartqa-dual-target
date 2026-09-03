@@ -172,6 +172,9 @@ class _HoldoutRecord:
     def __init__(self, i: int) -> None:
         self.record_id, self.question = f"r{i}", "how many?"
         self.answer, self.boxes = "35", [[10, 20, 30, 40]]
+        # `source` decides whether the boxes are question grounding (0076): a stub without
+        # it silently took the ChartQA path and returned no ground truth at all.
+        self.source = "refchartqa"
         self.image = object()          # `feed._example` returns the record itself here
 
 
@@ -343,3 +346,55 @@ class TestStepBudget:
 
         source = inspect.getsource(mod.main)
         assert '"--steps", type=int, default=None' in source
+
+
+class TestGroundingTruthForTheMonitor:
+    """`AUDIT.md` C2 / `DECISIONS.md` 0076.
+
+    `record.boxes` means "every element in the chart" for ChartQA, "this question's gold
+    grounding" for RefChartQA, and "this question's exact evidence" for synthetic. Feeding
+    all three to the AP monitor as ground truth scored 96.6% of ChartQA records against a
+    median 10x more boxes than their own target emits.
+    """
+
+    @staticmethod
+    def _record(source: str, boxes):
+        from chartqa_dt.data.records import ChartRecord
+
+        return ChartRecord(record_id="r", source=source, split="train",
+                           image_path="x.png", image_sha256="0" * 64, question="q?",
+                           answer="1", question_kind="human", boxes=boxes)
+
+    def test_chartqa_contributes_no_grounding_ground_truth(self) -> None:
+        """Its boxes are the chart's elements, not the question's answer."""
+        from chartqa_dt.cli.train import grounding_truth_for
+
+        record = self._record("chartqa", [[1, 2, 3, 4]] * 12)
+        assert grounding_truth_for(record) == []
+
+    def test_refchartqa_boxes_are_question_grounding_and_are_kept(self) -> None:
+        from chartqa_dt.cli.train import grounding_truth_for
+
+        record = self._record("refchartqa", [[10, 20, 30, 40]])
+        assert grounding_truth_for(record) == [[10, 20, 30, 40]]
+
+    def test_synthetic_boxes_are_question_evidence_and_are_kept(self) -> None:
+        from chartqa_dt.cli.train import grounding_truth_for
+
+        record = self._record("synthetic", [[1, 2, 3, 4], [5, 6, 7, 8]])
+        assert len(grounding_truth_for(record)) == 2
+
+    def test_a_boxless_record_yields_an_empty_list_not_none(self) -> None:
+        """`MetricOutcome.ap50` filters on truthiness, so `None` would work by accident."""
+        from chartqa_dt.cli.train import grounding_truth_for
+
+        assert grounding_truth_for(self._record("refchartqa", None)) == []
+
+    def test_excluded_records_do_not_enter_the_ap_metric(self) -> None:
+        """The end the fix exists for: a ChartQA record must not drag AP down."""
+        from chartqa_dt.train.monitor import MetricOutcome, MetricSample
+
+        grounded = MetricSample("ref", pred_boxes=[[10, 20, 30, 40]],
+                                gt_boxes=[[10, 20, 30, 40]])
+        chartqa = MetricSample("cq", pred_boxes=[[1, 2, 3, 4]], gt_boxes=[])
+        assert MetricOutcome([grounded, chartqa]).ap50() == pytest.approx(1.0)

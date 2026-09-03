@@ -164,3 +164,78 @@ def test_the_direct_answer_control_emits_only_the_answer():
     assert build_answer_only_target(r) == "35"
     with pytest.raises(TargetError):
         build_answer_only_target(rec(answer=None))
+
+
+class TestValueBoxAgreement:
+    """`DECISIONS.md` 0075. An evidence entry takes its value from the gold table and its
+    box from the annotation, joined only by a label string. Measured on 1,893 entries, 110
+    disagreed — in swapped pairs, so the target boxed one mark and stated another's number.
+    """
+
+    def test_matching_values_agree(self) -> None:
+        from chartqa_dt.train.targets import values_agree
+
+        assert values_agree(9.9, 9.9)
+        assert values_agree("9.9", "9.9")
+
+    def test_rounding_between_the_two_sources_is_tolerated(self) -> None:
+        from chartqa_dt.train.targets import values_agree
+
+        assert values_agree(9.90, 9.91)
+
+    def test_the_percent_convention_is_not_a_disagreement(self) -> None:
+        """`to_float` divides a "%" cell by 100 because the OFFICIAL METRIC does:
+        relaxed_correctness(gold="81.9%", pred="0.819") is True and pred="81.9" is False.
+        A 100x relation is therefore required, not an error."""
+        from chartqa_dt.eval.metrics import relaxed_correctness
+        from chartqa_dt.train.targets import values_agree
+
+        assert values_agree(0.819, 81.9)
+        assert relaxed_correctness("81.9%", "0.819") is True
+        assert relaxed_correctness("81.9%", "81.9") is False
+
+    def test_a_swapped_pair_is_refused(self) -> None:
+        """The real failure: the table says Finland is 9.4 while the annotation's Finland
+        bar is 9.9, and Hungary is the other way round."""
+        from chartqa_dt.train.targets import values_agree
+
+        assert not values_agree(9.4, 9.9)
+        assert not values_agree(12.5, 14.2)
+
+    def test_an_unparseable_value_does_not_trigger_a_refusal(self) -> None:
+        """Other guards handle those; this one must not double-refuse."""
+        from chartqa_dt.train.targets import values_agree
+
+        assert values_agree(None, 9.9)
+        assert values_agree("n/a", 9.9)
+
+    def test_a_record_whose_sources_disagree_is_refused_with_the_reason(self) -> None:
+        from chartqa_dt.data.records import ELEMENTS_KEY, ChartRecord
+        from chartqa_dt.train.targets import TargetError, build_target
+
+        record = ChartRecord(
+            record_id="r1", source="chartqa", split="train", image_path="x.png",
+            image_sha256="0" * 64, question="What is Finland?", answer="9.4",
+            question_kind="human",
+            table={"columns": ["c", "v"], "rows": [["Finland", "9.4"]]},
+            plan={"op": "lookup", "args": ["Finland"]},
+            meta={ELEMENTS_KEY: [{"label": "Finland", "value": 9.9, "unit": None,
+                                  "bbox": [10, 10, 20, 90]}]})
+        with pytest.raises(TargetError, match="disagree about which mark"):
+            build_target(record)
+
+    def test_an_agreeing_record_still_builds(self) -> None:
+        import json
+
+        from chartqa_dt.data.records import ELEMENTS_KEY, ChartRecord
+        from chartqa_dt.train.targets import build_target
+
+        record = ChartRecord(
+            record_id="r2", source="chartqa", split="train", image_path="x.png",
+            image_sha256="0" * 64, question="What is Finland?", answer="9.9",
+            question_kind="human",
+            table={"columns": ["c", "v"], "rows": [["Finland", "9.9"]]},
+            plan={"op": "lookup", "args": ["Finland"]},
+            meta={ELEMENTS_KEY: [{"label": "Finland", "value": 9.9, "unit": None,
+                                  "bbox": [10, 10, 20, 90]}]})
+        assert json.loads(build_target(record))["model_answer"] == "9.9"

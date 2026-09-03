@@ -3,9 +3,22 @@
 Started 2026-08-29. Everything below is measured against the **current working tree**, not
 recalled. Reproduction scripts are in `audit/`, outputs beside them.
 
-**Status:** empirical audit of the data and supervision path complete. External research and
-the remaining subsystems (training objective, output format, DSL, synthetic distribution)
-in progress.
+**Status:** empirical audit of the data and supervision path complete; both CRITICAL
+findings fixed and verified. External research and the remaining subsystems (training
+objective, output format, DSL, synthetic distribution, LLM-assisted mining) in progress.
+
+### Resolved
+
+**C1 → `DECISIONS.md` 0075.** `values_agree` refuses a record when the gold table and the
+annotation disagree about which mark a label names. Genuine disagreements **110 → 0**, at a
+cost of **55 records (0.9% of stage-2 yield)**. The audit's first recommendation here was
+*wrong* and measurement reversed it: the 61 percent-scale cases are required by the official
+metric (`relaxed_correctness(gold="81.9%", pred="0.819")` is True, `pred="81.9"` is False),
+so they are kept deliberately.
+
+**C2 → `DECISIONS.md` 0076.** `grounding_truth_for` gives the AP monitor question-specific
+ground truth only. ChartQA records now contribute to the answer metrics and not to AP,
+because ChartQA has no per-question grounding to score against.
 
 ---
 
@@ -13,8 +26,8 @@ in progress.
 
 | # | finding | priority | confidence |
 |---|---|---|---|
-| C1 | An evidence entry's **value and box can describe different marks** — 9.2% of ChartQA evidence entries | **CRITICAL** | high, measured |
-| C2 | `record.boxes` means different things per source, and validation AP uses it as ground truth | **CRITICAL** | high, measured |
+| C1 | An evidence entry's **value and box can describe different marks** — 9.2% of ChartQA evidence entries | **CRITICAL** | ✅ **FIXED** (0075) |
+| C2 | `record.boxes` means different things per source, and validation AP uses it as ground truth | **CRITICAL** | ✅ **FIXED** (0076) |
 | H1 | RefChartQA grounding aligns to ChartQA elements at **99.2% exact** — 1,896 records could gain real labels, values and plans | **HIGH** | high, measured |
 | H2 | The dedup **merge is discarded** before training sees it | **HIGH** | high, by construction |
 | H3 | Labels are non-unique on **74.2%** of charts; target builder and executor resolve duplicates *differently* | **HIGH** | high, measured |
