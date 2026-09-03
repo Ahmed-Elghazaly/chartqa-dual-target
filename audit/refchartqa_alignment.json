@@ -1,0 +1,3211 @@
+{
+ "stats": {
+  "records_with_candidate_elements": 3474,
+  "grounding_boxes": 6340,
+  "no_chartqa_elements_for_this_image": 522
+ },
+ "best_iou_median": 1.0,
+ "n_boxes": 6340,
+ "per_box_sample": [
+  {
+   "record": "refchartqa_train_8cbd1ba20212fc68",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020",
+   "value": "3.98",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_cf08dd0b4d5dc889",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Switzerland",
+   "value": "100%",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_cf08dd0b4d5dc889",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Mauritania",
+   "value": "44.6%",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_977a721505e973cf",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Banner Health Network",
+   "value": "460 000",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_7a1ecd3a37162acc",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "-1%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_a97bcc694145ce4a",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Romania",
+   "value": "9 891",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_a97bcc694145ce4a",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "China",
+   "value": "7 562",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_a879220ecb1de68f",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Energy Star refrigerator (most-used)",
+   "value": "42.4",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_dd85a6056176a4c5",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Trump voters",
+   "value": "20",
+   "series": "Vote early"
+  },
+  {
+   "record": "refchartqa_train_dc2beb17b5970d70",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "35 to 49",
+   "value": "56%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_4fe23300b6d46d5e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Hispanic",
+   "value": "61",
+   "series": "Net"
+  },
+  {
+   "record": "refchartqa_train_b66456214b23d7bd",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Marshall Islands",
+   "value": "153.56",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_954c0a9761742e7e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2010",
+   "value": "579",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_21f9e783deb22aa5",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2010",
+   "value": "61.6%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_cb88db9663ae7af2",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Austria",
+   "value": "1.2",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_b1102d8963432549",
+   "best_iou": 1.0,
+   "margin": 0.7745,
+   "label": "Store",
+   "value": 82.1,
+   "series": "pie"
+  },
+  {
+   "record": "refchartqa_train_2f0ce50c863c84f9",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2017*",
+   "value": "90.9",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_b56b9276320f6d7a",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "The Brick",
+   "value": "182",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_b56b9276320f6d7a",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Appliance Canada",
+   "value": "5",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_65e91eabd2f3ef5d",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "8 251",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_76e3e815451a2cb8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Hungary",
+   "value": "5.6",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_8a6999440a323af7",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "5.97",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_6ac1bf26f9b6f32b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "CTF Finance Centre",
+   "value": "530",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_6ac1bf26f9b6f32b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Two International Finance Centre",
+   "value": "415",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_cb35eebcb449deae",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2009",
+   "value": "64%",
+   "series": "Three to five sentences"
+  },
+  {
+   "record": "refchartqa_train_e04849b4f25a1f1f",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020-2026",
+   "value": "4.1%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_e1ff993c52b1b0a1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2009/10",
+   "value": "47.5",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_dbdaacb537c0343d",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2008",
+   "value": "411.7",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_dba20e4533379d11",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "5.32%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_dba20e4533379d11",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2018",
+   "value": "8.96%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_dba20e4533379d11",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2017",
+   "value": "4.5%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_dba20e4533379d11",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2016",
+   "value": "7.31%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_dba20e4533379d11",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2015",
+   "value": "7.57%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_dba20e4533379d11",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2014",
+   "value": "3.83%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_dba20e4533379d11",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2013",
+   "value": "0.6%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_dba20e4533379d11",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2012",
+   "value": "7.47%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_8d179bfd3fc0f51c",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Australia",
+   "value": "20%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_8d179bfd3fc0f51c",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Germany",
+   "value": "9%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_367f14e7a5f2f97e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Call of Duty: Modern Warfare",
+   "value": "24.35",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_367f14e7a5f2f97e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "PlayStation",
+   "value": "54.03",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2295d7b3b6b37489",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "London",
+   "value": "503 653",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_874794ba491fa855",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019/20",
+   "value": "848",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_bb61a987bf74c6e8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "France",
+   "value": "10%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_c40fb3a49037b1f3",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "18.6",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_e84249b0f91c37ac",
+   "best_iou": 0.0,
+   "margin": 0.0,
+   "label": "Greece",
+   "value": "63",
+   "series": "A worse place to live"
+  },
+  {
+   "record": "refchartqa_train_5b552d46c65a3f51",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2021",
+   "value": "221",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_d441bb703d5ffa43",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Worldwide",
+   "value": "17%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_49f8c77f17afb158",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Campy Russell",
+   "value": "6 588",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_596538e0b7c6aed3",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Several times a day",
+   "value": "56%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_ee08168fb6a557e9",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Patterson-UTI Energy Inc.",
+   "value": "3 327",
+   "series": "2018"
+  },
+  {
+   "record": "refchartqa_train_67f6dc04b4f11b40",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "5.6",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_60d7f1026fe404e9",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2014",
+   "value": "7 091",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_fc3316fa03864762",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2009",
+   "value": "475.97",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_6aada0bbfc2a7c60",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Micronesia",
+   "value": "6.89",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_80021f578b4e01d9",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Fiji",
+   "value": "464.17",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_8ea2d04152185fd3",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Large cap e-commerce (e.g. Alibaba,",
+   "value": "50%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_8ea2d04152185fd3",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Marketplaces (e.g. Delivery Hero, Just Eat,",
+   "value": "29%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_48f2f6fafb12d3e4",
+   "best_iou": 1.0,
+   "margin": 0.9961,
+   "label": "2010",
+   "value": "38.6%",
+   "series": "Sole Proprietors and Partnerships"
+  },
+  {
+   "record": "refchartqa_train_48f2f6fafb12d3e4",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2013",
+   "value": "33.8%",
+   "series": "Sole Proprietors and Partnerships"
+  },
+  {
+   "record": "refchartqa_train_2b26035e22af0ad2",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Very confident",
+   "value": "70",
+   "series": "UNK"
+  },
+  {
+   "record": "refchartqa_train_107e4ee348461460",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Europe - Projected",
+   "value": "1.63",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_eacfad46f8de5613",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "469.51",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_c2bef66db80e2b87",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "21.7",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_509bebb8c73a1a1a",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Rural",
+   "value": "24",
+   "series": "A major problem"
+  },
+  {
+   "record": "refchartqa_train_509bebb8c73a1a1a",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Rural",
+   "value": "41",
+   "series": "Not a problem"
+  },
+  {
+   "record": "refchartqa_train_c6f6d2808390f516",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Very conservative",
+   "value": "68",
+   "series": "Vote in person on Election Day"
+  },
+  {
+   "record": "refchartqa_train_c6f6d2808390f516",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Conservative",
+   "value": "62",
+   "series": "Vote in person on Election Day"
+  },
+  {
+   "record": "refchartqa_train_78b8834f7794698d",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Game of Thrones",
+   "value": "24%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_ca4067b68489a55e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Asia",
+   "value": "21 622",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_bb7283424dd1a7c4",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Cough",
+   "value": "38%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2437407a359c9e26",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2016",
+   "value": "1 045.12",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_df91a67d69d36392",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Total",
+   "value": "42.1",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_df91a67d69d36392",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Main breadwinner",
+   "value": "14.9",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_df91a67d69d36392",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Main breadwinner 25-",
+   "value": "42.8",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_df91a67d69d36392",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Main breadwinner 45-",
+   "value": "51.1",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_df91a67d69d36392",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Main breadwinner 65",
+   "value": "33.3",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_7624b586776519f5",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020",
+   "value": "143.12",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_1c2ac214dfd4e8d0",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Laborer",
+   "value": "9.83",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_1c2ac214dfd4e8d0",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Professional",
+   "value": "8.66",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_b980597ad0b59219",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2021*",
+   "value": "691",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_b30756817389b468",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Comedy",
+   "value": "55.3%",
+   "series": "Girls"
+  },
+  {
+   "record": "refchartqa_train_b30756817389b468",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Adventure",
+   "value": "55.4%",
+   "series": "Girls"
+  },
+  {
+   "record": "refchartqa_train_b30756817389b468",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Horror",
+   "value": "44.4%",
+   "series": "Girls"
+  },
+  {
+   "record": "refchartqa_train_b30756817389b468",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "War/spy stories",
+   "value": "17.6%",
+   "series": "Girls"
+  },
+  {
+   "record": "refchartqa_train_b30756817389b468",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Crime",
+   "value": "29.9%",
+   "series": "Girls"
+  },
+  {
+   "record": "refchartqa_train_b30756817389b468",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Sports stories",
+   "value": "9.2%",
+   "series": "Girls"
+  },
+  {
+   "record": "refchartqa_train_b30756817389b468",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Science fiction",
+   "value": "20.9%",
+   "series": "Girls"
+  },
+  {
+   "record": "refchartqa_train_b30756817389b468",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Animal stories",
+   "value": "27.2%",
+   "series": "Girls"
+  },
+  {
+   "record": "refchartqa_train_b30756817389b468",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Romance",
+   "value": "49.2%",
+   "series": "Girls"
+  },
+  {
+   "record": "refchartqa_train_0a6776cc23495bc8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "California",
+   "value": "41 282",
+   "series": "2020"
+  },
+  {
+   "record": "refchartqa_train_0a6776cc23495bc8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Wisconsin",
+   "value": "30 730",
+   "series": "2020"
+  },
+  {
+   "record": "refchartqa_train_0a6776cc23495bc8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Idaho",
+   "value": "16 241",
+   "series": "2020"
+  },
+  {
+   "record": "refchartqa_train_0a6776cc23495bc8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "New York",
+   "value": "15 337",
+   "series": "2020"
+  },
+  {
+   "record": "refchartqa_train_0a6776cc23495bc8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Texas",
+   "value": "14 831",
+   "series": "2020"
+  },
+  {
+   "record": "refchartqa_train_0a6776cc23495bc8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Michigan",
+   "value": "11 683",
+   "series": "2020"
+  },
+  {
+   "record": "refchartqa_train_0a6776cc23495bc8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Pennsylvania",
+   "value": "10 276",
+   "series": "2020"
+  },
+  {
+   "record": "refchartqa_train_0a6776cc23495bc8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Minnesota",
+   "value": "10 149",
+   "series": "2020"
+  },
+  {
+   "record": "refchartqa_train_0a6776cc23495bc8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "New Mexico",
+   "value": "8 169",
+   "series": "2020"
+  },
+  {
+   "record": "refchartqa_train_0a6776cc23495bc8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Washington",
+   "value": "6 817",
+   "series": "2020"
+  },
+  {
+   "record": "refchartqa_train_7b3ef61e26560c9f",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020",
+   "value": "2 408.57",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_62518f6d13a4f7e0",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2010",
+   "value": "983",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_62518f6d13a4f7e0",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2009",
+   "value": "488.5",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_62518f6d13a4f7e0",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2008",
+   "value": "470.3",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_fd61a76662db2fd4",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Total",
+   "value": "153 155",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_3f33acb09bb3cf5e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2010",
+   "value": "10%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_3f33acb09bb3cf5e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2007",
+   "value": "13%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_680673f38024eae1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Refrigerator",
+   "value": "99.8%",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_680673f38024eae1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Vacuum",
+   "value": "89.1%",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_680673f38024eae1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Washer",
+   "value": "70% (1970)",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_680673f38024eae1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Electric Range",
+   "value": "40% (1970)",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_680673f38024eae1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Freezer",
+   "value": "30% (1970)",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_680673f38024eae1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Dryer",
+   "value": "28% (1970)",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_680673f38024eae1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Water Heater",
+   "value": "23% (1970)",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_680673f38024eae1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Dishwasher",
+   "value": "20.8%",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_a9b801b5c613daf2",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Kasich",
+   "value": "26",
+   "series": "Unite solidly behind Trump"
+  },
+  {
+   "record": "refchartqa_train_a9b801b5c613daf2",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Cruz",
+   "value": "28",
+   "series": "Unite solidly behind Trump"
+  },
+  {
+   "record": "refchartqa_train_a9b801b5c613daf2",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Trump",
+   "value": "55",
+   "series": "Unite solidly behind Trump"
+  },
+  {
+   "record": "refchartqa_train_6d408c961a20feef",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2030*",
+   "value": "1.84",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_6d408c961a20feef",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020",
+   "value": "1.49",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_622cebe3dec717b2",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2016",
+   "value": "4 417",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_597e40dd4790745e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Cocaine",
+   "value": "5.2",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_6746163b4f1d82cb",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Japan",
+   "value": "84",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_6675a6b54507bb34",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Accounts removed or restricted",
+   "value": "8",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_cc16885d78bcd2ab",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "5 million+ GBP",
+   "value": "210",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_a4d0e214030f7d3b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "MSCI Emerging",
+   "value": "9%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_a4d0e214030f7d3b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "MSCI Global, excluding",
+   "value": "8%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_a4d0e214030f7d3b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Euro Stoxx 600",
+   "value": "8%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_a4d0e214030f7d3b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "S&P 500",
+   "value": "7%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_a4d0e214030f7d3b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "MSCI Global",
+   "value": "7%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_5a332be4afecfed5",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "United States",
+   "value": "918",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_e899abae321c91b1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "H2 2019",
+   "value": "96.4%",
+   "series": "Euro area"
+  },
+  {
+   "record": "refchartqa_train_fcd7346f05cde406",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Liberal",
+   "value": "22",
+   "series": "Somewhat"
+  },
+  {
+   "record": "refchartqa_train_fcd7346f05cde406",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Cons/Mod",
+   "value": "25",
+   "series": "Somewhat"
+  },
+  {
+   "record": "refchartqa_train_fcd7346f05cde406",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Dem/Lean Dem",
+   "value": "23",
+   "series": "Somewhat"
+  },
+  {
+   "record": "refchartqa_train_fcd7346f05cde406",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Mod/Liberal",
+   "value": "26",
+   "series": "Somewhat"
+  },
+  {
+   "record": "refchartqa_train_fcd7346f05cde406",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Conservative",
+   "value": "14",
+   "series": "Somewhat"
+  },
+  {
+   "record": "refchartqa_train_fcd7346f05cde406",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Rep/Lean Rep",
+   "value": "18",
+   "series": "Somewhat"
+  },
+  {
+   "record": "refchartqa_train_fcd7346f05cde406",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Total",
+   "value": "22",
+   "series": "Somewhat"
+  },
+  {
+   "record": "refchartqa_train_2945613671114bb6",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Afghanistan",
+   "value": "525",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_0faeeab757977c9d",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Alireza Jahanbakhsh",
+   "value": "12",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_12ced7dba3069985",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2012/13",
+   "value": "5.17",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_8a0481aa64b69c28",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Asian",
+   "value": "86%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_a01229de51f78dd9",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2017",
+   "value": "19%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_1700e4233df72794",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Cersei Lannister",
+   "value": "199",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_21489a6290cfc55a",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2021",
+   "value": "945.68",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_d509b94e97a758c5",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Merseyside",
+   "value": "3 629",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_d509b94e97a758c5",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Staffordshire",
+   "value": "1 666",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2cce89258adc898c",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Lee, Dae-ho/ Lotte",
+   "value": "2.5",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_ddcc83dedcd0dd69",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "United States",
+   "value": "71.7%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_5f22ded458a7ccec",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Female",
+   "value": "32.2%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_3bb4f3aa3e73d7ef",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "China",
+   "value": "75",
+   "series": "More important"
+  },
+  {
+   "record": "refchartqa_train_3bb4f3aa3e73d7ef",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "China",
+   "value": "10",
+   "series": "Less important"
+  },
+  {
+   "record": "refchartqa_train_e8a106d9634c8e31",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2017",
+   "value": "79.1%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_517842a2dd9b532a",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "65+",
+   "value": "16",
+   "series": "A great deal"
+  },
+  {
+   "record": "refchartqa_train_927a344c3f5dc6b6",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "tinder",
+   "value": "7.86",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_e3a39de39a5ecc13",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2022*",
+   "value": "3.9",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_dd9da81d96023e75",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2012",
+   "value": "54.8",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_73bf7280d05e332e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Canary Islands",
+   "value": "127%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_73bf7280d05e332e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Andalusia",
+   "value": "59%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_73bf7280d05e332e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Catalonia",
+   "value": "35%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_73bf7280d05e332e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Region of",
+   "value": "31.72%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_73bf7280d05e332e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Balearic Islands",
+   "value": "13%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_73bf7280d05e332e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Total Spain",
+   "value": "40%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_fa606b2c0b33ac2f",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Basic Chemicals*",
+   "value": "60.79",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_fa606b2c0b33ac2f",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Specialties**",
+   "value": "21.26",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_cbf3a68cdbb6260d",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2018",
+   "value": "174 317",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_6d5fbce40ba0ba47",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Assessing someone's race",
+   "value": "46",
+   "series": "Somewhat"
+  },
+  {
+   "record": "refchartqa_train_6d5fbce40ba0ba47",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Assessing someone's gender",
+   "value": "47",
+   "series": "Somewhat"
+  },
+  {
+   "record": "refchartqa_train_1746dae32a015905",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "DR P4*",
+   "value": "44.9%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_233c6c30af330bdb",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Suburban",
+   "value": "71",
+   "series": "UNK"
+  },
+  {
+   "record": "refchartqa_train_5cb8cf0760fdb83f",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020",
+   "value": "1 623",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_568d8f9481d0f621",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020/21",
+   "value": "556.01",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_13aa1db6341b224c",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2016",
+   "value": "1 175",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_13aa1db6341b224c",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2018",
+   "value": "1 625",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_ef293fad66c979a4",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020",
+   "value": "351.5",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_ef293fad66c979a4",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "386.96",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_ef293fad66c979a4",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2018",
+   "value": "325.59",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_ef293fad66c979a4",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2017",
+   "value": "286.46",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_ef293fad66c979a4",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2016",
+   "value": "279.82",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_ef293fad66c979a4",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2015",
+   "value": "222.44",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_ef293fad66c979a4",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2014",
+   "value": "175.08",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_ef293fad66c979a4",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2013",
+   "value": "57.25",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_ef293fad66c979a4",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2012",
+   "value": "47.36",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_34b1a198ccc35d40",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Center",
+   "value": "25 988",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_7b364e899c1e519e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Kerala",
+   "value": "29.8",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_426fe30d1c7901e8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2016",
+   "value": "1 800",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2da907ea0fcc80f1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2017",
+   "value": "50",
+   "series": "UNK"
+  },
+  {
+   "record": "refchartqa_train_2da907ea0fcc80f1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2018",
+   "value": "40",
+   "series": "UNK"
+  },
+  {
+   "record": "refchartqa_train_f08f84be16217d7b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "LDCs",
+   "value": "17.5%",
+   "series": "Total population"
+  },
+  {
+   "record": "refchartqa_train_f7e8c8e8398c38db",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020",
+   "value": "44%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_da7424eeb576ae8a",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2013",
+   "value": "4.4",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_d752fcbc9a77b4b5",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2005/06",
+   "value": "51.76",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_5477802fa34a8c22",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Hungary",
+   "value": "60",
+   "series": "Favorable"
+  },
+  {
+   "record": "refchartqa_train_5477802fa34a8c22",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "France",
+   "value": "60",
+   "series": "Favorable"
+  },
+  {
+   "record": "refchartqa_train_af82033c698bd541",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "41.93",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_f30001e949e71575",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2018",
+   "value": "9.5",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_91feb8631a008b79",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "California Earthquake Authority",
+   "value": "22.8%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_80348cef7aedddf1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020",
+   "value": "49.8",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_cb8be188d3e4a498",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2000",
+   "value": "1.26",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_02ba3407c69ea21b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2015",
+   "value": "74 102",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_ee778bf230515718",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "China",
+   "value": "359",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_7deac357bb13a2dd",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "FY 2019",
+   "value": "80.35",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_7deac357bb13a2dd",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "FY 2020",
+   "value": "102.21",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_a77ddc1e776d0e47",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "601",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2211ecd00d6fd8b1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2012",
+   "value": "1.3",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_5d5c0dfbb17a126f",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Total",
+   "value": "4 275",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_5d5c0dfbb17a126f",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Men",
+   "value": "3 059",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_92ed71d60838e651",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020*",
+   "value": "124.8",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_92ed71d60838e651",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "120.1",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_92ed71d60838e651",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2018",
+   "value": "115",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_678e575c8bf37880",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Q2 2020*",
+   "value": "0.4",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2a56812c81749959",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Worst case scenario",
+   "value": "44",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_051168ab01ac4545",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2018",
+   "value": "4.1%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_e86c3b0f5c21f2ca",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Lou Hudson",
+   "value": "730",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_e86c3b0f5c21f2ca",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Cliff Hagan",
+   "value": "745",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_cd7b9ae0227ab848",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2013",
+   "value": "63.1",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_45e0e5c690ac52bd",
+   "best_iou": 1.0,
+   "margin": 0.9897,
+   "label": "FY 2010",
+   "value": "196.38",
+   "series": "Motor vehicles taxes and fees"
+  },
+  {
+   "record": "refchartqa_train_2e77fd717cdf92a1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "WeChat",
+   "value": "92.9",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2e77fd717cdf92a1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Tencent",
+   "value": "89.9",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2e77fd717cdf92a1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Hong Kong International Airport",
+   "value": "88.6",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2e77fd717cdf92a1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Joy City",
+   "value": "88.2",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2e77fd717cdf92a1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "China Mobile",
+   "value": "87",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2e77fd717cdf92a1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Rejoice",
+   "value": "86.5",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2e77fd717cdf92a1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "ICBC",
+   "value": "85.2",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2e77fd717cdf92a1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Maotai",
+   "value": "84.9",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2e77fd717cdf92a1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Harbin",
+   "value": "84.8",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2e77fd717cdf92a1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "The MTR Corporation",
+   "value": "84.8",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_ae6b974776363263",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2017",
+   "value": "50",
+   "series": "UNK"
+  },
+  {
+   "record": "refchartqa_train_405871ad902e0097",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Dominique Wilkins",
+   "value": "882",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_405871ad902e0097",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Tree Rollins",
+   "value": "814",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_405871ad902e0097",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Bob Pettit",
+   "value": "792",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_405871ad902e0097",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Kevin Willis",
+   "value": "753",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_405871ad902e0097",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Cliff Hagan",
+   "value": "745",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_405871ad902e0097",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Lou Hudson",
+   "value": "730",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_405871ad902e0097",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Jon Koncak",
+   "value": "717",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_405871ad902e0097",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Bill Bridges",
+   "value": "683",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_405871ad902e0097",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Josh Smith",
+   "value": "676",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_405871ad902e0097",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Eddie Johnson",
+   "value": "619",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_4f8d377883283a03",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Items not worn",
+   "value": "41",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_f24e48855e47e8c8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020",
+   "value": "162",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_f24e48855e47e8c8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "171",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_f24e48855e47e8c8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2018",
+   "value": "163",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_f24e48855e47e8c8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2017",
+   "value": "137",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_f24e48855e47e8c8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2016",
+   "value": "101",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_f24e48855e47e8c8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2015",
+   "value": "77",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_dcd157c851601e3b",
+   "best_iou": 0.0,
+   "margin": 0.0,
+   "label": "All active judges",
+   "value": "58",
+   "series": "DEMOCRAT"
+  },
+  {
+   "record": "refchartqa_train_0c9fedb9c0de59da",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Bugs Bunny",
+   "value": "11%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_1160bc497b842152",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Amy Klobuchar",
+   "value": "4",
+   "series": "UNK"
+  },
+  {
+   "record": "refchartqa_train_301c1a0b5258d66c",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020",
+   "value": "-0.1%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2f9ba73bd49b6d54",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Africa",
+   "value": "51",
+   "series": "2013"
+  },
+  {
+   "record": "refchartqa_train_2f9ba73bd49b6d54",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "North America",
+   "value": "237",
+   "series": "2013"
+  },
+  {
+   "record": "refchartqa_train_f14d6f818fe2204b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "4 610",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_57e1ac5755018ce4",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2016",
+   "value": "3 130",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_57e1ac5755018ce4",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2023",
+   "value": "4 658",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_7a562a8f88cdb025",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "1 768.14",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_c65a7d3dd066fa82",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020",
+   "value": "8",
+   "series": "Low/Very low"
+  },
+  {
+   "record": "refchartqa_train_f56f844ee6eabfc6",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2016",
+   "value": "9 893",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2f03198f160a6211",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020",
+   "value": "139.71",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_565b586ff1128b9e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "0 to 9",
+   "value": "82",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_565b586ff1128b9e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "10 to 19",
+   "value": "177",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_565b586ff1128b9e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "20 to 29",
+   "value": "474",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_565b586ff1128b9e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "30 to 39",
+   "value": "345",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_565b586ff1128b9e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "40 to 49",
+   "value": "280",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_565b586ff1128b9e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "50 to 59",
+   "value": "301",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_565b586ff1128b9e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "60 to 69",
+   "value": "213",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_565b586ff1128b9e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "70 to 79",
+   "value": "88",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_565b586ff1128b9e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "80 to 89",
+   "value": "32",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_565b586ff1128b9e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "90 and over",
+   "value": "9",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2cfa98e4eaac3a8f",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "1997",
+   "value": "1 184",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2cfa98e4eaac3a8f",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2007",
+   "value": "3 052",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_9e111463d4a17443",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Karnataka",
+   "value": "6.17",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_ede5c0bfc60d5f71",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Support Rep cand",
+   "value": "74",
+   "series": "UNK"
+  },
+  {
+   "record": "refchartqa_train_ede5c0bfc60d5f71",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Support Dem cand",
+   "value": "75",
+   "series": "UNK"
+  },
+  {
+   "record": "refchartqa_train_d1c59aea1b34d95d",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Pedigree",
+   "value": "32.8%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_61965c45d1bc7074",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "A lot",
+   "value": "15%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_82de9b1a0a7a160a",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Sweden",
+   "value": "99.7%",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_302213bf6925a430",
+   "best_iou": 1.0,
+   "margin": 0.9737,
+   "label": "2016",
+   "value": "25",
+   "series": "Canada"
+  },
+  {
+   "record": "refchartqa_train_010a6c81169ca2ad",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Errors",
+   "value": "22%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2bf90df98ab91926",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "72.55",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_b79f3ac46b98646b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020",
+   "value": "6.01",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_b79f3ac46b98646b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "5.66",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_b79f3ac46b98646b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2018",
+   "value": "5.49",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_b79f3ac46b98646b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2017",
+   "value": "5.26",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_b79f3ac46b98646b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2016",
+   "value": "5.1",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_b79f3ac46b98646b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2015",
+   "value": "4.92",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_b79f3ac46b98646b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2014",
+   "value": "4.79",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_b79f3ac46b98646b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2013",
+   "value": "4.77",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_b79f3ac46b98646b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2012",
+   "value": "4.63",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_b79f3ac46b98646b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2011",
+   "value": "4.47",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_25b0bfcaf837b88e",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Manchester",
+   "value": "220",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_de3ed8f88a318985",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Heroin",
+   "value": "0.5%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_dcd9ece19cfd04de",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Shinzo Abe",
+   "value": "61",
+   "series": "Confidence"
+  },
+  {
+   "record": "refchartqa_train_3a4e2e9e0b85d21f",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "High income",
+   "value": "59.23%",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_3a4e2e9e0b85d21f",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Upper middle income",
+   "value": "47.77%",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_3a4e2e9e0b85d21f",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Low income",
+   "value": "35.2%",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_3a4e2e9e0b85d21f",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Lower middle income",
+   "value": "34.9%",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_5429a3252f4ef0fe",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "North America and Europe",
+   "value": "15.7%",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_5429a3252f4ef0fe",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Latin America and the Caribbean",
+   "value": "11.6%",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_779d88c85cc2fa4d",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2012/13 (Virgin",
+   "value": "10",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_4d65255d20349126",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Banning assault-style weapons",
+   "value": "39",
+   "series": "Very effective"
+  },
+  {
+   "record": "refchartqa_train_65b50e3b95365ad2",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "California",
+   "value": "621.45",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_936b232b6bc7fd97",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020",
+   "value": "4794.76",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_13056f6338b030e2",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Dominica",
+   "value": "60,000",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_13056f6338b030e2",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Iraq",
+   "value": "61,000",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_6e765705b8badf32",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Whether our IT",
+   "value": "35%",
+   "series": "Provider"
+  },
+  {
+   "record": "refchartqa_train_6e765705b8badf32",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Whether we have",
+   "value": "25%",
+   "series": "Provider"
+  },
+  {
+   "record": "refchartqa_train_4b1f2b0550b09bf0",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "China",
+   "value": "2 591.12",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_5800d2c0726f0cd4",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Week 22 2021",
+   "value": "91412",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_e716c0bfb21c11f3",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Political empowerment",
+   "value": "0.25",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_46fef292908841bb",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "David Guetta",
+   "value": "21.9",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_08fe69a015f90346",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Tunisia",
+   "value": "222",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_5f51df90f8f9be7b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Cutting costs that otherwise would not",
+   "value": "44%",
+   "series": "April 2020"
+  },
+  {
+   "record": "refchartqa_train_5f51df90f8f9be7b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Easier to take unpopular decisions",
+   "value": "42%",
+   "series": "April 2020"
+  },
+  {
+   "record": "refchartqa_train_5f51df90f8f9be7b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "People are ready to work for less money",
+   "value": "20%",
+   "series": "April 2020"
+  },
+  {
+   "record": "refchartqa_train_5f51df90f8f9be7b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Adoption of new technologies in",
+   "value": "46%",
+   "series": "April 2020"
+  },
+  {
+   "record": "refchartqa_train_5f51df90f8f9be7b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "New opportunities for business opened",
+   "value": "34%",
+   "series": "April 2020"
+  },
+  {
+   "record": "refchartqa_train_5f51df90f8f9be7b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Nothing good happened",
+   "value": "2%",
+   "series": "April 2020"
+  },
+  {
+   "record": "refchartqa_train_5f51df90f8f9be7b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Increasing the effectiveness of company",
+   "value": "51%",
+   "series": "April 2020"
+  },
+  {
+   "record": "refchartqa_train_5972c3ac1caca8b7",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020",
+   "value": "84 169",
+   "series": "Advertising revenue"
+  },
+  {
+   "record": "refchartqa_train_1c8bf133098db53d",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Handguns",
+   "value": "97",
+   "series": "Number of incidents"
+  },
+  {
+   "record": "refchartqa_train_8d2276185b34f468",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Lennar Corp",
+   "value": "20 560",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_32526f964c546984",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Independence",
+   "value": "2.3%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_32526f964c546984",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "UnitedHealth Group Inc.",
+   "value": "14.1%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_7aeefbf94eeee325",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "General VAT rate",
+   "value": "24%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_7aeefbf94eeee325",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Reduced VAT rate**",
+   "value": "10%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_83a4a432b6cb5336",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Hybrid or 2 in 1 computer",
+   "value": "84%",
+   "series": "Never"
+  },
+  {
+   "record": "refchartqa_train_d0436db17346af9d",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2018",
+   "value": "1 797",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_d0436db17346af9d",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "2 217",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_f7b1d349b1d260cd",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020",
+   "value": "72.94",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_d51002791523abcb",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Canada",
+   "value": "52",
+   "series": "Good thing"
+  },
+  {
+   "record": "refchartqa_train_d51002791523abcb",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "U.S",
+   "value": "49",
+   "series": "Good thing"
+  },
+  {
+   "record": "refchartqa_train_f756c9dcf4c54adc",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Wow",
+   "value": "15%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_f756c9dcf4c54adc",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Angry",
+   "value": "5%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_7e21b585235a268e",
+   "best_iou": 1.0,
+   "margin": 0.8481,
+   "label": "Brazil",
+   "value": 10.4,
+   "series": "pie"
+  },
+  {
+   "record": "refchartqa_train_4eb8c56df9a35d2c",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2018",
+   "value": "5.33",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_9e6d388935538f14",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Venezuela",
+   "value": "1",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_6ad366b3305fff47",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "19/20",
+   "value": "115",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_c0860c1c710a6cc8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Morality",
+   "value": "45",
+   "series": "Good influence"
+  },
+  {
+   "record": "refchartqa_train_6ab442c9e3711efc",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Western Cape",
+   "value": "634",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_08a37740af89d6be",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2026*",
+   "value": "28.05",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_716cf42b630794ed",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Brazil",
+   "value": "71",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_2a406fcbb2c6efe5",
+   "best_iou": 1.0,
+   "margin": 0.8777,
+   "label": "adidas",
+   "value": 91.19,
+   "series": "pie"
+  },
+  {
+   "record": "refchartqa_train_2a406fcbb2c6efe5",
+   "best_iou": 1.0,
+   "margin": 0.8777,
+   "label": "Reebok",
+   "value": 7.1,
+   "series": "pie"
+  },
+  {
+   "record": "refchartqa_train_2a406fcbb2c6efe5",
+   "best_iou": 1.0,
+   "margin": 0.8792,
+   "label": "Other",
+   "value": 1.0,
+   "series": "pie"
+  },
+  {
+   "record": "refchartqa_train_c80b4b33574e6669",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2013",
+   "value": "12.67",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_c80b4b33574e6669",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2016",
+   "value": "13.83",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_59fc3a3947fa02e0",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "20-44 years",
+   "value": "0.2%",
+   "series": "Upper bound of range"
+  },
+  {
+   "record": "refchartqa_train_59fc3a3947fa02e0",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "45-54 years",
+   "value": "0.8%",
+   "series": "Upper bound of range"
+  },
+  {
+   "record": "refchartqa_train_59fc3a3947fa02e0",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "55-64 years",
+   "value": "2.6%",
+   "series": "Upper bound of range"
+  },
+  {
+   "record": "refchartqa_train_59fc3a3947fa02e0",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "65-74 years",
+   "value": "4.9%",
+   "series": "Upper bound of range"
+  },
+  {
+   "record": "refchartqa_train_59fc3a3947fa02e0",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "75-84 years",
+   "value": "10.5%",
+   "series": "Upper bound of range"
+  },
+  {
+   "record": "refchartqa_train_59fc3a3947fa02e0",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "85 years and",
+   "value": "27.3%",
+   "series": "Upper bound of range"
+  },
+  {
+   "record": "refchartqa_train_59fc3a3947fa02e0",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Total",
+   "value": "3.4%",
+   "series": "Upper bound of range"
+  },
+  {
+   "record": "refchartqa_train_77fc530aa4a0b613",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2016/17",
+   "value": "42366776",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_241a18dca025a3dc",
+   "best_iou": 0.0,
+   "margin": 0.0,
+   "label": "2016",
+   "value": "56.85",
+   "series": "UBS"
+  },
+  {
+   "record": "refchartqa_train_bd2760890ac94d53",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Q4 '13",
+   "value": "8.6",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_6008d61ca267d040",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Crai",
+   "value": "3 600",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_ee39925187d260a1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "May 2020",
+   "value": "200",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_ee39925187d260a1",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "January 2018",
+   "value": "144",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_a9ed78687ffc4136",
+   "best_iou": 1.0,
+   "margin": 0.7706,
+   "label": "Europe",
+   "value": 72.6,
+   "series": "pie"
+  },
+  {
+   "record": "refchartqa_train_a9ed78687ffc4136",
+   "best_iou": 1.0,
+   "margin": 0.5402,
+   "label": "Americas",
+   "value": 16.5,
+   "series": "pie"
+  },
+  {
+   "record": "refchartqa_train_a9ed78687ffc4136",
+   "best_iou": 1.0,
+   "margin": 0.5402,
+   "label": "Asia",
+   "value": 10.9,
+   "series": "pie"
+  },
+  {
+   "record": "refchartqa_train_5c89474c0d9550e6",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2020",
+   "value": "939",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_5c89474c0d9550e6",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "943",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_5c89474c0d9550e6",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2018",
+   "value": "893",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_5c89474c0d9550e6",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2017",
+   "value": "742",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_5c89474c0d9550e6",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2016",
+   "value": "605",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_5c89474c0d9550e6",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2015",
+   "value": "411",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_778b4a373e05f0fb",
+   "best_iou": 1.0,
+   "margin": 0.8769,
+   "label": "Asia-Pacific",
+   "value": 44.0,
+   "series": "pie"
+  },
+  {
+   "record": "refchartqa_train_d015ce6b02ccc5cc",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Auchan",
+   "value": "5.6%",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_03684f3e217e1dd3",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Breast",
+   "value": "71.3%",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_03684f3e217e1dd3",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Cervix",
+   "value": "62.9%",
+   "series": "bars"
+  },
+  {
+   "record": "refchartqa_train_f4f80a0c9b7fd64b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2019",
+   "value": "7.2%",
+   "series": "Agriculture"
+  },
+  {
+   "record": "refchartqa_train_f0e523be1901654a",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2015",
+   "value": "3.54",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_613cedf28692c1d6",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Stands up for what he believes",
+   "value": "70",
+   "series": "Yes, describes"
+  },
+  {
+   "record": "refchartqa_train_264ae14609720730",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Google.ca",
+   "value": "238",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_264ae14609720730",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Facebook.com",
+   "value": "633",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_d5d2dccd1b60c311",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Derek Jeter",
+   "value": "2 747",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_d5d2dccd1b60c311",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Mickey Mantle",
+   "value": "2 401",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_635a04d81e36e587",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Western Europe (excl. EU)",
+   "value": "1 413",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_635a04d81e36e587",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "Middle East and North Africa (excl EU)",
+   "value": "1 595",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_6496f527b81541f6",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "China",
+   "value": "231.6",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_8625ce73c57f085b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2014",
+   "value": "310",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_8625ce73c57f085b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2013",
+   "value": "315",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_8625ce73c57f085b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2012",
+   "value": "305",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_8625ce73c57f085b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2011",
+   "value": "305",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_8625ce73c57f085b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2010",
+   "value": "332",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_8625ce73c57f085b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2009",
+   "value": "311",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_8625ce73c57f085b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2008",
+   "value": "281",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_8625ce73c57f085b",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2007",
+   "value": "285",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_86c091fd82e39b40",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "FY 2018",
+   "value": "341",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_86c091fd82e39b40",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "FY 2017",
+   "value": "314",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_86c091fd82e39b40",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "FY 2016",
+   "value": "287",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_86c091fd82e39b40",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "FY 2015",
+   "value": "296",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_86c091fd82e39b40",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "FY 2014",
+   "value": "255",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_86c091fd82e39b40",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "FY 2013",
+   "value": "239",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_86c091fd82e39b40",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "FY 2012",
+   "value": "250",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_0069964b7f103a9d",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2000",
+   "value": "900",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_111c4c177a1169b8",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "20 to 24",
+   "value": "12.4",
+   "series": {}
+  },
+  {
+   "record": "refchartqa_train_07899f9c807ac7b6",
+   "best_iou": 1.0,
+   "margin": 1.0,
+   "label": "2012",
+   "value": "1.2",
+   "series": {}
+  }
+ ]
+}

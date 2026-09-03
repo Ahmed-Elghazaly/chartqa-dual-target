@@ -1,0 +1,128 @@
+{
+ "stats": {
+  "records": 2401,
+  "unparseable_value": 878,
+  "records_with_a_mismatch": 86,
+  "evidence_entries": 1893,
+  "entries_on_ambiguous_label": 45,
+  "MISMATCH": 174,
+  "cause_percent_scale": 61,
+  "mismatch_on_ambiguous_label": 3,
+  "cause_genuine_disagreement": 110,
+  "cause_rounding": 3
+ },
+ "examples": [
+  {
+   "record": "chartqa_train_014e34663f8f1ae8",
+   "label": "Formal",
+   "emitted_value_from_table": 0.8190000000000001,
+   "value_of_the_boxed_element": 81.9,
+   "label_names_n_elements": 1,
+   "all_values_for_that_label": [
+    81.9
+   ],
+   "series": [
+    "pie"
+   ],
+   "question": "How many segments are there?"
+  },
+  {
+   "record": "chartqa_train_014e34663f8f1ae8",
+   "label": "Informal",
+   "emitted_value_from_table": 0.127,
+   "value_of_the_boxed_element": 12.7,
+   "label_names_n_elements": 1,
+   "all_values_for_that_label": [
+    12.7
+   ],
+   "series": [
+    "pie"
+   ],
+   "question": "How many segments are there?"
+  },
+  {
+   "record": "chartqa_train_014e34663f8f1ae8",
+   "label": "Traditional",
+   "emitted_value_from_table": 0.051,
+   "value_of_the_boxed_element": 5.1,
+   "label_names_n_elements": 1,
+   "all_values_for_that_label": [
+    5.1
+   ],
+   "series": [
+    "pie"
+   ],
+   "question": "How many segments are there?"
+  },
+  {
+   "record": "chartqa_train_014e34663f8f1ae8",
+   "label": "Other",
+   "emitted_value_from_table": 0.003,
+   "value_of_the_boxed_element": 0.3,
+   "label_names_n_elements": 1,
+   "all_values_for_that_label": [
+    0.3
+   ],
+   "series": [
+    "pie"
+   ],
+   "question": "How many segments are there?"
+  },
+  {
+   "record": "chartqa_train_8f2d9e596486978e",
+   "label": "Finland",
+   "emitted_value_from_table": 9.4,
+   "value_of_the_boxed_element": 9.9,
+   "label_names_n_elements": 1,
+   "all_values_for_that_label": [
+    "9.9"
+   ],
+   "series": [
+    "bars"
+   ],
+   "question": "Calculate the average of all the bars in this graph?"
+  },
+  {
+   "record": "chartqa_train_8f2d9e596486978e",
+   "label": "Hungary",
+   "emitted_value_from_table": 9.9,
+   "value_of_the_boxed_element": 9.4,
+   "label_names_n_elements": 1,
+   "all_values_for_that_label": [
+    "9.4"
+   ],
+   "series": [
+    "bars"
+   ],
+   "question": "Calculate the average of all the bars in this graph?"
+  },
+  {
+   "record": "chartqa_train_8f2d9e596486978e",
+   "label": "United Kingdom",
+   "emitted_value_from_table": 12.5,
+   "value_of_the_boxed_element": 14.2,
+   "label_names_n_elements": 1,
+   "all_values_for_that_label": [
+    "14.2"
+   ],
+   "series": [
+    "bars"
+   ],
+   "question": "Calculate the average of all the bars in this graph?"
+  },
+  {
+   "record": "chartqa_train_8f2d9e596486978e",
+   "label": "Portugal",
+   "emitted_value_from_table": 14.2,
+   "value_of_the_boxed_element": 12.5,
+   "label_names_n_elements": 1,
+   "all_values_for_that_label": [
+    "12.5"
+   ],
+   "series": [
+    "bars"
+   ],
+   "question": "Calculate the average of all the bars in this graph?"
+  }
+ ]
+}
