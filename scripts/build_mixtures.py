@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+from dataclasses import replace
 from pathlib import Path
 
 from chartqa_dt.data.chartqa import (
@@ -170,11 +171,48 @@ def chartqa_records(reader: ArchiveReader, *, limit: int, seed: int) -> list[Cha
 
 
 def refchartqa_records(*, cap: int, cache: Path) -> list[ChartRecord]:
-    """Streamed RefChartQA training rows. Cached, because streaming them is the slow part."""
+    """Streamed RefChartQA training rows, enriched with semantic identity where available.
+
+    RefChartQA marks *which* regions answer a question but not what they are, so an
+    unenriched record produces evidence named `item1, item2, …` with no value, and
+    `build_record` can only derive a plan for the single-box case — by setting the evidence
+    value **to the answer**, which makes the round-trip pass by construction.
+
+    `scripts/align_refchartqa.py` matches each grounding box to a ChartQA element on the
+    same image (measured: 98.9% at IoU >= 0.9, median 1.000 — they are the same boxes) and
+    caches the result. When that cache exists, the matched elements and the chart's gold
+    table are attached, so the record carries real labels, real values and a table to mine
+    a plan against (`AUDIT.md` H1, `DECISIONS.md` 0077).
+
+    **The enrichment must be attached here, not merged later.** A mixture stores record ids
+    and training rehydrates from these readers, so anything added downstream of this point
+    is discarded before training ever sees it (`AUDIT.md` H2).
+    """
     if not cache.exists():
         return []
     records = [ChartRecord.from_dict(json.loads(line))
                for line in cache.read_text(encoding="utf-8").splitlines() if line]
+
+    aligned_path = cache.with_name("refchartqa_aligned.jsonl")
+    if aligned_path.exists():
+        by_id = {}
+        for line in aligned_path.read_text(encoding="utf-8").splitlines():
+            if line:
+                a = json.loads(line)
+                by_id[a["record_id"]] = a
+        enriched = 0
+        out: list[ChartRecord] = []
+        for r in records:
+            a = by_id.get(r.record_id)
+            if a is None:
+                out.append(r)
+                continue
+            meta = {**r.meta, ELEMENTS_KEY: a[ELEMENTS_KEY], "aligned_to_chartqa": True}
+            out.append(replace(r, meta=meta, table=r.table or a.get("table")))
+            enriched += 1
+        records = out
+        print(f"  refchartqa: {enriched:,} of {len(records):,} records enriched with "
+              f"ChartQA element identity")
     return records[:cap]
 
 

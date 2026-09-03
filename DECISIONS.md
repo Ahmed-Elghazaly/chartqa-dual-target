@@ -3708,3 +3708,74 @@ The deeper problem remains open and is recorded as `AUDIT.md` C2: one field with
 meanings is the kind of interface that produces this class of bug repeatedly. Separating
 chart **elements** from question **evidence** in the record is the structural fix, and it is
 a schema change that needs its own decision.
+
+---
+
+## 0077 — RefChartQA grounding is given semantic identity from ChartQA's elements
+
+**Context.** RefChartQA marks *which* regions answer a question but not what they are. So
+`_evidence_from` fell to its placeholder branch — evidence named `item1, item2, …` with
+`value: null` — and `build_record` could only derive a plan for the single-box case, by
+setting the evidence value **to the answer**:
+
+```python
+if len(evidence) == 1 and answer_value is not None:
+    evidence[0]["value"] = answer_value
+    plan = {"op": "lookup", "args": [evidence[0]["label"]]}
+```
+
+The round-trip then passes *by construction*: the plan looks up a value we just set to the
+answer. 2,063 records were supervised this way, and none of them taught anything about
+reading a chart.
+
+**Measurement.** `audit/measure_refchartqa_alignment.py` over 6,340 grounding boxes:
+
+| | |
+|---|---:|
+| best-match IoU ≥ 0.9 against a ChartQA element | **98.9%** |
+| median best-match IoU | **1.000** |
+| median margin over the runner-up | **1.000** |
+
+The boxes are not similar to ChartQA's elements — they **are** ChartQA's elements.
+RefChartQA is that geometry plus a per-question selection.
+
+**Decision.** `scripts/align_refchartqa.py` matches each grounding box to a ChartQA element
+and caches the result; `refchartqa_records` attaches the matched elements and the chart's
+gold table. Deliberately strict and rejecting: `MIN_IOU = 0.90`, `MIN_MARGIN = 0.50`,
+one-to-one assignment, and **all** of a record's boxes must match or the record stays
+unaligned — a half-aligned record would mix real labels with `item1` in one evidence list.
+
+**The enrichment is attached in the reader, not merged later.** A mixture stores record ids
+and training rehydrates through these readers, so anything added downstream is discarded
+before training (`AUDIT.md` H2).
+
+**Result.**
+
+| | |
+|---|---:|
+| records aligned | **3,405 of 3,996 (85.2%)** |
+| no ChartQA elements for that image | 522 (13.1%) |
+| refused as low-confidence or ambiguous | 69 (1.7%) |
+| usable targets, before | 2,063 (circular) |
+| usable targets, after | **1,864 (genuinely checked)** |
+
+**199 records lost, and losing them is the point.** They are questions whose answer is the
+*label* rather than the value — *"In what year were the largest amount produced?"* → `2009`,
+where the marked bar's value is 475.97. `lookup` returns a value, so it was never the right
+plan; the old derivation hid that by defining the value as the answer.
+
+⚠️ **One bug this introduced, and it is worth recording.** The first version attached raw
+annotation values, which are written as they appear on the chart: `'460 000'` with a space
+separator, `'9,891'` with a comma, `'64%'`. `to_float('460 000')` is `None` and the executor
+*raises* on it, so 791 records failed the round-trip. `normalise_value` now parses them, and
+failures fell to 199.
+
+It keeps the **percent magnitude** rather than dividing: RefChartQA's answers are written in
+percentage points (`'64'` for a bar reading `64%`), so a predicted `0.64` would score wrong
+against gold `64`. This is the opposite of the ChartQA path (0075), where cell and answer
+both carry `%` and both parse to a fraction. The two conventions never meet in one record,
+because a record is either ChartQA-sourced or RefChartQA-sourced.
+
+**Consequences.** 1,864 records now carry real labels, real chart values and a round-trip
+that can actually fail. Still open: **1,933 multi-box records have no plan**, but now have
+labels, values *and* a table — so they are minable, which is the natural next step.
