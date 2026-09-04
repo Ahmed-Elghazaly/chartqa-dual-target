@@ -86,3 +86,56 @@ def test_an_unusable_colour_is_ignored_rather_than_guessed():
     """Some annotations carry the literal string 'unk'."""
     assert names_for("unk") == {"unk"} or "unk" in names_for("unk")
     assert mentioned_in("what is the blue bar", ["unk"]) == set()
+
+
+# ------------------------------------------------- colour reaching the elements themselves
+
+
+def _chart(models, kind="v_bar"):
+    from chartqa_dt.data.chartqa import annotation_boxes
+    return annotation_boxes({"type": kind, "models": models}, 100, 100)
+
+
+BOXES = [{"x": 0, "y": 0, "w": 10, "h": 50}, {"x": 20, "y": 0, "w": 10, "h": 40}]
+
+
+def test_a_per_datapoint_colour_list_lands_on_each_element():
+    """`colors` is one entry per datapoint on v_bar, because colour often distinguishes
+    categories WITHIN a series -- which is the chart *"the blue bar"* is asked about."""
+    els = _chart([{"name": "S", "bboxes": BOXES, "x": ["a", "b"], "y": [1, 2],
+                   "colors": ["#2876dd", "#0f283e"]}])
+    assert [e["colour"] for e in els] == ["#2876dd", "#0f283e"]
+
+
+def test_a_single_series_colour_is_given_to_every_element():
+    els = _chart([{"name": "S", "bboxes": BOXES, "x": ["a", "b"], "y": [1, 2],
+                   "color": "dark blue"}])
+    assert [e["colour"] for e in els] == ["dark blue", "dark blue"]
+
+
+def test_a_short_colour_list_pads_rather_than_zipping_short():
+    """A wrong colour points at the wrong mark; a missing one only declines to answer."""
+    els = _chart([{"name": "S", "bboxes": BOXES, "x": ["a", "b"], "y": [1, 2],
+                   "colors": ["#2876dd"]}])
+    assert [e["colour"] for e in els] == ["#2876dd", None]
+
+
+def test_the_literal_unk_is_not_treated_as_a_colour():
+    """Some annotations carry the string 'unk'. It is not a colour."""
+    els = _chart([{"name": "S", "bboxes": BOXES, "x": ["a", "b"], "y": [1, 2],
+                   "color": "unk"}])
+    assert [e["colour"] for e in els] == [None, None]
+
+
+def test_a_chart_with_no_colour_still_produces_elements():
+    """Colour is an addition; its absence must not cost us the boxes."""
+    els = _chart([{"name": "S", "bboxes": BOXES, "x": ["a", "b"], "y": [1, 2]}])
+    assert len(els) == 2
+    assert all(e["colour"] is None for e in els)
+    assert all(e["bbox"] for e in els)
+
+
+def test_a_pie_wedge_carries_its_colour():
+    els = _chart([{"text_label": "Pension funds", "value": "29.0", "color": "#2876dd",
+                   "bbox": {"x": 0, "y": 0, "w": 10, "h": 10}}], kind="pie")
+    assert els and els[0]["colour"] == "#2876dd"

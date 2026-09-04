@@ -38,6 +38,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from chartqa_dt.data.colours import names_for
 from chartqa_dt.plans.executor import MAX_DEPTH, NEEDS_TABLE, OPS
 
 #: Bumped whenever the prompt text changes in a way that could change proposals. Part of
@@ -113,6 +114,19 @@ class TeacherRequest:
         return hashlib.sha256(self.prompt.encode("utf-8")).hexdigest()
 
 
+def describe_colour(colour: Any) -> str:
+    """The most specific word for this colour, for a reader to match against a question.
+
+    **21.8% of human-written ChartQA questions mention a colour** and 0.5% of machine ones
+    (`DECISIONS.md` 0087), so a reader that cannot see colour cannot answer a fifth of the
+    half of the benchmark that decides the score. The most specific name is shown — *dark
+    blue* rather than *blue* — because a question saying "blue" still matches it, while one
+    saying "dark blue" would not match the other way round.
+    """
+    words = names_for(colour)
+    return max(words, key=lambda w: (len(w.split()), len(w))) if words else ""
+
+
 def _render_table(table: dict | None, *, max_rows: int = 20) -> str:
     if not table:
         return "(no table available)"
@@ -183,6 +197,7 @@ def build_prompt(*, question: str, answer: Any, table: dict | None,
     items = "\n".join(
         f"  - {e.get('label')!r} = {e.get('value')!r}"
         + (f" {e['unit']}" if e.get("unit") else "")
+        + (f"   [{describe_colour(e['colour'])}]" if e.get("colour") else "")
         + ("   [MARKED]" if marked_labels and e.get("label") in marked_labels else "")
         for e in evidence) or "  (none)"
     marked_note = (

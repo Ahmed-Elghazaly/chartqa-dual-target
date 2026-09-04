@@ -93,6 +93,44 @@ def parse_table(text: str) -> dict[str, Any]:
 ELEMENT_LAYOUTS = {"v_bar": "series", "h_bar": "series", "line": "segments", "pie": "wedges"}
 
 
+def _one_colour(raw: Any) -> str | None:
+    """A single colour value, normalised, or None when the annotation does not know one.
+
+    Some annotations carry the literal string ``'unk'``; it is not a colour and is dropped
+    rather than passed on as if it were.
+    """
+    if raw is None:
+        return None
+    text = str(raw).strip().lower()
+    return text or None if text and text != "unk" else None
+
+
+def _element_colours(model: dict[str, Any], count: int) -> list[str | None]:
+    """One colour per datapoint, from whichever of the two shapes this annotation uses.
+
+    ChartQA writes the colour two different ways and **21.8% of human-written questions
+    mention one** (`DECISIONS.md` 0087), so both have to be read:
+
+    * ``colors`` — a list, one entry per datapoint, on ``v_bar``. Per-datapoint because on
+      many charts colour distinguishes categories *within* a series rather than the series
+      itself, which is exactly the chart *"the blue bar"* is asked about.
+    * ``color`` — singular, on ``line`` / ``h_bar`` / ``pie``, and often already an English
+      name such as ``'dark blue'``.
+
+    A shorter ``colors`` list than there are boxes is padded with ``None`` rather than
+    zipped short: a wrong colour points at the wrong mark, and a missing one only declines
+    to answer.
+    """
+    listed = model.get("colors")
+    if isinstance(listed, str):
+        listed = [listed]
+    if isinstance(listed, list) and listed:
+        values = [_one_colour(c) for c in listed[:count]]
+        return values + [None] * (count - len(values))
+    single = _one_colour(model.get("color"))
+    return [single] * count
+
+
 def _series_elements(model: dict[str, Any], image_w: int, image_h: int
                      ) -> list[dict[str, Any]]:
     """Bars: `bboxes`, `x` and `y` are parallel arrays, one entry per datapoint.
@@ -105,13 +143,15 @@ def _series_elements(model: dict[str, Any], image_w: int, image_h: int
     xs, ys = model.get("x") or [], model.get("y") or []
     if len(boxes) != len(ys) or (xs and len(xs) != len(boxes)):
         return []
+    colours = _element_colours(model, len(boxes))
     out = []
     for i, box in enumerate(boxes):
         norm = _norm_or_none(box, image_w, image_h)
         if norm is None:
             continue
         out.append({"series": model.get("name"), "label": str(xs[i]) if xs else None,
-                    "value": ys[i], "bbox": norm, "kind": "datapoint"})
+                    "value": ys[i], "bbox": norm, "kind": "datapoint",
+                    "colour": colours[i]})
     return out
 
 
@@ -135,7 +175,7 @@ def _wedge_element(model: dict[str, Any], image_w: int, image_h: int
     if norm is None:
         return None
     return {"series": "pie", "label": str(label), "value": value, "bbox": norm,
-            "kind": "wedge"}
+            "kind": "wedge", "colour": _one_colour(model.get("color"))}
 
 
 def _norm_or_none(box: Any, image_w: int, image_h: int) -> list[float] | None:
