@@ -4218,3 +4218,59 @@ both bare aggregates over charts with 17 and 25 elements. The median ChartQA cha
 elements, so this now bounds every fold-shaped plan. That cap was set by a measured token
 budget (0060) and re-opening it means re-pricing sequence length against step time; it is the
 next thing to measure, not to assume.
+
+---
+
+## 0084 — Pricing `MAX_EVIDENCE`, and pricing 0083's own cost
+
+**Context.** Two of the teacher's 27 proposals were rejected for needing more evidence than
+`MAX_EVIDENCE = 8`, both bare aggregates over charts of 17 and 25 elements, and the median
+ChartQA chart has 10. The cap was set on a measured token budget (0060), so re-opening it
+means re-pricing sequence length — not asserting that bigger is better.
+
+**What the cap actually blocks.** Over 3,000 real training questions:
+
+| | |
+|---|---:|
+| plans that name their own labels — **the cap never applies** | 2,708 (**90.3%**) |
+| plans that fold over the whole chart | 292 (9.7%) |
+| of those, on a chart larger than the cap | 194 (66.4% of fold-shaped, **6.5% of all**) |
+
+`train.targets` selects the elements a plan *names*, so a `lookup` on a 40-bar chart has
+always been fine. Only `argmax`, `max`, `median`, `count` and friends need the whole chart,
+and they are under a tenth of the corpus. **The cap is far less damaging than the 64.4% of
+charts exceeding it suggests.**
+
+**What it would cost.** Measured with the real Qwen3-VL tokenizer, against
+`ModelConfig.max_seq_len = 1024`, using the worst case — every label qualified, every item
+carrying a unit — because truncation is silent and must be sized on the worst case, not the
+average:
+
+| cap | target | + visual 247 | + prompt 106 | + template 30 | total | headroom | |
+|---:|---:|---:|---:|---:|---:|---:|---|
+| **8** | 364 | | | | **747** | +277 | current |
+| 10 | 448 | | | | 831 | +193 | +2.2% of questions |
+| **12** | 532 | | | | **915** | **+109** | **+2.7%** |
+| 14 | 616 | | | | 999 | +25 | razor thin |
+| 16 | 700 | | | | 1083 | **−59** | truncates silently |
+
+Each extra item is **44 tokens**. Collation pads to the longest sequence in the batch
+(`collate.py`, `padding=True`), so longer targets do cost some step time — but only in
+batches that contain one, and fold-shaped questions are 9.7% of the corpus.
+
+**Decision. No change without approval.** The measurement says 12 is feasible and buys
+**+2.7% of all questions** (~760 more supervisable ChartQA training records) while keeping
+109 tokens of worst-case headroom. `MAX_EVIDENCE` is `OUTPUT_SCHEMA`'s `maxItems`, so raising
+it is a schema change, and Ahmed asked to approve those. Recorded and put to him rather than
+taken.
+
+**A second result: 0083 is nearly free.** Qualifying labels was measured on the same
+tokenizer: **+3 tokens per qualified item**, and since only 22.6% of charts collide and only
+the colliding labels are qualified, the expected cost is **about 5 tokens per target**. The
+fix for H3 does not meaningfully consume the budget this decision is about.
+
+**Consequences.** 0060 is confirmed rather than overturned: 8 was a defensible choice, and
+nothing above 14 is possible at the current `max_seq_len` no matter how the trade is valued.
+The interesting number is 90.3% — the cap never applies to nine questions in ten, because
+evidence is selected by what the plan names. That is `DECISIONS.md` 0014's "emit few boxes"
+paying off in a place it was not designed for.
