@@ -4416,3 +4416,74 @@ a tie-breaker over the old miner (86–89% precision, rejected) and forward cons
 but now correctly scoped). Neither was wasted, but the split by question origin was one query
 away the whole time and would have aimed both from the start. **Measure who your method
 works for before measuring how well it works.**
+
+---
+
+## 0087 — The chart's colours were in the annotation the whole time
+
+**Context.** 0086 split the corpus by question origin and found human-written questions are a
+different kind of question, not merely a different phrasing. Reading forty of them by hand
+(`scripts/mine_human_questions.py`) made the largest category obvious, and a corpus count
+confirmed it:
+
+| | human | machine |
+|---|---:|---:|
+| **mentions a colour** | **21.8%** (1,610) | 0.5% |
+| answer is Yes/No | 8.0% | 0.0% |
+| a fold within one series | 8.6% | 0.1% |
+
+*"What is the value of the highest dark blue bar?"*, *"What colour denotes Rep Party?"*,
+*"What is the median value of all the gray bars?"* — our evidence carries a label, a value and
+a box, and no colour at all, so every one of those is unanswerable from our representation.
+That is a fifth of the half of the benchmark that decides the score.
+
+**The information was never missing.** Every ChartQA annotation model carries the colour, and
+nothing in this project has ever read it. It arrives in two shapes, which is why a first pass
+missed most of it:
+
+* `colors` — a list of hex, one per datapoint, on `v_bar`
+* `color` — singular, on `line` / `h_bar` / `pie`, and **often already an English name**:
+  `'dark blue'`, `'orange'`
+
+**Decision.** `data/colours.py` names a colour the way the person asking the question would.
+It returns a **set** of acceptable words rather than one canonical name, because `#0f283e` is
+*navy*, *dark blue*, *blue* and — measured on real questions — *black*. Being generous is the
+safe direction: a colour only ever selects *which marks* a question is about, and the plan
+built from that selection is still checked against the gold answer.
+
+**Evidence.** 1,200 human questions that mention a colour, matched against their own chart's
+palette:
+
+| | first pass | after reading both shapes |
+|---|---:|---:|
+| a series matches the words | 27.5% | **61.9%** |
+| colours present, none match | 4.2% | 37.8% |
+| **no usable colour in the annotation** | **68.3%** | **0.2%** |
+
+Three fixes moved it, each forced by a real failure rather than guessed:
+
+1. **Read the singular `color` too**, including the plain-English form. Worth ~30 points.
+2. **A very dark colour answers to "black".** `#0f283e` is lightness 0.15 and people write
+   *"the black line"*; naming it only *navy* lost those.
+3. **A qualified name beats a bare hue.** *"dark blue"* selected every blue on the chart until
+   a colour matched by a two-word name was made to outrank one matched by the hue alone.
+
+A fourth guard was written, failed its own test, and was rewritten: suppressing a colour word
+because it appears in *any* label killed *"what is the orange bar worth"* on a chart with a
+series called *"orange oil"*. The rule is now that the **whole label** must appear in the
+question, not merely the word.
+
+**Consequences.** The remaining 37.8% are honest: some annotations carry the literal string
+`'unk'`, and *"**Which** colour represents X?"* (5.9%) asks for the colour as the **answer**
+rather than as a selector — answerable, but by a different operation than the one measured
+here.
+
+**This is established, not yet used.** Colour is not on any element, no plan can select by it,
+and no target carries it. Wiring it through is the next step and it is a schema question:
+either evidence items gain a colour, or the qualified label absorbs it the way `series` did in
+0083. The measurement had to come first, because the whole idea rested on colours in the file
+matching the words in the questions, and that was a hypothesis until now.
+
+**The lesson, again.** 0085 found a costly assumption nobody had written down. This is the
+same shape: `annotation_boxes` has always dropped `colors` on the floor, silently, and no
+decision record ever said why — because nobody ever decided it.
