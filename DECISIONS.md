@@ -4258,7 +4258,7 @@ Each extra item is **44 tokens**. Collation pads to the longest sequence in the 
 (`collate.py`, `padding=True`), so longer targets do cost some step time — but only in
 batches that contain one, and fold-shaped questions are 9.7% of the corpus.
 
-**Decision. No change without approval.** The measurement says 12 is feasible and buys
+**Decision.** *No change without approval.* The measurement says 12 is feasible and buys
 **+2.7% of all questions** (~760 more supervisable ChartQA training records) while keeping
 109 tokens of worst-case headroom. `MAX_EVIDENCE` is `OUTPUT_SCHEMA`'s `maxItems`, so raising
 it is a schema change, and Ahmed asked to approve those. Recorded and put to him rather than
