@@ -5905,3 +5905,60 @@ keep it deliberate is to make it fail loudly if either side changes.
 heuristic. `_labels_in` and `plan_labels` were the same concept and had to be merged;
 these two are the same *shape* and must not be. The distinguishing question is not whether
 the code looks alike — it is whether the **inputs share a contract**. Here they do not.
+
+---
+
+## 0112 — We are training on 7.2% of RefChartQA, because a starting point became a ceiling
+
+**Context.** Ahmed asked for every limit and hardcap to be re-examined rather than assumed.
+A sweep of the 51 numeric constants in `src/` found 14 with no written justification; this is
+the one that costs the most.
+
+`REFCHARTQA_CAP = 4_000` carries the comment *"`PLAN.md` 3.4: start at the single-box cap"*.
+Reading 3.4 confirms it was never meant to be a limit:
+
+> *"Start at the 4,000 single-box cap. Then run a **scaling ladder** at 4,000 / 10,000 /
+> 25,000 rows, measuring validation grounding at each, and keep the point where the curve
+> flattens."*
+
+The ladder was deferred. The starting point stayed.
+
+**And the cap is not even where the supply stops.** `scripts/cache_refchartqa.py` takes
+`--cap`, defaulting to **4,000**, and the cache holds **3,996** rows. The mixture-level cap has
+never bound anything; the *cache* is the real ceiling, and it is one script argument.
+
+| | |
+|---|---:|
+| RefChartQA train split | **55,789** |
+| cached | 3,996 (**7.2%**) |
+| of the cache, usable via grounding-only targets | 3,936 (98.5%) |
+| **usable if the whole split were cached** | **~54,952** |
+| stage-1 cap | 12,000 |
+| RefChartQA can fill of stage 1 **today** | 3,936 — **33%** |
+| RefChartQA could fill | **12,000 — all of it, from real charts** |
+
+**The premise changed and the number did not.** 4,000 was chosen when only the *single-box*
+records were usable — 52% of RefChartQA, because `build_record` needed a plan and could derive
+one only for a one-box record (0067). `build_grounding_only_target` (0104) raised that to
+**98.5%**. The same cap now discards nearly twice as large a fraction of a much larger pool.
+
+**It also fixes a different problem for free.** 0098 measured synthetic charts at a median of
+**4 marks** against real ChartQA's **10**, and said the density gap cannot be closed by
+reweighting because no synthetic chart has more than 7. Filling stage 1 with **real RefChartQA
+grounding** closes it by substitution: real charts have real density. That is a better fix than
+regenerating synthetic data, and it costs a download rather than hours of compute.
+
+**Decision.** Raise the cache cap to the full split and re-cache. Cost is ~2 GB of disk —
+against 5.7 GB already identified as reclaimable in the same cache (RefChartQA is stored twice)
+— and one streaming pass.
+
+**The mixture cap stays at 4,000 until the ladder runs.** Caching more data and *using* more
+data are different decisions: the first is cheap, reversible and a prerequisite; the second is
+what PLAN 3.4's ladder was for, and it now has something to ladder over. Raising both at once
+would confound "more data" with "more real data" exactly as 0072 warned.
+
+**Consequences.** This is the largest supply change available before training, and it was one
+default argument. It is also the fourth time an audit finding has been *"a value that was right
+when written, under a premise that later changed"* — after 0091's synthetic purpose, 0092's
+compute cap and 0095's resolution. A constant with a comment saying **"start at"** is a
+constant nobody has finished with.
