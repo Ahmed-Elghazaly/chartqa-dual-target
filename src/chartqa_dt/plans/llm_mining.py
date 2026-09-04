@@ -30,6 +30,7 @@ pipeline the author of the supervision.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -200,6 +201,77 @@ def verify(plan: Any, *, answer: Any, evidence: Sequence[dict[str, Any]],
                    underdetermined=indistinguishable_from(plan, items))
 
 
+def plan_key(plan: Any) -> str:
+    """A stable identity for a plan, so two samples of the same plan compare equal.
+
+    Argument *order* is kept: `difference(a, b)` and `difference(b, a)` are different plans
+    and only one of them reproduces the answer.
+    """
+    return json.dumps(plan, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+@dataclass
+class Consensus:
+    """What K samples of the same record agreed on."""
+
+    plan: dict | None = None
+    votes: int = 0
+    samples: int = 0
+    distinct: int = 0
+
+    @property
+    def agreement(self) -> float:
+        return self.votes / self.samples if self.samples else 0.0
+
+
+def consensus(proposals: Sequence[Any], *, answer: Any,
+              evidence: Sequence[dict[str, Any]],
+              marked_labels: set[str] | None = None,
+              threshold: float = 0.5) -> Consensus:
+    """Pick the plan that K independent samples agree on, among those that verify.
+
+    **Why sample at all, when there is already a verifier.** The gates are arithmetic: they
+    settle whether a plan *computes* the answer, and cannot settle which reading was meant
+    when several compute it (`DECISIONS.md` 0080, 0097). Self-consistency is the standard
+    answer to exactly that — correct reasoning paths converge while wrong ones spray — and it
+    supplies the one thing the evidence cannot: what the reader *repeatedly* thought the
+    question was asking.
+
+    Verification runs **first**, so a plan that does not reproduce the answer cannot win a
+    vote by being popular. Among the survivors, the most frequent plan wins if it clears
+    `threshold`; a tie or a scattered vote returns no plan, because a reader that answers
+    differently every time has told us it does not know.
+
+    **The threshold's denominator is every sample, not every surviving sample**, and the
+    difference matters. Three samples that fail arithmetic and one that passes gives 1/4, not
+    1/1, so the survivor does not win. A reader that miscomputes this record three times out
+    of four has said something about its grasp of it, and the one time it happened to be
+    right is not evidence to the contrary. The looser denominator would let a single lucky
+    sample carry a record that K-fold sampling was bought to protect.
+
+    This is worth its K-fold cost only where a single sample is not enough — the records
+    `Verdict.underdetermined` flags — not on every record.
+    """
+    verdicts, _ = verify_many([
+        {"plan": p, "answer": answer, "evidence": evidence, "marked_labels": marked_labels}
+        for p in proposals])
+    kept = [v.plan for v in verdicts if v.accepted]
+    if not kept:
+        return Consensus(samples=len(proposals))
+    counts: dict[str, int] = {}
+    first: dict[str, dict] = {}
+    for plan in kept:
+        key = plan_key(plan)
+        counts[key] = counts.get(key, 0) + 1
+        first.setdefault(key, plan)
+    top = max(counts.values())
+    winners = [k for k, n in counts.items() if n == top]
+    result = Consensus(samples=len(proposals), votes=top, distinct=len(counts))
+    if len(winners) == 1 and top / len(proposals) >= threshold:
+        result.plan = first[winners[0]]
+    return result
+
+
 def verify_many(proposals: Sequence[dict[str, Any]]) -> tuple[list[Verdict], VerificationStats]:
     """Verify a batch. Each proposal supplies `plan`, `answer`, `evidence`, `marked_labels`."""
     stats = VerificationStats()
@@ -227,8 +299,11 @@ __all__ = [
     "UNKNOWN_LABEL",
     "WRONG_ANSWER",
     "WRONG_OPERANDS",
+    "Consensus",
     "Verdict",
     "VerificationStats",
+    "consensus",
+    "plan_key",
     "verify",
     "verify_many",
 ]

@@ -5218,3 +5218,50 @@ from schema-forcing and should not be conflated with it.
 with the exact condition under which to reopen it. It is also the second time this audit has
 found that a project rule — *never invent content* — rules out a technique that would
 otherwise look free: the first was repairing an LLM's plan instead of discarding it (0080).
+
+---
+
+## 0100 — Sampling the reader K times, but only where one sample cannot decide
+
+**Context.** `Prompt.md` Phase 3.6 asks about LLM program generation, teacher distillation and
+self-consistency. Self-consistency is the standard technique: sample K reasoning paths and
+majority-vote, on the intuition that correct paths converge while wrong ones spray across many
+different answers.
+
+**It addresses precisely the gap our gates cannot.** The five gates in `plans.llm_mining` are
+arithmetic — they settle whether a plan *computes* the gold answer and are silent on which
+reading was meant when several compute it (0080, 0097). Sampling supplies the one thing the
+evidence cannot: what the reader **repeatedly** thought the question was asking.
+
+**Decision.** `llm_mining.consensus` — verified self-consistency, with two properties that
+differ from the textbook form and both matter.
+
+1. **Verification runs before the vote.** A plan that does not reproduce the answer cannot win
+   by being popular. The textbook version votes on answers; we vote only among plans that have
+   already survived every gate, so popularity can only choose between *correct* readings.
+2. **The threshold's denominator is every sample, not every survivor.** Three samples that
+   fail arithmetic and one that passes gives 1/4, not 1/1, so the survivor does not win. A
+   reader that miscomputes a record three times out of four has said something about its grasp
+   of it, and the once it happened to be right is not evidence against that. The looser
+   denominator would let a single lucky sample carry exactly the record K-fold sampling was
+   bought to protect.
+
+A tie refuses. Two readings that both verify and split the vote evenly are a coin flip, and
+`PLAN.md` 3.6's rule — never an invented plan — makes a coin flip the wrong answer.
+
+**Where to spend it.** K samples cost K times as much, and most records do not need them: a
+plan the evidence can certify is already settled by one pass. The natural pairing is with
+0097 — **sample only the records `Verdict.underdetermined` flags**, where the chart genuinely
+cannot distinguish two readings. Cheap where determinable, expensive only where it is not.
+
+**A tension recorded rather than resolved.** The distillation literature reports that student
+models benefit from a *diverse, noisy* set of rationales, which points the other way from
+discarding everything that fails a gate (0080's "discarded, never repaired"). We keep the
+strict rule, because a plan that reaches the right number by the wrong route teaches the wrong
+reasoning and this project's metric rewards the route as well as the number. But the finding
+is real and it is the kind of thing worth testing once there is a trained model to test with.
+There is also published caution about self-consistency itself — *When Self-Consistency
+Backfires* — so K is a parameter to measure, not a setting to assume.
+
+**Consequences.** Phase 3.6 closes. The mining run can now spend its budget unevenly: one pass
+everywhere, K passes where the evidence is silent, and nothing accepted that a gate rejects.

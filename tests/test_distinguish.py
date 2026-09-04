@@ -109,3 +109,65 @@ def test_a_well_determined_plan_carries_no_flag():
                           evidence=[{"label": e.label, "value": e.value} for e in THREE])
     assert v.status == llm_mining.OK
     assert v.underdetermined == []
+
+
+# ------------------------------------------- asking K times where once is not enough
+
+
+def _c(proposals, answer="154.3"):
+    from chartqa_dt.plans.llm_mining import consensus
+    return consensus(proposals, answer=answer,
+                     evidence=[{"label": "Nigeria", "value": 154.3},
+                               {"label": "Egypt", "value": 54.7}])
+
+
+LOOKUP = {"op": "lookup", "args": ["Nigeria"]}
+MAXOP = {"op": "max", "args": []}
+WRONG = {"op": "lookup", "args": ["Egypt"]}
+
+
+def test_agreement_wins():
+    got = _c([LOOKUP] * 4)
+    assert got.plan == LOOKUP
+    assert (got.votes, got.samples, got.distinct) == (4, 4, 1)
+
+
+def test_a_clear_majority_wins():
+    assert _c([LOOKUP, LOOKUP, LOOKUP, MAXOP]).plan == LOOKUP
+
+
+def test_a_tie_refuses_rather_than_picking_one():
+    """Both readings verify; the reader is split, and picking either would be a coin flip
+    dressed as supervision."""
+    got = _c([LOOKUP, LOOKUP, MAXOP, MAXOP])
+    assert got.plan is None
+    assert got.distinct == 2
+
+
+def test_verification_runs_before_the_vote():
+    """A plan that does not reproduce the answer cannot win by being popular."""
+    got = _c([WRONG, WRONG, WRONG])
+    assert got.plan is None
+    assert got.votes == 0
+
+
+def test_one_lucky_sample_does_not_carry_a_record():
+    """The denominator is every sample, not every survivor. Three failures and one pass is
+    1/4, and a reader that miscomputes three times out of four has told us something."""
+    got = _c([WRONG, WRONG, WRONG, LOOKUP])
+    assert got.plan is None
+    assert (got.votes, got.samples) == (1, 4)
+
+
+def test_argument_order_is_part_of_a_plan_identity():
+    """`difference(a, b)` and `difference(b, a)` are different plans and only one of them
+    reproduces the answer -- they must never be pooled into one vote."""
+    from chartqa_dt.plans.llm_mining import plan_key
+    a = {"op": "difference", "args": ["Nigeria", "Egypt"]}
+    b = {"op": "difference", "args": ["Egypt", "Nigeria"]}
+    assert plan_key(a) != plan_key(b)
+
+
+def test_an_empty_sample_set_is_not_a_consensus():
+    got = _c([])
+    assert got.plan is None and got.samples == 0 and got.agreement == 0.0
