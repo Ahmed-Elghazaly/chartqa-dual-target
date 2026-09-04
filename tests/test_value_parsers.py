@@ -44,9 +44,6 @@ def test_they_agree_where_agreement_is_required():
 #: Call sites outside `eval/` that pass a chart value to the answer parser. Each entry is a
 #: real defect that was found by running the pipeline, not by reading it.
 _ALLOWED_TO_FLOAT = {
-    # `resolve.candidates` compares a gold ANSWER against chart values; the answer side is
-    # correct here and the value side uses `parse_numeric`.
-    ("plans/resolve.py", "answer"),
     # `roundtrip.values_match` compares a stated ANSWER with an executed number.
     ("plans/roundtrip.py", "stated"),
     ("plans/roundtrip.py", "str(got)"),
@@ -73,9 +70,9 @@ def test_the_answer_parser_is_only_ever_given_an_answer():
     """The guard against a fifth occurrence.
 
     Four defects came from calling `to_float` on something drawn on a chart: a table cell in
-    `_table_values`, both sides of `values_agree`, and an element value in
-    `resolve.candidates`. Each looked right in isolation and each produced supervision that
-    was silently 100x off. A new call site has to be justified here, deliberately.
+    `_table_values`, both sides of `values_agree`, and an element value in the label
+    resolver. Each looked right in isolation and each produced supervision that was silently
+    100x off. A new call site has to be justified here, deliberately.
     """
     unexpected = _to_float_arguments() - _ALLOWED_TO_FLOAT
     assert not unexpected, (

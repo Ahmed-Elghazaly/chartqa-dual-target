@@ -14,6 +14,37 @@ Measured on **two** official public benchmarks, each against the same untrained 
 
 ---
 
+## Which file to open
+
+Nine markdown files at the root is a lot; each answers a different question.
+
+| if you want to know | read |
+|---|---|
+| **what this project is** and how to run it | this file, then `SETUP.md` |
+| **why any choice was made** — the permanent record, ~90 entries, newest last | `DECISIONS.md` |
+| **what is currently wrong** and how bad, ranked | `AUDIT.md` |
+| **what the audit still has to do** and what is blocked | `AUDIT_PLAN.md` |
+| **where the project stands right now** — measured numbers only | `STATUS.md` |
+| **what was promised before the results existed** | `PREREGISTRATION.md` |
+| **what each training run did** and what it cost | `RUNS.md` |
+| **the rules this repo is built under** — non-negotiables | `WORKING_AGREEMENT.md` |
+
+`DECISIONS.md` is the one to search. Every finding, every reversal and every measurement
+that justified a change is recorded there with its numbers, including the ones that turned
+out to be wrong and why. Code comments point into it by number.
+
+### Where the code lives
+
+| directory | holds |
+|---|---|
+| `src/chartqa_dt/` | the library — data readers, plan executor, training, evaluation |
+| `scripts/` | things you run once: build mixtures, mine plans, check the environment |
+| `audit/` | one-off measurement scripts, kept so a number can be reproduced |
+| `tests/` | ~1,050 tests; `scripts/preflight.sh` runs the lot plus lint |
+| `book/`, `presentation/` | explanatory writing, not part of the pipeline |
+
+---
+
 ## The idea in one example
 
 Question: *"How many more units shipped in 2019 than in 2018?"* over a bar chart.

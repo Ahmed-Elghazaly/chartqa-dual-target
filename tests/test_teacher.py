@@ -210,9 +210,14 @@ def test_provenance_records_what_is_needed_to_reproduce():
 
 def test_record_ids_are_stable_across_processes():
     """`hash()` on a string is salted per process. An id built from it would give every run
-    fresh ids, so every cache lookup would miss and a resumed run would pay twice."""
-    code = ("import sys; sys.path.insert(0, 'scripts'); "
-            "from mine_with_llm import stable_id; print(stable_id('chartqa', 'a.png', 'q?'))")
+    fresh ids, so a plan mined in one session could never be joined back in the next.
+
+    `make_record_id` is what the mixture builder and `attach_mined_plans` key on, so its
+    stability is the property that actually matters.
+    """
+    code = ("import sys; sys.path.insert(0, 'src'); "
+            "from chartqa_dt.data.records import make_record_id; "
+            "print(make_record_id('chartqa', 'train', 'deadbeef', 'how many?'))")
     runs = {subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
                            check=True).stdout.strip() for _ in range(3)}
     assert len(runs) == 1, f"unstable record ids across processes: {runs}"

@@ -95,3 +95,15 @@ presentation/*.pdf
 # OWN generated charts, which are this project's work rather than ChartQA (GPL-3.0) or
 # RefChartQA (AGPL-3.0) content. Do not widen this to any other path.
 !presentation/figures/*.png
+
+# ---------------------------------------------------------------------------
+# Mining working files. `scripts/mine_plans.py` writes prompt batches here for a
+# reader to answer, and reads the answers back. They are regenerable from the
+# record ids and the seed, they are large, and a batch is a snapshot of one run
+# rather than a result worth keeping. The VERIFIED plans live in
+# ~/.cache/chartqa_dt/data/chartqa_plans.jsonl, outside the repo, like every
+# other derived dataset (rule 7).
+# ---------------------------------------------------------------------------
+/audit/plans/
+/audit/human/
+/audit/resolve/
