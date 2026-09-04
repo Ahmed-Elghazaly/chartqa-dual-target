@@ -5873,3 +5873,35 @@ forgetting to make it minable now fails.
 taught — which makes it strictly worse than not having it, because it still occupies the
 prompt, the schema and the reader's attention. Two of seventeen were in that state and neither
 was visible from inside any single module.
+
+---
+
+## 0111 — Two parsers of the same-looking text, under opposite rules, on purpose
+
+**Context.** Writing property tests for `parse_record` (0110's suite) surfaced a divergence
+nothing had recorded: given text containing **two** fenced JSON blocks,
+`prompting.parse_record` takes the **first** and `plans.teacher.parse_proposal` takes the
+**last**.
+
+That is the exact shape of defect this audit found five times — one concept, two
+implementations, quietly disagreeing. It was worth stopping on.
+
+**It is correct, and the reason is that they read different writers.**
+
+| parser | reads | rule | why |
+|---|---|---|---|
+| `prompting.parse_record` | a **fine-tuned** model's generation | **first** block wins | after training the format is in the weights and the model emits one record; a second is drift, and the first is the answer |
+| `plans.teacher.parse_proposal` | a **chat** model asked to mine a plan | **last** block wins | a chat model routinely restates the format before answering, so the final block is the answer and the first is an example |
+
+Applying either rule to the other's input would take the wrong text. This is a case where two
+implementations are right and merging them would be the defect.
+
+**Decision.** Keep both; document each at its own site with the reason; and pin the pair in one
+test that asserts *both* behaviours side by side, so the difference is visible to whoever next
+touches either. A deliberate divergence is only safe while it is deliberate, and the way to
+keep it deliberate is to make it fail loudly if either side changes.
+
+**Consequences.** It also names the limit of 0110's *"one concept, two implementations"*
+heuristic. `_labels_in` and `plan_labels` were the same concept and had to be merged;
+these two are the same *shape* and must not be. The distinguishing question is not whether
+the code looks alike — it is whether the **inputs share a contract**. Here they do not.

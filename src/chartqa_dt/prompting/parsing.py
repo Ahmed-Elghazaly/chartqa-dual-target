@@ -67,6 +67,12 @@ def _candidates(text: str) -> list[tuple[str, list[str]]]:
     """Progressively more forgiving readings of `text`, each with its repair list."""
     out: list[tuple[str, list[str]]] = [(text.strip(), [])]
 
+    # The FIRST fence, deliberately — and this differs from `plans.teacher.parse_proposal`,
+    # which takes the last. The two read different writers: a *fine-tuned* model emits one
+    # record and nothing else, so if it produces two the first is the answer and the rest is
+    # drift; a *chat* model asked to mine a plan routinely restates the format before
+    # answering, so there the last block is the answer. Same-looking text, opposite rules,
+    # and the divergence is intentional rather than an oversight (`DECISIONS.md` 0111).
     fenced = FENCE_RE.search(text)
     if fenced:
         out.append((fenced.group(1).strip(), ["stripped code fence"]))
