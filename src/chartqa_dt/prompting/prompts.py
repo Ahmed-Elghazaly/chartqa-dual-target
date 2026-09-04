@@ -23,6 +23,8 @@ from __future__ import annotations
 import hashlib
 import json
 
+from chartqa_dt.plans.schema import OUTPUT_SCHEMA
+
 #: Verbatim from the Qwen3-VL technical report's evaluation-prompt appendix, for
 #: `DocVQA | InfoVQA | ChartQA_TEST`. Do not edit: it anchors the 79.1 comparison.
 PLAIN_PROMPT = "{question}\nAnswer the question using a single word or phrase."
@@ -31,9 +33,16 @@ PLAIN_PROMPT = "{question}\nAnswer the question using a single word or phrase."
 #: schema it is trying to satisfy. The first compact-prompt probe failed on all three of
 #: these limits — args of 5 and 8 elements, a 35-character unit, and duplicate labels —
 #: because the prompt never mentioned them.
-MAX_EVIDENCE = 8
-MAX_ARGS = 4
-MAX_UNIT_CHARS = 32
+#:
+#: These were *restated* until `DECISIONS.md` 0084, despite this comment. Raising
+#: `MAX_EVIDENCE` from 8 to 12 in the schema left this copy at 8, and the prompt promptly
+#: began advertising a limit the schema no longer had —
+#: `test_the_prompt_limits_are_read_from_the_schema_not_restated` caught it, which is
+#: exactly what it was written for. Now they are genuinely read.
+_EVIDENCE = OUTPUT_SCHEMA["properties"]["evidence"]
+MAX_EVIDENCE = _EVIDENCE["maxItems"]
+MAX_ARGS = OUTPUT_SCHEMA["$defs"]["node"]["properties"]["args"]["maxItems"]
+MAX_UNIT_CHARS = _EVIDENCE["items"]["properties"]["unit"]["maxLength"]
 
 #: The operations the executor accepts. Listed in the prompt because a model that invents
 #: an operation produces a record the executor must reject, and a rejected record counts

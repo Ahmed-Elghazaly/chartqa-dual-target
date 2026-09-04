@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 
 from chartqa_dt.data.records import ELEMENTS_KEY
+from chartqa_dt.plans.schema import MAX_EVIDENCE
 from chartqa_dt.train.targets import TargetError, build_target
 
 EVIDENCE = [
@@ -137,12 +138,14 @@ class TestFoldOverEvidence:
 
     def test_a_fold_over_more_elements_than_the_schema_holds_is_refused(self, tmp_path):
         """Truncating would change the aggregate, so the target would not round-trip."""
+        n = MAX_EVIDENCE + 1                 # one past the cap, whatever the cap is
         many = [{"label": f"E{i}", "value": float(i), "unit": None,
-                 "bbox": [i, 10, i + 5, 90]} for i in range(12)]
+                 "bbox": [i, 10, i + 5, 90]} for i in range(n)]
+        answer = str(0.0 - (n - 1) / 2)      # E0 minus the mean of 0..n-1
         record = self._record(
             tmp_path, {"op": "difference", "args": ["E0", {"op": "mean", "args": []}]},
-            "-5.5", many)
-        with pytest.raises(TargetError, match="folds over all 12 elements"):
+            answer, many)
+        with pytest.raises(TargetError, match=f"folds over all {n} elements"):
             build_target(record)
 
 

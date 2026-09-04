@@ -124,12 +124,12 @@ def test_the_describe_output_names_the_claim():
 
 
 def test_the_evidence_cap_does_not_break_verifiable_plans():
-    """Bounds how much of the round-trip gap the 8-item cap can explain: none of it.
+    """Bounds how much of the round-trip gap the evidence cap can explain: none of it.
 
     Measured on 340 mined ChartQA plans — perfect plans over perfect values — replayed
     with the evidence list truncated to `MAX_EVIDENCE`: 340/340 still round-trip, because
     questions that admit a *unique* executable plan need a median of 1 evidence item and
-    never more than 8. Long tables produce large candidate sets, but the uniqueness rule
+    never more than the cap. Long tables produce large candidate sets, but the uniqueness rule
     rejects those questions before they become plans (`DECISIONS.md` 0060, as corrected).
 
     Reproduced here in miniature so the property is guarded rather than remembered.
@@ -146,6 +146,11 @@ def test_the_evidence_cap_does_not_break_verifiable_plans():
     assert capped.outcome == "agrees", "a short plan is unaffected by the cap"
 
     # And the case where the cap genuinely does bite, so the limitation stays visible.
-    many = [{"label": f"y{i}", "value": 1.0, "bbox": [0, 0, 1, 1]} for i in range(12)]
-    assert check_record(record(plan, "12", many)).outcome == "agrees"
-    assert check_record(record(plan, "12", many[:MAX_EVIDENCE])).outcome == "disagrees"
+    # Written relative to MAX_EVIDENCE, not to a literal: this test hard-coded 12 while the
+    # cap was 8, and raising the cap to 12 in `DECISIONS.md` 0084 made the "over the cap"
+    # case exactly equal to it, so truncation became a no-op and the assertion silently
+    # stopped testing anything.
+    over = MAX_EVIDENCE + 4
+    many = [{"label": f"y{i}", "value": 1.0, "bbox": [0, 0, 1, 1]} for i in range(over)]
+    assert check_record(record(plan, str(over), many)).outcome == "agrees"
+    assert check_record(record(plan, str(over), many[:MAX_EVIDENCE])).outcome == "disagrees"

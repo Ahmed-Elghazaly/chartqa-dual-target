@@ -25,7 +25,19 @@ from typing import Any
 from chartqa_dt.plans.executor import MAX_DEPTH, OPS, plan_depth
 from chartqa_dt.vision.coords import OFFICIAL_MAX_COORD
 
-MAX_EVIDENCE = 8
+#: How many evidence items one target may carry. Raised from 8 to 12 in `DECISIONS.md` 0084
+#: after measuring the real budget with the Qwen3-VL tokenizer: a worst-case target (every
+#: label qualified by its series, every item carrying a unit) costs 44 tokens per item, so
+#: 12 items plus 247 visual tokens plus a 106-token prompt plus 30 of chat template is 915
+#: against `ModelConfig.max_seq_len = 1024` — 109 tokens of margin. 16 items overruns by 59
+#: and would be truncated **silently**, which is the failure that matters: the loss curve
+#: stays plausible while the model learns to emit records that stop mid-way.
+#:
+#: The gain is small and real: 90.3% of questions name their own labels and never touch the
+#: cap at all, because `train.targets` selects the elements a plan names. Only fold-shaped
+#: plans (`argmax`, `max`, `median`, `count`) need the whole chart, and 12 admits 61.3% of
+#: those against 33.6% at 8 — about +2.7% of all training questions.
+MAX_EVIDENCE = 12
 
 OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",

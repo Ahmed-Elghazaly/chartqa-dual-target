@@ -536,7 +536,7 @@ def test_evidence_the_schema_cannot_hold_is_dropped_and_counted():
     assert all("bbox" in e for e in kept)
     assert kept[0]["label"] == "a", "the model's own ordering is preserved"
     assert any("no bbox" in r for r in result.repairs)
-    assert any("first 8" in r for r in result.repairs)
+    assert any(f"first {MAX_EVIDENCE}" in r for r in result.repairs)
 
 
 def test_a_record_within_the_limits_is_left_untouched():

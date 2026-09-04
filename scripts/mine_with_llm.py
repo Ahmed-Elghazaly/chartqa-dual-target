@@ -23,6 +23,7 @@ Nothing is written for a record whose proposal fails.
 from __future__ import annotations
 
 import argparse
+import collections
 import hashlib
 import json
 import random
@@ -134,7 +135,18 @@ def main() -> int:
     ap.add_argument("--source", choices=("chartqa", "refchartqa"), default="chartqa")
     ap.add_argument("--limit", type=int, default=50)
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--model", default="claude-opus-5")
+    ap.add_argument("--model", default="claude-opus-5",
+                    choices=sorted(teacher.PRICING))
+    ap.add_argument("--effort", default=teacher.DEFAULT_EFFORT,
+                    choices=("low", "medium", "high", "xhigh", "max"),
+                    help="thinking depth per record; sweep it on a small sample before a "
+                         "full run rather than assuming this default is right")
+    ap.add_argument("--batch", action="store_true",
+                    help="submit through the Message Batches API at HALF price. Mining is "
+                         "not latency-sensitive, so this is the right default for a large "
+                         "run; results come back asynchronously.")
+    ap.add_argument("--estimate", action="store_true",
+                    help="price the run and stop, without sending anything")
     ap.add_argument("--proposals", help="JSONL of {record_id, plan|refused} produced "
                                         "elsewhere; skips every model call")
     ap.add_argument("--dry-run", action="store_true", help="print prompts and stop")
@@ -144,12 +156,55 @@ def main() -> int:
     requests = load_requests(args.source, limit=args.limit, seed=args.seed)
     print(f"{len(requests):,} records from {args.source} (seed {args.seed})")
 
+    if args.estimate:
+        system = teacher.build_system()
+        avg = sum(len(r.prompt) for r in requests) / max(len(requests), 1)
+        for batch in (False, True):
+            c = teacher.estimate_cost(n_records=len(requests), system_chars=len(system),
+                                      record_chars=int(avg), model=args.model, batch=batch)
+            how = "Message Batches API (half price)" if batch else "one request per record"
+            print(f"\n  {how}, {args.model}")
+            print(f"    instructions, first call      ${c['input_system_first']:>9.2f}")
+            print(f"    instructions, cache reads     ${c['input_system_cached']:>9.2f}")
+            print(f"    per-record input              ${c['input_records']:>9.2f}")
+            print(f"    output                        ${c['output']:>9.2f}")
+            print(f"    {'TOTAL':<30}${c['total']:>9.2f}")
+        print("\n  Rough: tokens estimated at ~3.6 chars each and output at 700 tokens per\n"
+              "  record, which errs high. Nothing was sent.")
+        return 0
+
     if args.dry_run:
         for r in requests[:3]:
             print(f"\n{'=' * 78}\n{r.record_id}  prompt sha {r.sha256[:16]}\n"
                   f"{'=' * 78}\n{r.prompt}")
         print(f"\n[dry run] {len(requests):,} prompts built, nothing sent.")
         return 0
+
+    # Batch mode fetches every reply up front at half price, then falls through to the same
+    # per-record loop, which finds each one already in the cache.
+    if args.batch and not args.proposals:
+        todo = [(r.record_id, r.prompt) for r in requests
+                if not cache_path(r.record_id, args.model, r.sha256).exists()]
+        print(f"  {len(requests) - len(todo):,} already cached, {len(todo):,} to fetch")
+        if todo:
+            try:
+                replies = teacher.run_batch(todo, model=args.model, effort=args.effort,
+                                            on_progress=lambda m: print(f"  {m}"))
+            except teacher.TeacherError as exc:
+                print(f"\n{exc}")
+                return 2
+            by_id = {r.record_id: r for r in requests}
+            for rid, raw in replies.items():
+                path = cache_path(rid, args.model, by_id[rid].sha256)
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps({"raw": raw, "model": args.model,
+                                            "prompt_sha256": by_id[rid].sha256,
+                                            "at": time.time(), "via": "batch"}),
+                                encoding="utf-8")
+            missing = len(todo) - len(replies)
+            if missing:
+                print(f"  {missing:,} requests did not come back and are left unmined "
+                      f"— rerun to retry only those")
 
     offline: dict[str, dict] = {}
     if args.proposals:
@@ -160,12 +215,19 @@ def main() -> int:
 
     accepted, refusals, errors, cached = [], 0, 0, 0
     proposals: list[dict] = []
+    #: Operations the teacher asked for and we do not have. Ranked and reported, because a
+    #: question that is answerable but inexpressible is the only signal that says what to
+    #: build next -- and folding it into "refused" would hide it entirely.
+    wanted_ops: collections.Counter[str] = collections.Counter()
+    wanted_detail: dict[str, dict] = {}
     for i, req in enumerate(requests, 1):
         if args.proposals:
             got = offline.get(req.record_id)
             if got is None:
                 continue
-            plan, refused, note = got.get("plan"), bool(got.get("refused")), ""
+            reply = teacher.Reply(plan=got.get("plan"), refused=bool(got.get("refused")),
+                                  needs_operator=got.get("needs_operator"),
+                                  note=str(got.get("refused") or ""))
         else:
             path = cache_path(req.record_id, args.model, req.sha256)
             if path.exists():
@@ -173,7 +235,8 @@ def main() -> int:
                 cached += 1
             else:
                 try:
-                    raw = teacher.call_anthropic(req.prompt, model=args.model)
+                    raw = teacher.call_anthropic(req.prompt, system=teacher.build_system(),
+                                                 model=args.model, effort=args.effort)
                 except teacher.TeacherError as exc:
                     print(f"\n{exc}")
                     return 2
@@ -182,16 +245,21 @@ def main() -> int:
                                             "prompt_sha256": req.sha256,
                                             "at": time.time()}), encoding="utf-8")
                 time.sleep(0.05)
-            plan, refused, note = teacher.parse_proposal(raw)
-        if refused:
+            reply = teacher.parse_proposal(raw)
+        if reply.needs_operator:
+            name = reply.needs_operator["name"]
+            wanted_ops[name] += 1
+            wanted_detail.setdefault(name, reply.needs_operator)
+            continue
+        if reply.refused:
             refusals += 1
             continue
-        if plan is None:
+        if reply.plan is None:
             errors += 1
             continue
-        proposals.append({"record_id": req.record_id, "plan": plan, "answer": req.answer,
-                          "evidence": req.evidence, "marked_labels": req.marked_labels,
-                          "note": note})
+        proposals.append({"record_id": req.record_id, "plan": reply.plan,
+                          "answer": req.answer, "evidence": req.evidence,
+                          "marked_labels": req.marked_labels, "note": reply.note})
         if i % 200 == 0:
             print(f"  … {i:,}/{len(requests):,}")
 
@@ -210,6 +278,9 @@ def main() -> int:
 
     n = len(requests)
     print(f"\n  teacher refused          : {refusals:,}  ({100 * refusals / max(n, 1):.1f}%)")
+    if wanted_ops:
+        asked = sum(wanted_ops.values())
+        print(f"  asked for a new operator : {asked:,}  ({100 * asked / max(n, 1):.1f}%)")
     print(f"  unusable replies         : {errors:,}")
     if cached:
         print(f"  served from cache        : {cached:,}")
@@ -219,6 +290,22 @@ def main() -> int:
     out.write_text("".join(json.dumps(a, ensure_ascii=False) + "\n" for a in accepted),
                    encoding="utf-8")
     print(f"\n  kept {len(accepted):,} verified plans -> {out}")
+
+    if wanted_ops:
+        print("\n  operations the teacher asked for and we do not have, most-wanted first:")
+        for name, k in wanted_ops.most_common(12):
+            d = wanted_detail[name]
+            print(f"    {k:>5}x  {name}")
+            if d.get("signature"):
+                print(f"           {d['signature']}")
+            if d.get("why"):
+                print(f"           e.g. {d['why']}")
+        ops_out = out.with_name(out.stem + "_wanted_operators.json")
+        ops_out.write_text(json.dumps(
+            [{"name": nm, "requests": k, **wanted_detail[nm]}
+             for nm, k in wanted_ops.most_common()], indent=2, ensure_ascii=False),
+            encoding="utf-8")
+        print(f"\n  -> {ops_out}   (each is a proposal to weigh, not a change to make)")
     return 0
 
 

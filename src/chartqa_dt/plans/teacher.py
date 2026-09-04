@@ -33,6 +33,8 @@ import hashlib
 import json
 import os
 import re
+import time
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -40,7 +42,7 @@ from chartqa_dt.plans.executor import MAX_DEPTH, NEEDS_TABLE, OPS
 
 #: Bumped whenever the prompt text changes in a way that could change proposals. Part of
 #: the cache key, so an old cache cannot masquerade as a new experiment.
-PROMPT_VERSION = "1"
+PROMPT_VERSION = "2"
 
 #: The `meta` key holding where a plan came from. Written for every LLM-mined plan.
 PROVENANCE_KEY = "plan_provenance"
@@ -121,16 +123,63 @@ def _render_table(table: dict | None, *, max_rows: int = 20) -> str:
     return f"{cols}\n{body}{more}"
 
 
+def build_system() -> str:
+    """The half of the request that is identical for every record, so it can be cached.
+
+    Prompt caching is a **prefix** match: stable content must come first or nothing caches.
+    The first version of this prompt opened with the question and its table — the most
+    volatile text in the request — and closed with the operation catalogue, which is byte
+    identical every time. That ordering makes caching impossible, and across tens of
+    thousands of records the catalogue and the instructions would be paid for in full on
+    every single call. They live here instead, sent as a cached `system` block.
+    """
+    ops = "\n".join(f"  - {SIGNATURES[o]}" for o in OFFERED if o in SIGNATURES)
+    return f"""You are given a chart question, the chart's underlying data, and the correct \
+answer. Write the small program that computes that answer from the data.
+
+OPERATIONS you may use, and nothing else:
+{ops}
+
+Reply with a JSON object in a ```json block:
+  {{"op": "<operation>", "args": [...]}}
+An argument is either a label string from the ITEMS list, or a nested {{"op":…,"args":[…]}}.
+Nesting may go at most {MAX_DEPTH} levels deep and a node takes at most 4 arguments.
+
+Choose the operation the QUESTION asks for, not merely one that reaches the right number. \
+If the question names a specific item, that is a lookup even when the item happens to be the \
+largest. If the question asks which item is largest, that is argmax even when you could name \
+it directly.
+
+If no combination of these operations expresses what the question asks, do NOT force a fit.
+You have two ways to say so, and the difference matters:
+
+  * The question cannot be answered from this chart at all — it is ambiguous, the gold answer
+    contradicts the data, or it asks for something the chart does not contain:
+    ```json
+    {{"refused": "<one short reason>"}}
+    ```
+  * The question is perfectly answerable, but the operation it needs is missing from the list
+    above. Say what that operation would be:
+    ```json
+    {{"needs_operator": {{"name": "<short_snake_case>", \
+"signature": "<name(args) -> result>", "why": "<what this question needs it for>"}}}}
+    ```
+
+Refusing is a correct answer, and naming a missing operation is a *useful* one — those
+suggestions are collected and ranked, and the operations asked for most often get built. A
+plan that reaches the right number by the wrong route is worse than either, because it will
+be used to teach a model the wrong reasoning."""
+
+
 def build_prompt(*, question: str, answer: Any, table: dict | None,
                  evidence: list[dict[str, Any]],
                  marked_labels: set[str] | None = None) -> str:
-    """The exact text sent to the teacher. Deterministic — same record, same string.
+    """The per-record half of the request. Deterministic — same record, same string.
 
     Evidence is listed in the form the executor resolves labels against, because a label the
     teacher invents is rejected by the `operand_not_in_evidence` gate and produces a wasted
     call rather than a plan.
     """
-    ops = "\n".join(f"  - {SIGNATURES[o]}" for o in OFFERED if o in SIGNATURES)
     items = "\n".join(
         f"  - {e.get('label')!r} = {e.get('value')!r}"
         + (f" {e['unit']}" if e.get("unit") else "")
@@ -141,10 +190,7 @@ def build_prompt(*, question: str, answer: Any, table: dict | None,
         "the chart as the ones needed to answer. Your plan's operands must be those items.\n"
         if marked_labels else "")
 
-    return f"""You are given a chart question, the chart's underlying data, and the correct \
-answer. Write the small program that computes that answer from the data.
-
-QUESTION: {question}
+    return f"""QUESTION: {question}
 CORRECT ANSWER: {answer!r}
 
 CHART DATA:
@@ -152,52 +198,85 @@ CHART DATA:
 
 ITEMS you may reference by label (use these labels exactly):
 {items}
-{marked_note}
-OPERATIONS you may use, and nothing else:
-{ops}
-
-Reply with a JSON object in a ```json block:
-  {{"op": "<operation>", "args": [...]}}
-An argument is either a label string from the list above, or a nested {{"op":…,"args":[…]}}.
-Nesting may go at most {MAX_DEPTH} levels deep and a node takes at most 4 arguments.
-
-Choose the operation the QUESTION asks for, not merely one that reaches the right number. \
-If the question names a specific item, that is a lookup even when the item happens to be the \
-largest. If the question asks which item is largest, that is argmax even when you could name \
-it directly.
-
-If no combination of these operations expresses what the question asks, reply exactly:
-```json
-{{"refused": "<one short reason>"}}
-```
-Refusing is a correct answer. A plan that reaches the right number by the wrong route is \
-worse than no plan, because it will be used to teach a model the wrong reasoning."""
+{marked_note}"""
 
 
-def parse_proposal(text: str) -> tuple[dict | None, bool, str]:
-    """Pull the plan out of the teacher's reply. Returns (plan, refused, note)."""
+@dataclass
+class Reply:
+    """One teacher reply, read but not yet believed.
+
+    Exactly one of `plan`, `refused` and `needs_operator` is meaningful; `note` carries the
+    reason a reply was none of the three.
+    """
+
+    plan: dict | None = None
+    refused: bool = False
+    needs_operator: dict | None = None
+    note: str = ""
+
+    @property
+    def usable(self) -> bool:
+        return self.plan is not None
+
+
+def parse_proposal(text: str) -> Reply:
+    """Read the teacher's reply into one of its three shapes.
+
+    A missing operation is deliberately NOT folded into `refused`. A refusal says *this
+    question cannot be answered*; a suggestion says *this question is fine and our DSL is
+    not*. Counting them together would hide the second, which is the only one that tells us
+    what to build next.
+    """
     blocks = _JSON_BLOCK.findall(text or "")
     candidate = blocks[-1] if blocks else (text or "")
     try:
         obj = json.loads(candidate.strip())
     except (json.JSONDecodeError, ValueError):
-        return None, False, "reply did not contain parsable JSON"
+        return Reply(note="reply did not contain parsable JSON")
     if not isinstance(obj, dict):
-        return None, False, "reply was not a JSON object"
+        return Reply(note="reply was not a JSON object")
+    if "needs_operator" in obj:
+        ask = obj["needs_operator"]
+        if not isinstance(ask, dict) or not str(ask.get("name", "")).strip():
+            return Reply(note="needs_operator without a name")
+        return Reply(needs_operator={"name": str(ask.get("name"))[:64],
+                                     "signature": str(ask.get("signature", ""))[:200],
+                                     "why": str(ask.get("why", ""))[:300]})
     if "refused" in obj:
-        return None, True, str(obj["refused"])[:200]
+        return Reply(refused=True, note=str(obj["refused"])[:200])
     if "op" not in obj:
-        return None, False, "JSON object had no `op`"
-    return obj, False, ""
+        return Reply(note="JSON object had no `op`")
+    return Reply(plan=obj)
 
 
-def call_anthropic(prompt: str, *, model: str, max_tokens: int = 700,
+#: USD per million tokens, from the Claude API pricing table (cached 2026-06-24). Batch
+#: requests are half these; a cache read is about a tenth of the input rate.
+PRICING: dict[str, tuple[float, float]] = {
+    "claude-opus-5": (5.00, 25.00),
+    "claude-sonnet-5": (2.00, 10.00),
+    "claude-haiku-4-5": (1.00, 5.00),
+}
+
+#: How hard the model should think per record. `medium` by default rather than `high`:
+#: reading a question and choosing one operator is not a long-horizon task, and effort is
+#: the first quality-for-cost lever. **Sweep it on a calibration sample before a full run** —
+#: which effort a workload repays is a property of the workload, not something to assume.
+DEFAULT_EFFORT = "medium"
+
+
+def call_anthropic(prompt: str, *, system: str | None = None, model: str,
+                   max_tokens: int = 4096, effort: str = DEFAULT_EFFORT,
                    api_key: str | None = None) -> str:
     """The one place that touches the network. Raises if it cannot run — never invents.
 
     A Claude or ChatGPT *subscription* does not authorise this; it needs a console API key
     in `ANTHROPIC_API_KEY`. Without one this raises, so a run that could not reach a model
     fails loudly instead of producing an empty result that looks like a measurement.
+
+    The system half is sent with `cache_control`, so the operation catalogue and the
+    instructions — identical on every one of tens of thousands of calls — are billed at the
+    cache-read rate after the first. Thinking is left at its default (adaptive on Opus 5)
+    and depth is controlled with `effort`.
     """
     key = api_key or os.environ.get("ANTHROPIC_API_KEY")
     if not key:
@@ -213,8 +292,104 @@ def call_anthropic(prompt: str, *, model: str, max_tokens: int = 700,
     client = anthropic.Anthropic(api_key=key)
     reply = client.messages.create(
         model=model, max_tokens=max_tokens,
+        output_config={"effort": effort},
+        system=[{"type": "text", "text": system or build_system(),
+                 "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": prompt}])
     return "".join(getattr(b, "text", "") for b in reply.content)
+
+
+#: Requests per batch submission. The API's own ceiling is far higher; this is small enough
+#: that a failure costs one chunk rather than a whole run, and that progress is visible.
+BATCH_CHUNK = 5_000
+
+
+def run_batch(items: Sequence[tuple[str, str]], *, model: str,
+              effort: str = DEFAULT_EFFORT, max_tokens: int = 4096,
+              api_key: str | None = None, poll_seconds: int = 30,
+              on_progress: Callable[[str], None] | None = None) -> dict[str, str]:
+    """Submit `(record_id, prompt)` pairs through the Message Batches API. Half price.
+
+    Mining is not latency-sensitive — nothing waits on any single answer — which is exactly
+    the workload batching is for, and it halves the bill. Results come back in **any order**,
+    so they are keyed by `custom_id` and never by position.
+
+    Returns `{record_id: raw reply text}` for every request that succeeded. A request that
+    errored, was cancelled or expired is simply absent: it is not a refusal and must not be
+    counted as one, so the caller sees a missing key rather than an empty string.
+    """
+    key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+    if not key:
+        raise TeacherError(
+            "ANTHROPIC_API_KEY is not set. Mining at scale needs a console API key; a "
+            "Claude.ai or ChatGPT subscription cannot drive a pipeline.")
+    try:
+        import anthropic
+    except ImportError as exc:  # pragma: no cover - depends on the environment
+        raise TeacherError("the `anthropic` package is not installed") from exc
+
+    client = anthropic.Anthropic(api_key=key)
+    system = build_system()
+    out: dict[str, str] = {}
+    say = on_progress or (lambda _m: None)
+
+    for start in range(0, len(items), BATCH_CHUNK):
+        chunk = items[start:start + BATCH_CHUNK]
+        say(f"submitting {len(chunk):,} requests "
+            f"({start + len(chunk):,}/{len(items):,}) …")
+        batch = client.messages.batches.create(requests=[
+            {"custom_id": rid,
+             "params": {"model": model, "max_tokens": max_tokens,
+                        "output_config": {"effort": effort},
+                        "system": [{"type": "text", "text": system,
+                                    "cache_control": {"type": "ephemeral"}}],
+                        "messages": [{"role": "user", "content": prompt}]}}
+            for rid, prompt in chunk])
+        while True:
+            status = client.messages.batches.retrieve(batch.id).processing_status
+            if status == "ended":
+                break
+            say(f"  batch {batch.id}: {status}")
+            time.sleep(poll_seconds)
+        kept = 0
+        for result in client.messages.batches.results(batch.id):
+            if result.result.type != "succeeded":
+                continue      # errored / cancelled / expired -- absent, not refused
+            out[result.custom_id] = "".join(
+                getattr(b, "text", "") for b in result.result.message.content)
+            kept += 1
+        say(f"  batch {batch.id}: {kept:,} of {len(chunk):,} succeeded")
+    return out
+
+
+def estimate_cost(*, n_records: int, system_chars: int, record_chars: int,
+                  model: str, batch: bool) -> dict[str, float]:
+    """A budget for a run, before any of it is spent.
+
+    Tokens are estimated from characters at ~3.6 chars/token, which is a **rough** figure
+    for English prose with numbers — it is a planning aid, not a bill. The exact count is
+    available from `client.messages.count_tokens` once a key exists; this exists so the
+    decision to buy one can be made first.
+
+    The system half is counted once at the full input rate and thereafter at the cache-read
+    rate, because it is byte-identical across records.
+    """
+    per_token = 3.6
+    in_rate, out_rate = PRICING.get(model, PRICING["claude-opus-5"])
+    if batch:
+        in_rate, out_rate = in_rate / 2, out_rate / 2
+    sys_tok = system_chars / per_token
+    rec_tok = record_chars / per_token
+    # A reply is a short JSON object plus adaptive thinking; 700 output tokens is a
+    # deliberately generous per-record figure so the estimate errs high.
+    out_tok = 700.0
+    first = sys_tok * in_rate / 1e6
+    cached = sys_tok * (in_rate * 0.1) / 1e6 * max(n_records - 1, 0)
+    records = rec_tok * in_rate / 1e6 * n_records
+    output = out_tok * out_rate / 1e6 * n_records
+    return {"input_system_first": first, "input_system_cached": cached,
+            "input_records": records, "output": output,
+            "total": first + cached + records + output}
 
 
 def provenance(*, model: str, prompt_sha256: str, verifier_gates: list[str]) -> dict:
