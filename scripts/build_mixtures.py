@@ -31,6 +31,7 @@ from chartqa_dt.data.chartqa import (
 )
 from chartqa_dt.data.download import load_manifest
 from chartqa_dt.data.mixture import (
+    ABSENT_FROM_EVALUATION,
     CHARTQA_DRAW,
     REFCHARTQA_CAP,
     STAGE1_CAP,
@@ -38,6 +39,7 @@ from chartqa_dt.data.mixture import (
     SYNTHETIC_REPLAY,
     build_stage1,
     build_stage2,
+    drop_absent_chart_types,
     write_mixture,
 )
 from chartqa_dt.data.records import (
@@ -327,6 +329,12 @@ def main() -> None:
         synth_all = usable_only(synth_all, "synthetic")
         real = usable_only(real, "chartqa")
         ref = usable_only(ref, "refchartqa")
+    # Drop the chart families ChartQA does not contain BEFORE balancing, so the per-level
+    # sample is drawn from a pool that is already the right shape (`DECISIONS.md` 0091).
+    synth_all, absent = drop_absent_chart_types(synth_all)
+    if absent:
+        print(f"  synthetic: {absent:,} records dropped — chart types the evaluation "
+              f"corpus does not contain ({', '.join(sorted(ABSENT_FROM_EVALUATION))})")
     synth = balance_by_level(synth_all, args.synthetic_stage1, seed=args.seed)
 
     print(f"\nsources: synthetic={len(synth):,}  chartqa={len(real):,}  "

@@ -58,6 +58,30 @@ TRAIN_ONLY = "train"
 CHARTQA_DRAW = 30_000        # per question kind; the split has 7,398 human + 20,901 machine
 REFCHARTQA_CAP = 4_000       # `PLAN.md` 3.4: start at the single-box cap
 
+#: Chart families the generator draws that **ChartQA does not contain**. Measured over 3,000
+#: real train charts: bar 83.6%, line 12.8%, pie 3.6%, and area and scatter exactly 0.0%
+#: (`DECISIONS.md` 0091). They are a quarter of the 24,000 synthetic examples, so stage 1 was
+#: spending a quarter of its budget teaching the model to ground chart types it will never be
+#: asked about.
+#:
+#: Excluded at composition time rather than removed from the generator: the examples cost
+#: nothing where they sit, they are the honest thing to train on if the evaluation corpus ever
+#: changes, and regenerating 24,000 charts to drop 6,000 would spend hours to achieve a
+#: different `if`.
+ABSENT_FROM_EVALUATION = frozenset({"area", "scatter"})
+
+
+def drop_absent_chart_types(records: list[ChartRecord]) -> tuple[list[ChartRecord], int]:
+    """Keep only chart families the evaluation corpus actually contains.
+
+    Returns the survivors and how many went, because a filter that shrinks a mixture without
+    saying so is how 12,000 stage-1 records were silently lost once already (0071).
+    """
+    kept = [r for r in records
+            if str(r.meta.get("chart_type", "")).lower() not in ABSENT_FROM_EVALUATION]
+    return kept, len(records) - len(kept)
+
+
 #: The curriculum order for stage 1. Not shuffled — that is what makes it a curriculum.
 LEVEL_ORDER = ("L1", "L2", "L3", "L4")
 

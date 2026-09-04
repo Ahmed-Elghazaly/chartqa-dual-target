@@ -280,3 +280,67 @@ def test_the_written_mixtures_contain_no_held_out_chart():
         checked += 1
     if not checked:
         pytest.skip("no mixture files built yet")
+
+
+# ------------------------------------------- chart types the evaluation never shows
+
+
+def _synthetic(chart_type: str, level: str = "L1", n: int = 1):
+    from chartqa_dt.data.records import ChartRecord
+    return [ChartRecord(record_id=f"{chart_type}-{level}-{i}", source="synthetic",
+                        split="train", image_path=f"{chart_type}{i}.png",
+                        image_sha256=f"d{chart_type}{i}", question="q?", answer="1",
+                        question_kind="synthetic",
+                        meta={"level": level, "chart_type": chart_type})
+            for i in range(n)]
+
+
+def test_chart_types_the_evaluation_corpus_lacks_are_dropped():
+    """Measured over 3,000 real ChartQA charts: area and scatter are 0.0% of them, and 25%
+    of the synthetic corpus. Stage 1 was spending a quarter of its budget teaching the model
+    to ground chart types it will never be asked about (`DECISIONS.md` 0091)."""
+    from chartqa_dt.data.mixture import drop_absent_chart_types
+    records = _synthetic("vbar", n=3) + _synthetic("area", n=2) + _synthetic("scatter", n=1)
+    kept, dropped = drop_absent_chart_types(records)
+    assert dropped == 3
+    assert {r.meta["chart_type"] for r in kept} == {"vbar"}
+
+
+def test_the_drop_is_counted_not_silent():
+    """A filter that shrinks a mixture without saying so is how 12,000 stage-1 records were
+    lost once already (0071)."""
+    from chartqa_dt.data.mixture import drop_absent_chart_types
+    kept, dropped = drop_absent_chart_types(_synthetic("line", n=4))
+    assert (len(kept), dropped) == (4, 0)
+
+
+def test_chart_types_the_evaluation_does_show_are_kept():
+    from chartqa_dt.data.mixture import ABSENT_FROM_EVALUATION, drop_absent_chart_types
+    for kind in ("vbar", "hbar", "grouped_bar", "line", "multi_line", "pie"):
+        assert kind not in ABSENT_FROM_EVALUATION
+        kept, dropped = drop_absent_chart_types(_synthetic(kind, n=2))
+        assert (len(kept), dropped) == (2, 0), kind
+
+
+def test_a_record_with_no_chart_type_survives():
+    """Real ChartQA records carry no `chart_type` in meta; the filter must not eat them."""
+    from chartqa_dt.data.mixture import drop_absent_chart_types
+    from chartqa_dt.data.records import ChartRecord
+    real = ChartRecord(record_id="r", source="chartqa", split="train", image_path="i.png",
+                       image_sha256="d", question="q?", answer="1", question_kind="human")
+    kept, dropped = drop_absent_chart_types([real])
+    assert (len(kept), dropped) == (1, 0)
+
+
+def test_dropping_leaves_the_curriculum_balanced():
+    """Each level loses the same two chart types, so L1-L4 stay equal -- otherwise the
+    curriculum would silently tilt."""
+    import collections
+
+    from chartqa_dt.data.mixture import drop_absent_chart_types
+    records = [r for lvl in ("L1", "L2", "L3", "L4")
+               for kind in ("vbar", "line", "area", "scatter")
+               for r in _synthetic(kind, lvl, n=5)]
+    kept, _ = drop_absent_chart_types(records)
+    counts = collections.Counter(r.meta["level"] for r in kept)
+    assert set(counts.values()) == {10}, counts
