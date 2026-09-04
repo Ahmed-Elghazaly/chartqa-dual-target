@@ -27,6 +27,23 @@ from chartqa_dt.data.dedup import deduplicate
 from chartqa_dt.data.records import ChartRecord
 from chartqa_dt.splits import assert_no_held_out_images
 
+#: **Where 12,000 comes from.** It is not a round number chosen for tidiness, and it is not
+#: a property of the data — it is the compute budget, arrived at backwards:
+#:
+#:     12,000 records x 1 epoch / effective batch 8 (batch 2 x grad_accum 4) = 1,500 steps
+#:     x 2 stages                                                            = 3,000 steps
+#:     x 11.903 s/step measured at 512px (`DECISIONS.md` 0060)               = 9.92 hours
+#:     against a Kaggle session limit of                                       10 hours
+#:
+#: The reasoning was invisible until `DECISIONS.md` 0092 went looking: it lives across four
+#: constants in three files and a measured step time in a decision record, and nothing said
+#: they were connected. Changing any one of them silently changes what fits in a session.
+#:
+#: **The constraint that set it has since been lifted** — three Kaggle accounts give ~90 h a
+#: week, and `train/checkpoint.py` resumes across sessions with the resume verified against
+#: an uninterrupted run. So this is now a *choice* rather than a ceiling. It has not been
+#: raised, because more supervision is gated on mining and whether more data helps at all is
+#: what the deferred scaling ladder exists to answer (0092).
 STAGE1_CAP = 12_000
 STAGE2_CAP = 12_000
 SYNTHETIC_REPLAY = 2_000

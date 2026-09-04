@@ -18,7 +18,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | 1.4 | Trace target construction | ✅ | 0075, 0077 |
 | 1.5 | Trace training serialization → model → parsing → executor | 🔄 | collate/loss path not yet audited |
 | 1.6 | Trace evaluation | 🔄 | metrics audited in walkthrough ch7; runner path not re-verified |
-| 1.7 | Trace synthetic generation end-to-end | ⬜ | |
+| 1.7 | Trace synthetic generation end-to-end | ✅ | 0091 — generator, manifest, mixture composition and its fit to the real distribution |
 | 1.8 | Write the concise current-state architecture | ⬜ | |
 
 ## Phase 2 — self-critique of prior decisions
@@ -59,7 +59,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | 6 | Target builder | 🔄 | 0075 added the value/box gate; grounding-only targets still open |
 | 7 | Plan mining — deterministic vs LLM-assisted | ✅ | **settled: LLM only** (0085, 0086, 0088). Backwards search must refuse 53.9%; pattern matching gets 53.5% of machine questions and 14.8% of human ones, which would skew supervision 92% machine against a 50/50 test split |
 | 8 | Improve deterministic mining | ✅ | *not pursued, deliberately* — deterministic mining is off the supervision path (0088). `plans/mining.py` stays as an independent cross-check only |
-| 9 | Synthetic data | ⬜ | |
+| 9 | Synthetic data | ✅ | **designed for a job it no longer has** (0091). 25% of the corpus is chart types ChartQA does not contain; `difference` is 13.8x over-weighted and `lookup` 2.6x under. Fix by reweighting at mixture time, not regenerating |
 | 10 | DSL + executor | 🔄 | `within` added on measured demand (0090). Six requested operations remain, each now a number: Yes/No comparison 8.0% of human questions, threshold filter, count-of-series, constancy, `product`, argmax-over-computed |
 | 11 | Round-trip verification | 🔄 | 0075/0077 showed it cannot catch wrong evidence |
 | 12 | Qwen3-VL preprocessing | ✅ | no change needed — verified correct |
@@ -82,7 +82,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 
 | # | question | status |
 |---|---|---|
-| Q1 | Why cap training examples per stage at 12,000? | 🔄 measuring |
+| Q1 | Why cap training examples per stage at 12,000? | ✅ | **it is the compute budget, backwards**: 12,000 x 1 epoch / batch 8 = 1,500 steps, x2 stages = 3,000, x 11.903 s/step = 9.92 h against a 10 h Kaggle limit. The constraint has since been lifted (3 accounts, verified resume) so it is now a choice; not raised yet, because more data is gated on mining and whether it helps is what the scaling ladder answers (0092) |
 | Q2 | Is the operation set expressive enough? | ✅ | **for machine questions yes, for human questions no.** 93.3% of a random corpus sample is expressible (0081), but that sample is dominated by templated questions; reading 40 human ones by hand produced 7 operator requests (0090) |
 | Q3 | Is the deterministic miner complete? | ✅ | wrong question. It is 94% precise and its recall is bounded by *direction*, not by search: several operations reproduce any given answer and it cannot choose (0085) |
 | Q4 | Can we ever be sure a plan is unambiguous? | ✅ | **the question dissolves.** Fidelity to the question is the property we want, not uniqueness — a plan can be right even when another operation reaches the same number (0085) |

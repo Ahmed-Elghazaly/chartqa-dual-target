@@ -4725,3 +4725,59 @@ nobody had decided to drop; 0089 a fix applied to instances rather than to its r
 justification that was **true when written and quietly expired**, with the code still carrying
 the sentence that explained it. A decision record dated by the belief it rests on would have
 caught it; nothing else did.
+
+---
+
+## 0092 — Where the 12,000 cap came from, and why it no longer binds
+
+**Context.** Ahmed asked directly, some time ago: *"why r we capping training examples in
+certain stages"*. `AUDIT_PLAN.md` has carried it as open question Q1 since. `STAGE1_CAP` and
+`STAGE2_CAP` are `12_000` in `data/mixture.py` with no comment, and no decision record
+mentions the number except in tables that treat it as given.
+
+**It is the compute budget, arrived at backwards.**
+
+| | |
+|---|---:|
+| 12,000 records x 1 epoch / effective batch 8 (batch 2 x grad_accum 4) | 1,500 steps |
+| x 2 stages | **3,000 steps** |
+| x 11.903 s/step, measured at 512px (0060) | **9.92 hours** |
+| Kaggle session limit | **10 hours** |
+
+Twelve thousand is the largest cap that finishes inside one Kaggle session. Nothing about the
+data chose it.
+
+**The reasoning was invisible.** It lives across four constants in three files — two caps in
+`data/mixture.py`, `batch_size` and `grad_accum` in `config.py` — plus a measured step time
+in a decision record, and nothing said they were connected. Changing any one silently changes
+whether a run fits. That is the same failure shape as 0085 (an assumption nobody wrote down),
+0087 (a field nobody decided to drop) and 0091 (a justification that expired quietly): **the
+expensive gaps are the ones that were never a decision.** The derivation is now written at the
+constant itself.
+
+**The constraint has since been lifted.** Ahmed: *"we have like 90hr per week on kaggle bec we
+have 3 accounts + isn't there a way to save the point before the 12hr limit then resume after
+it"*. Both halves are right. Three accounts give roughly 90 h a week, and
+`train/checkpoint.py` already saves every 100 steps — adapter weights, optimizer state,
+scheduler state, RNG states and the dataloader position — with `assert_resume_matched`
+verifying a resumed run against an uninterrupted one, a check that caught a real defect when
+RNG state was missing (0026). The 10-hour limit is a chunk size, not a ceiling.
+
+**Decision.** Record the derivation; do not raise the cap yet.
+
+Raising it is now a choice rather than a constraint, but it should be made on evidence and
+there is none yet:
+
+1. **More supervision is gated on mining.** ChartQA plans are mined by a reader and the cache
+   currently holds two records. There is no larger pool to draw from until that runs.
+2. **Whether more data helps is unmeasured.** That is exactly what the deferred RefChartQA
+   scaling ladder answers, and it costs about 20 h — affordable now that 90 h is available.
+3. **Stage 1's composition is a live question** (0091): a quarter of the synthetic corpus is
+   chart types ChartQA does not contain, so the first 3,000 examples to add are the 3,000
+   currently being wasted.
+
+**Consequences.** Q1 is answered and closes. The order of operations for using the extra
+compute is now clear and each step is cheap: fix stage 1's composition first (free — it is a
+different selection from records that already exist), then run the scaling ladder to learn
+whether volume helps, then raise the cap if it does. Raising it first would spend hours to
+learn nothing.
