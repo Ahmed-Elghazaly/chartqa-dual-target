@@ -1,0 +1,174 @@
+For each numbered item below, decide ONE thing: is the named label the thing the question is asking about?
+
+The arithmetic is already settled — that label's value IS the given answer. You are only judging whether the question refers to that label, which often needs a paraphrase resolved:
+  "the 2019/20 season"                     -> a label written '2019/2020'      yes
+  "the second quarter of 2018"             -> a label written "Q2 '18"          yes
+  "second division of German soccer"       -> a label written '2. Bundesliga'   yes
+  "Tibet's RURAL population"               -> a label 'Urban population · Tibet' NO
+
+Answer "no" whenever the question is about something else, is about the whole chart rather than one item, or you cannot tell. A wrong "yes" teaches a model to point at the wrong mark, which is worse than teaching it nothing.
+
+0. Q: How much did the interest on additional borrowing alone cost the United States?
+   answer '456.8' is the value of: 'Interest on Department of'
+   other labels: ['Defense and State', 'Additions to the Pentagon', 'Veterans care and social']
+
+1. Q: How much did Dragon Capital Investments pay for 101 Tower Business Center?
+   answer '101.8' is the value of: 'TIS Container Terminal'
+   other labels: ['101 Tower Business Center', 'Khmelnytsk-Agro', 'Kaskad-Agro Agricultural Holding', 'Billa-Ukraine']
+
+2. Q: What is the estimated capital cost per megawatt hour for new offshore power generating sites entering the power grid in 2026?
+   answer '89.2' is the value of: 'Offshore wind'
+   other labels: ['Battery storage', 'Advanced nuclear', 'Combustion turbine', 'Ultra-supercritical coal', 'Hydro***', 'Biomass', 'Onshore wind', 'Solar (standalone)**', 'Geothermal', 'Combined cycle']
+
+3. Q: What was Naver's net income in the most recent quarter?
+   answer '375.3' is the value of: "Q4 '20"
+   other labels: ["Q1 '15", "Q2 '15", "Q3 '15", "Q4 '15", "Q1 '16", "Q2 '16", "Q3 '16", "Q4 '16", "Q1 '17", "Q2 '17"]
+
+4. Q: What was the estimated revenue of the San Antonio Spurs in 2019/20?
+   answer '255' is the value of: '19/20'
+   other labels: ['01/02', '02/03', '03/04', '04/05', '05/06', '06/07', '07/08', '08/09', '09/10', '10/11']
+
+5. Q: How many daily active users did Pokmon GO have in the U.S.?
+   answer '21' is the value of: 'July 12'
+   other labels: ['July 14', 'July 19', 'August 16']
+
+6. Q: What was the score of Turkish Airlines out of five?
+   answer '3.6' is the value of: 'Turkish Airlines, Turkey'
+   other labels: ['Delta Air Lines, U.S.', 'Luxair, Luxembourg']
+
+7. Q: How many people of Danish origin lived in Denmark in 2021?
+   answer '0.62' is the value of: 'Immigrants · 2021'
+   other labels: ['Danish origin · 2011', 'Danish origin · 2012', 'Danish origin · 2013', 'Danish origin · 2014', 'Danish origin · 2015', 'Danish origin · 2016', 'Danish origin · 2017', 'Danish origin · 2018', 'Danish origin · 2019', 'Danish origin · 2020']
+
+8. Q: How much carbon dioxide was emitted in Asia Pacific in 2019?
+   answer '17269.5' is the value of: 'Asia Pacific · 2019'
+   other labels: ['Asia Pacific · 2009', 'Asia Pacific · 2010', 'Asia Pacific · 2011', 'Asia Pacific · 2012', 'Asia Pacific · 2013', 'Asia Pacific · 2014', 'Asia Pacific · 2015', 'Asia Pacific · 2016', 'Asia Pacific · 2017', 'Asia Pacific · 2018']
+
+9. Q: What was the total attendance at AMC movie theaters in fiscal year 2020?
+   answer '75.19' is the value of: 'Jan 1, 2020 - Dec 31, 2020'
+   other labels: ['FY 2006 (Mar 31,', 'FY 2007 (Mar 30, 2007 - Apr 3,', 'FY 2008 (Apr 4, 2008 - Apr 2, 2009)', 'FY 2009 (Apr 3, 2009 - Apr 1, 2010)', 'FY 2010 (Apr 2, 2010 - Mar 31, 2011)', 'FY 2011 (Apr 1, 2011 - Mar 29, 2012)', 'Mar 30, 2012 - Aug 30, 2012', 'Aug 31, 2012 - Dec 31, 2012', 'Jan 1, 2013 - Dec 31, 2013', 'Jan 1, 2014 - Dec 31, 2014']
+
+10. Q: How many Tim Hortons stores were in Vancouver in January 2015?
+   answer '59' is the value of: "Tim Horton's · Vancouver"
+   other labels: ["Tim Horton's · Calgary", "Tim Horton's · Toronto", 'Starbucks · Vancouver', 'Starbucks · Calgary', 'Starbucks · Toronto']
+
+11. Q: How much was invested in renewables?
+   answer '24.7' is the value of: 'Safety and risk reduction'
+   other labels: ['Other issues including explorations', 'Renewables', 'Environment', 'Emmissions reduction', 'Promotion of gas', 'Energy efficiency', 'Biorefinery', 'Green chemistry']
+
+12. Q: How much money was invested in road transport infrastructure in Russia in 2008?
+   answer '9836' is the value of: '2013'
+   other labels: ['2004*', '2005', '2006', '2007', '2008', '2009', '2010', '2011', '2012', '2014']
+
+13. Q: What is the death rate in China?
+   answer '6.3' is the value of: 'China - Death Rate'
+   other labels: ['China - Birth Rate']
+
+14. Q: What percentage of Americans disapproved of the Affordable Care Act in January 2014?
+   answer '54' is the value of: 'Disapprove'
+   other labels: ['Approve', 'No opinion']
+
+15. Q: What was the population of Portugal in 2020?
+   answer '10.2' is the value of: '2024*'
+   other labels: ['2016', '2017', '2018', '2019', '2020', '2021*', '2022*', '2023*', '2025*', '2026*']
+
+16. Q: What was the number of music publishers in the US in 2016?
+   answer '705' is the value of: 'Music publishers · 2016'
+   other labels: ['Sound recording studios · 2007', 'Sound recording studios · 2008', 'Sound recording studios · 2009', 'Sound recording studios · 2010', 'Sound recording studios · 2011', 'Sound recording studios · 2012', 'Sound recording studios · 2013', 'Sound recording studios · 2014', 'Sound recording studios · 2015', 'Sound recording studios · 2016']
+
+17. Q: How much did mobile net-to-publisher app revenues in the Americas amount to in 2015?
+   answer '27.4' is the value of: 'Americas · 2015'
+   other labels: ['APAC · 2015', 'APAC · 2016*', 'APAC · 2020*', 'EMEA · 2015', 'EMEA · 2016*', 'EMEA · 2020*', 'Americas · 2016*', 'Americas · 2020*']
+
+18. Q: What was the sales revenue of wearable technology devices in the UK in 2013?
+   answer '140.67' is the value of: '2013 · UK'
+   other labels: ['2014* · Germany', '2014* · UK', '2014* · Spain', '2014* · The Netherlands', '2013 · Germany', '2013 · Spain', '2013 · The Netherlands']
+
+19. Q: What was the gross margin on apparel, piece goods, and notions in U.S. wholesale in 2014?
+   answer '52.49' is the value of: '14'
+   other labels: ['00', '01', '02', '03', '04', '05', '06', '07', '08', '09']
+
+20. Q: What was the value of the Chinese market for mechanical engineering in 2015?
+   answer '976.24' is the value of: '2014'
+   other labels: ['2006', '2007', '2008', '2009', '2010', '2011**', '2012', '2013', '2015']
+
+21. Q: What's the percentage of people choosing rarely or never for the first category?
+   answer '25' is the value of: 'Rarely · Feel as if they have to respond to messages from other people immediately'
+   other labels: ['Often · Check for messages or notifications as soon as they wake up', 'Often · Feel as if they have to respond to messages from other people immediately', 'Often · Lose focus in class because they are checking their cellphone', 'Sometimes · Check for messages or notifications as soon as they wake up', 'Sometimes · Feel as if they have to respond to messages from other people immediately', 'Sometimes · Lose focus in class because they are checking their cellphone', 'Rarely · Check for messages or notifications as soon as they wake up', 'Rarely · Lose focus in class because they are checking their cellphone', 'Never · Check for messages or notifications as soon as they wake up', 'Never · Feel as if they have to respond to messages from other people immediately']
+
+22. Q: What was the highest retail price of bottled water in Russia in January?
+   answer '39.84' is the value of: 'Jan'
+   other labels: ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov']
+
+23. Q: How much oil equivalent did China consume in 2015?
+   answer '189.3' is the value of: 'Hydroelectricity · China*'
+   other labels: ['Other renewables · Brazil', 'Other renewables · China*', 'Other renewables · India', 'Other renewables · Indonesia', 'Other renewables · Russian Federation', 'Other renewables · South Africa', 'Hydroelectricity · Brazil', 'Hydroelectricity · India', 'Hydroelectricity · Indonesia', 'Hydroelectricity · Russian Federation']
+
+24. Q: What was the number of music publishers in the United States in 2017?
+   answer '696' is the value of: 'Music publishers · 2017'
+   other labels: ['Sound recording studios · 2007', 'Sound recording studios · 2008', 'Sound recording studios · 2009', 'Sound recording studios · 2010', 'Sound recording studios · 2011', 'Sound recording studios · 2012', 'Sound recording studios · 2013', 'Sound recording studios · 2014', 'Sound recording studios · 2015', 'Sound recording studios · 2016']
+
+25. Q: How many H&M stores were closed in the United States in 2020?
+   answer '20' is the value of: 'USA'
+   other labels: ['Total', 'China', 'Franchise and other', 'UK', 'Sweden', 'Germany', 'France', 'Denmark', 'Netherlands', 'Italy']
+
+26. Q: As of January 2016, how many subscription retail sites in the U.S. were visited?
+   answer '21.4' is the value of: "Jan '16"
+   other labels: ["Jan '13"]
+
+27. Q: In 2017, Samsung is expected to have a semiconductor capital expenditure budget of how much?
+   answer '12500' is the value of: 'Samsung · 2017*'
+   other labels: ['Samsung · 2015', 'Samsung · 2016', 'Intel · 2015', 'Intel · 2016', 'Intel · 2017*', 'TSMC** · 2015', 'TSMC** · 2016', 'TSMC** · 2017*', 'SK Hynix · 2015', 'SK Hynix · 2016']
+
+28. Q: How many followers did Jiff Pom have on Instagram?
+   answer '6.6' is the value of: 'Jiff Pom @Jiffpom'
+   other labels: ['Doug the Pug @itsdougthepug', 'Maruto @Marutaro', 'Marnie @Marniethedog', 'Tuna @tunameltsmyheart', 'Loki @Loki_the_wolfdog', 'Harlow, Indiana, and Reese of', 'Maddie @thiswildidea', 'Manny @manny_the_frenchie', 'Loki and Bear @Lokistagram*']
+
+29. Q: What was the Spanish-born population in January 2020?
+   answer '41.84' is the value of: 'Spaniards · 2014'
+   other labels: ['Spaniards · 2006', 'Spaniards · 2007', 'Spaniards · 2008', 'Spaniards · 2009', 'Spaniards · 2010', 'Spaniards · 2011', 'Spaniards · 2012', 'Spaniards · 2013', 'Spaniards · 2015', 'Spaniards · 2016']
+
+30. Q: What's the percentage of using Whatsapp?
+   answer '84' is the value of: 'Use IS · WhatsApp de'
+   other labels: ['Do not use · WhatsApp de', 'Do not use · Facebook', 'Do not use · Instagram', 'Do not use · Viber', 'Do not use · SnapChat', 'Do not use · Twitter', 'Do not use · Tinder', 'Use IS · Facebook', 'Use IS · Instagram', 'Use IS · Viber']
+
+31. Q: What was the operating revenue of ANA Holdings Inc. as of March 31, 2021?
+   answer '0.73' is the value of: '2020'
+   other labels: ['2011', '2012', '2013', '2014', '2015', '2016', '2017', '2018', '2019']
+
+32. Q: What is the percetage of people living in Catalonia in July 2020 who strongly identify as Spanish?
+   answer '5.5' is the value of: 'Only Spanish'
+   other labels: ['Equally Spanish and Catalan', 'More Catalan than Spanish', 'Only Catalan', 'pie · Do not know', 'pie · Do not know', 'More Spanish than Catalan']
+
+33. Q: What was the number of prescriptions for lisinopril in 2010?
+   answer '97.61' is the value of: '2018'
+   other labels: ['2004', '2005', '2006', '2007', '2008', '2009', '2010', '2011', '2012', '2013']
+
+34. Q: How many domains were registered in.cn as of April 2021?
+   answer '25.73' is the value of: 'China .cn'
+   other labels: ['Tokelau .tk', 'Germany .de', 'United Kingdon .uk', 'Russian Federation .ru', 'Gabon .ga', 'Central African Republic .cf', 'Netherlands .nl', 'Mali .ml', 'France .fr']
+
+35. Q: How much did the Bank of America Stadium cost?
+   answer '247' is the value of: 'Bank of America Stadium, 1996'
+   other labels: ['Texas Stadium, 2009', 'Lucas Oil Stadium, 2008', 'Soldier Field, 2003', 'Lincoln Financial Field, 2003', 'University of Phoenix Stadium, 2006', 'Paul Brown Stadium, 2000', 'Ford Field, 2002', 'Arrowhead Stadium, 2009', 'INVESCO Field at Mile High, 2001', 'Qwest Field, 2002']
+
+36. Q: How many mass shootings occurred between 1982 and 2021?
+   answer '16' is the value of: 'Illegally obtained'
+   other labels: ['Legally obtained', 'Unknown/to be determined', 'Some weapons were legally']
+
+37. Q: What's the percentage of men who have some interest in sports?
+   answer '44' is the value of: 'Some · Be interested in sports'
+   other labels: ['A lot · Be emotionally strong', 'A lot · Be interested in sports', 'A lot · Be willing to throw a punch if provoked', 'A lot · Join in when other men talk about women in a sexual way', 'A lot · Have many sexual', 'A lot · partners', 'Some · Be emotionally strong', 'Some · Be willing to throw a punch if provoked', 'Some · Join in when other men talk about women in a sexual way', 'Some · Have many sexual']
+
+38. Q: How many suicide bombings occurred between 2011 and 2013?
+   answer '200' is the value of: '2011'
+   other labels: ['2012', '2013']
+
+39. Q: What was the rate of coronary artery bypass graft for men in Scotland in 2019/20?
+   answer '44.5' is the value of: 'Men · 2019/20'
+   other labels: ['Men · 2004/05', 'Men · 2005/06', 'Men · 2006/07', 'Men · 2007/08', 'Men · 2008/09', 'Men · 2009/10', 'Men · 2010/11', 'Men · 2011/12', 'Men · 2012/13', 'Men · 2013/14']
+
+Reply with one JSON object in a ```json block, mapping each item number to true or false:
+```json
+{"0": true, "1": false, ...}
+```

@@ -1,0 +1,38 @@
+For each numbered item below, decide ONE thing: is the named label the thing the question is asking about?
+
+The arithmetic is already settled — that label's value IS the given answer. You are only judging whether the question refers to that label, which often needs a paraphrase resolved:
+  "the 2019/20 season"                     -> a label written '2019/2020'      yes
+  "the second quarter of 2018"             -> a label written "Q2 '18"          yes
+  "second division of German soccer"       -> a label written '2. Bundesliga'   yes
+  "Tibet's RURAL population"               -> a label 'Urban population · Tibet' NO
+
+Answer "no" whenever the question is about something else, is about the whole chart rather than one item, or you cannot tell. A wrong "yes" teaches a model to point at the wrong mark, which is worse than teaching it nothing.
+
+0. Q: What was Cineplex's revenue for the first quarter of 2021?
+   answer '41.41' is the value of: "Q1 '21"
+   other labels: ["Q1 '14", "Q2 '14", "Q3 '14", "Q4 '14", "Q1 '15", "Q2 '15", "Q3 '15", "Q4 '15", "Q1 '16", "Q2 '16"]
+
+1. Q: What was Square's net revenue in the previous year?
+   answer '983.96' is the value of: '2017'
+   other labels: ['2012', '2013', '2014', '2015', '2016', '2018']
+
+2. Q: What was the average cost of a room in Helsinki in 2014?
+   answer '88.94' is the value of: 'Helsinki, Finland'
+   other labels: ['Oslo, Norway', 'Seoul, South Korea', 'Zurich, Switzerland', 'Stockholm, Sweden', 'Paris, France', 'New York City, New York', 'Toronto, Canada', 'Singapore', 'Copenhagen, Denmark']
+
+3. Q: How many members did Foursquare have between December 2010 and October 2014?
+   answer '55' is the value of: "Oct '14"
+   other labels: ["Dec '10", "Jan '11", "Mar '12", "May '12", "Jan '13", "Jan '14", "May '14"]
+
+4. Q: How many app downloads did Google have by iPhone users in January 2021?
+   answer '60.89' is the value of: 'Google LLC'
+   other labels: ['Facebook, Inc.', 'Microsoft Corporation', 'WhatsApp Inc.', 'Instagram, Inc.', 'AMZN Mobile LLC', 'Zoom', 'Tencent Technology (Shenzhen)', 'TikTok Pte. Ltd.', 'Shanghai Xunmeng Information']
+
+5. Q: What was the estimated amount of dental service expenditures in Canada's private sector in 2019?
+   answer '15646.9' is the value of: 'Dental services · 2019*'
+   other labels: ['Hospitals · 2010', 'Hospitals · 2011', 'Hospitals · 2012', 'Hospitals · 2013', 'Hospitals · 2014', 'Hospitals · 2015', 'Hospitals · 2016', 'Hospitals · 2017', 'Hospitals · 2018', 'Hospitals · 2019*']
+
+Reply with one JSON object in a ```json block, mapping each item number to true or false:
+```json
+{"0": true, "1": false, ...}
+```

@@ -1,0 +1,174 @@
+For each numbered item below, decide ONE thing: is the named label the thing the question is asking about?
+
+The arithmetic is already settled — that label's value IS the given answer. You are only judging whether the question refers to that label, which often needs a paraphrase resolved:
+  "the 2019/20 season"                     -> a label written '2019/2020'      yes
+  "the second quarter of 2018"             -> a label written "Q2 '18"          yes
+  "second division of German soccer"       -> a label written '2. Bundesliga'   yes
+  "Tibet's RURAL population"               -> a label 'Urban population · Tibet' NO
+
+Answer "no" whenever the question is about something else, is about the whole chart rather than one item, or you cannot tell. A wrong "yes" teaches a model to point at the wrong mark, which is worse than teaching it nothing.
+
+0. Q: What was the annual revenue of RealD for the fiscal year ending March 31, 2015?
+   answer '163.46' is the value of: 'April 2014 to March 2015'
+   other labels: ['April 2006 to March 2007', 'April 2007 to March 2008', 'April 2008 to March 2009', 'April 2009 to March 2010', 'April 2010 to March 2011', 'April 2011 to March 2012', 'April 2012 to March 2013', 'April 2013 to March 2014']
+
+1. Q: How many video views did Warner Media-Turner and Warner Bros. have on social media in 2019?
+   answer '611' is the value of: 'WarnerMedia - Turner & Warner Bros.'
+   other labels: ['BuzzFeed Inc.', 'First Media - Media', 'National Basketball Association', 'National Football League', 'The Walt Disney Company', 'Comcast Corporation', 'Discovery, Inc.', 'Group Nine Media', 'CBS Corporation']
+
+2. Q: How many men were there in Russia between 30 and 34 years old?
+   answer '6.36' is the value of: 'Male · 30-34'
+   other labels: ['Male · 0-4', 'Male · 5-9', 'Male · 10-14', 'Male · 15-19', 'Male · 20-24', 'Male · 25-29', 'Male · 35-39', 'Male · 40-44', 'Male · 45-49', 'Male · 50-54']
+
+3. Q: How many new BEV models are expected to be launched worldwide between 2015 and 2020?
+   answer '55' is the value of: '2020'
+   other labels: ['2015', '2016', '2017', '2018', '2019']
+
+4. Q: What was the increase in the average basket size in the UK from 2015 to 2016?
+   answer '17.1' is the value of: 'United Kingdom'
+   other labels: ['Europe', 'Nordics', 'France', 'Germany', 'Spain']
+
+5. Q: What is the average price for acrylic nails in the U.S.?
+   answer '46.01' is the value of: '2019'
+   other labels: ['2006', '2007', '2008', '2009', '2010', '2011', '2012', '2013', '2014', '2015']
+
+6. Q: What was Gannett Company's revenue in the fourth quarter of 2020?
+   answer '875.45' is the value of: 'Q4 2020'
+   other labels: ['Q2 2014', 'Q3 2014', 'Q4 2014', 'Q1 2015', 'Q2 2015', 'Q3 2015', 'Q4 2015', 'Q1 2016', 'Q2 2016', 'Q3 2016']
+
+7. Q: How many Indian rupees did condiments and spices from Bihar account for in the Indian economy in fiscal year 2018?
+   answer '686' is the value of: 'FY 2018'
+   other labels: ['FY 2012', 'FY 2013', 'FY 2014', 'FY 2015', 'FY 2016', 'FY 2017']
+
+8. Q: How many people were registered in 2010?
+   answer '4.44' is the value of: "'10"
+   other labels: ["'90", "'91", "'92", "'93", "'94", "'95", "'96", "'97", "'98", "'99"]
+
+9. Q: How many poker tables were in casinos in Nevada in 2010?
+   answer '578' is the value of: '2019'
+   other labels: ['2000', '2001', '2002', '2003', '2004', '2005', '2006', '2007', '2008', '2009']
+
+10. Q: What was the total value of direct debit payments through Bacs from 2007 to 2018?
+   answer '1326.77' is the value of: '2019'
+   other labels: ['2007', '2008', '2009', '2010', '2011', '2012', '2013', '2014', '2015', '2016']
+
+11. Q: What was the value of automotive exports in 2019?
+   answer '42.4' is the value of: 'Exports · 2019'
+   other labels: ['Exports · 2018', 'Imports · 2018', 'Imports · 2019']
+
+12. Q: What was the retail value of all LPs and EPs shipped in the U.S. a year earlier?
+   answer '479.5' is the value of: '2019'
+   other labels: ['1999', '2000', '2001', '2002', '2003', '2004', '2005', '2006', '2007', '2008']
+
+13. Q: How many of the 1.9 billion spent online will be spent on Black Friday in 2015?
+   answer '0.72' is the value of: '2015 - online spending*'
+   other labels: ['2014', '2015*', '2015 - in-store spending*']
+
+14. Q: How many people attended the football league championship in the 2019/2020 season?
+   answer '8.25' is the value of: 'Season 2019/20'
+   other labels: ['Season 2010/11', 'Season 2011/12', 'Season 2012/13', 'Season 2013/14', 'Season 2014/15', 'Season 2015/16', 'Season 2016/17', 'Season 2017/18', 'Season 2018/19']
+
+15. Q: What's the least value of gray bar?
+   answer '8' is the value of: 'Good · Hospitals and medical centers in your area'
+   other labels: ['Рor · Hospitals and medical centers in your area', 'Рor · Public health officials such as those at the CDC', 'Рor · Your local elected officials', 'Рor · Your state elected officials', 'Рor · The news media', 'Рor · Donald Trump', 'Only fair · Hospitals and medical centers in your area', 'Only fair · Public health officials such as those at the CDC', 'Only fair · Your local elected officials', 'Only fair · Your state elected officials']
+
+16. Q: What was the average price per night for a hotel room in Switzerland in 2014?
+   answer '206' is the value of: 'At home · Switzerland'
+   other labels: ['At home · Norway', 'At home · Singapore', 'At home · Denmark', 'At home · Sweden', 'At home · Australia', 'At home · United Kingdom', 'At home · Hong Kong', 'At home · South Korea', 'At home · Finland', 'At home · Canada']
+
+17. Q: In 2017. what is the outside Italy value?
+   answer '43.4' is the value of: 'Outside Italy · 2017'
+   other labels: ['In Italy · 2010', 'In Italy · 2012', 'In Italy · 2014', 'In Italy · 2017', 'In Italy · 2018', 'In Italy · 2019', 'Outside Italy · 2010', 'Outside Italy · 2012', 'Outside Italy · 2014', 'Outside Italy · 2018']
+
+18. Q: What was the population of Poland in 2020?
+   answer '37.65' is the value of: '2026*'
+   other labels: ['2016', '2017', '2018', '2019', '2020', '2021*', '2022*', '2023*', '2024*', '2025*']
+
+19. Q: How many exajoules will renewable energy consumption reach by 2050?
+   answer '161' is the value of: 'Renewable energy** · 2050'
+   other labels: ['Hydroelectricity · 2000', 'Hydroelectricity · 2005', 'Hydroelectricity · 2010', 'Hydroelectricity · 2015', 'Hydroelectricity · 2018', 'Hydroelectricity · 2025', 'Hydroelectricity · 2030', 'Hydroelectricity · 2035', 'Hydroelectricity · 2040', 'Hydroelectricity · 2045']
+
+20. Q: How many trials were still in the first phase?
+   answer '619' is the value of: 'Phase I'
+   other labels: ['Phase II', 'Phase III', 'Phase IV', 'Other']
+
+21. Q: What's the value of 1st Longest bar in the graph??
+   answer '17416' is the value of: 'California'
+   other labels: ['Техas', 'Virginia', 'Washington', 'Maryland', 'New York', 'Colorado', 'Arizona', 'Florida', 'Illinois']
+
+22. Q: How many votes did Theresa May's Brexit deal get?
+   answer '230' is the value of: 'May: Brexit vote (2019)'
+   other labels: ['MacDonald: 1st vote on inquiry into', 'MacDonald: 2nd vote on inquiry into', 'May: Second Brexit vote (2019)', 'MacDonald: Housing bill (1924)', 'Callaghan: Firearms order (1979)']
+
+23. Q: What was the population of the San Francisco-Oakland-Berkeley metropolitan area in 2020?
+   answer '4648164' is the value of: '2017'
+   other labels: ['2010', '2011', '2012', '2013', '2014', '2015', '2016', '2018', '2019', '2020']
+
+24. Q: What was Bank Central Asia's brand value in dollars in 2019?
+   answer '13.05' is the value of: 'Bank Central Asia (BCA)'
+   other labels: ['Bank Rakyat Indonesia (BRI)', 'Telkomsel', 'A Mild', 'Bank Mandiri', 'Go-Jek', 'Dji Sam Soe', 'Surya', 'Gudang Garam', 'tokopedia']
+
+25. Q: What was Apple Computer's score out of 100?
+   answer '65.06' is the value of: 'Apple Computers'
+   other labels: ['Hewlett-Packard', 'Dell Computers', 'SONY Computers', 'Lenovo', 'Category Average']
+
+26. Q: How many small and mini cars were registered in France in 2016?
+   answer '1052155' is the value of: 'Small and mini segment · 2016'
+   other labels: ['Small and mini segment · 2010', 'Small and mini segment · 2014', 'Small and mini segment · 2015', 'Small and mini segment · 2017', 'Small and mini segment · 2018', 'Medium segment · 2010', 'Medium segment · 2014', 'Medium segment · 2015', 'Medium segment · 2016', 'Medium segment · 2017']
+
+27. Q: What was Ireland's cider import value in British pounds in 2020?
+   answer '40.5' is the value of: 'Irish Republic'
+   other labels: ['Sweden', 'Belgium', 'United States', 'Italy']
+
+28. Q: What was the estimated suicide rate per every 100 thousand people worldwide in 2012?
+   answer '11.4' is the value of: 'Global'
+   other labels: ['LMICs in South-East Asia', 'All high-income\n member states', 'LMICs in Europe', 'All low- and middle-income (LMIC)', 'LMICs in Africa', 'LMICs in Western Pacific', 'LMICs in Eastern Mediterranean', 'LMICs in the Americas']
+
+29. Q: What was the retail sales of bedding, linens and bathroom accessories in Canada in the first quarter of 2013?
+   answer '506.19' is the value of: "Q1 '14"
+   other labels: ["Q1 '13", "Q2 '13", "Q3 '13", "Q4 '13", "Q2 '14", "Q3 '14", "Q4 '14", "Q1 '15", "Q2 '15", "Q3 '15"]
+
+30. Q: How many dollars did Rhode Island generate from sports betting in February 2021?
+   answer '1.56' is the value of: "Feb '21"
+   other labels: ["Nov '18", "Dec '18", "Jan '19", "Feb '19", "Mar '19", "Apr '19", "May '19", "Jun '19", "Jul '19", "Aug '19"]
+
+31. Q: How many stores did Abercrombie & Fitch have in the prior year?
+   answer '308' is the value of: '2019'
+   other labels: ['1998', '1999', '2000', '2001', '2002', '2003', '2004', '2005', '2006', '2007']
+
+32. Q: How many fans did Sony's PlayStation brand have on Facebook in April 2018?
+   answer '38.88' is the value of: 'Intel'
+   other labels: ['Facebook', 'Facebook for Every Phone', 'Samsung Mobile USA', 'Instagram', 'Microsoft Windows', 'Netflix', 'Samsung Mobile', 'PlayStation', 'iTunes']
+
+33. Q: How many shares did The Master Trust Bank of Japan, Ltd. own?
+   answer '25.8' is the value of: 'The Master Trust Bank of Japan, Ltd. (as'
+   other labels: ['Japan Trustee Services Bank, Ltd. (as', 'Mizuho Bank, Ltd.', 'The JR East Employees Shareholding', 'MUFG Bank, Ltd.', 'Nippon Life Insurance Company', 'The Dai-ichi Life Insurance Company,', 'Sumitomo Mitsui Banking Corporation', 'JP Morgan Chase Bank 385151', 'Japan Trustee Services Bank, Ltd. (as']
+
+34. Q: How much did London tourism contribute to the UK's GDP in 2013?
+   answer '36' is the value of: 'Tourism economic contribution to GDP'
+   other labels: ['Visitor exports', 'Personal travel & tourism (domestic +', 'Business travel (domestic + outbound)', 'Gouvernment expenditure (individual +', 'Capital investment', 'Travel & tourism demand', 'Outbound tourism spending spending', 'Direct industry contribution to GDP', 'Total contribution to GDP']
+
+35. Q: How much did Arsenal earn from the broadcasting stream in 2019/2020?
+   answer '136' is the value of: 'Broadcasting · 2019/20'
+   other labels: ['Matchday · 2008/09', 'Matchday · 2009/10', 'Matchday · 2010/11', 'Matchday · 2011/12', 'Matchday · 2012/13', 'Matchday · 2013/14', 'Matchday · 2014/15', 'Matchday · 2015/16', 'Matchday · 2016/17', 'Matchday · 2017/18']
+
+36. Q: How much did Viagra cost per pill in the U.S. in Q2 2017?
+   answer '58.72' is the value of: 'United States'
+   other labels: ['Canada', 'UK/Australia/New', 'India', 'Turkey']
+
+37. Q: What was the net sales of H&M in Italy in the second quarter of 2020?
+   answer '0.68' is the value of: 'Q2 2020*'
+   other labels: ['Q1 2019', 'Q2 2019', 'Q3 2019', 'Q4 2019', 'Q1 2020', 'Q3 2020', 'Q4 2020', 'Q1 2021']
+
+38. Q: How many people worldwide suffered from anxiety as of 2017?
+   answer '284' is the value of: 'Anxiety disorders'
+   other labels: ['Any mental or substance use disorder', 'Depression', 'Alcohol use disorder', 'Drug use disorder (excluding alcohol)', 'Bipolar disorder', 'Schizophrenia', 'Eating disorders (clinical anorexia and']
+
+39. Q: How much did the tourism sector contribute to the UK's GDP in 2013?
+   answer '126' is the value of: 'United Kingdom'
+   other labels: ['Total England', 'London', 'Rest of England', 'Scotland', 'Wales', 'Northern Ireland']
+
+Reply with one JSON object in a ```json block, mapping each item number to true or false:
+```json
+{"0": true, "1": false, ...}
+```

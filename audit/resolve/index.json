@@ -1,0 +1,1976 @@
+[
+ [
+  {
+   "record_id": "chartqa:043d371be2c6f3ca93d1974f",
+   "candidate": "2019",
+   "question": "How much did Foot Locker spend on advertising in 2015?",
+   "answer": "166"
+  },
+  {
+   "record_id": "chartqa:a3c97ca664355afd7f02e08c",
+   "candidate": "2018",
+   "question": "What was the total sales value of the Turkish pharmaceutical market in 2020?",
+   "answer": "30.9"
+  },
+  {
+   "record_id": "chartqa:4a72643c0f48ff5941ff734c",
+   "candidate": "2019/2020",
+   "question": "How much was the revenue of the Carolina Hurricanes in the 2019/20 season?",
+   "answer": "116"
+  },
+  {
+   "record_id": "chartqa:73d290fdebbdee2fc94acdd0",
+   "candidate": "1 fireplace · 2017",
+   "question": "How many households had 1 fireplace in the US in the year 2017?",
+   "answer": "320"
+  },
+  {
+   "record_id": "chartqa:62dc91b7e5d6362f1ef9e19a",
+   "candidate": "Mobile · Q2 '18",
+   "question": "What was Kakao's mobile advertising revenue in the second quarter of 2018?",
+   "answer": "101.49"
+  },
+  {
+   "record_id": "chartqa:11ef22a38ecf54b4f383d121",
+   "candidate": "2005",
+   "question": "How much did Rogers Communications pay for the Toronto Blue Jays in 2000?",
+   "answer": "136"
+  },
+  {
+   "record_id": "chartqa:d8f800392f7f37e85eff59ac",
+   "candidate": "2019",
+   "question": "What was the previous year's U.S. revenue for Hewlett Packard Enterprise?",
+   "answer": "29.14"
+  },
+  {
+   "record_id": "chartqa:f581773541067e7316fb60fb",
+   "candidate": "Total",
+   "question": "How many hospitals were in Florida in 2019?",
+   "answer": "212"
+  },
+  {
+   "record_id": "chartqa:7d5f349adf79ddff7e9aaea6",
+   "candidate": "Peru (April 6",
+   "question": "What was the highest increase in TV viewing in Peru?",
+   "answer": "57"
+  },
+  {
+   "record_id": "chartqa:8a5ec13282004e273891f6f4",
+   "candidate": "2019",
+   "question": "What was Yukon's GDP in 2012 Canadian dollars?",
+   "answer": "2618.3"
+  },
+  {
+   "record_id": "chartqa:167aa6573892c82733b69359",
+   "candidate": "Urban population · Tibet",
+   "question": "What was Tibet's rural population in 2019?",
+   "answer": "2.4"
+  },
+  {
+   "record_id": "chartqa:914cfd05797f5b07bfd94be3",
+   "candidate": "Favorable · College grad+",
+   "question": "What is the value of the lowest green bar??",
+   "answer": "3"
+  },
+  {
+   "record_id": "chartqa:96d51aef9893f51b0b964a1d",
+   "candidate": "Q4 '20",
+   "question": "How many customers have placed an order through Zalando's website in the last 12 months running up to December 31, 2020?",
+   "answer": "38.7"
+  },
+  {
+   "record_id": "chartqa:fdaebd4fee6eeb456e259a43",
+   "candidate": "2. Bundesliga",
+   "question": "What was the total income of the second division of German professional soccer in 2011/12?",
+   "answer": "361.7"
+  },
+  {
+   "record_id": "chartqa:da417683e0523ce6b18ddc96",
+   "candidate": "2019",
+   "question": "How many digital music singles were downloaded in the U.S. a year earlier?",
+   "answer": "329.7"
+  },
+  {
+   "record_id": "chartqa:ada0d8d2cb73abdfae002312",
+   "candidate": "Tropical cyclone Hagibis (Japan)",
+   "question": "How much money did Tropical Cyclone Hagibis cause?",
+   "answer": "17"
+  },
+  {
+   "record_id": "chartqa:2bf61a9bc9821a3b83be0937",
+   "candidate": "Q1 '21",
+   "question": "What was Snap's ARPU per quarter as of the fist quarter of 2021?",
+   "answer": "2.74"
+  },
+  {
+   "record_id": "chartqa:f362c0589dccd673b3f76bcb",
+   "candidate": "Оppose · More solar panel farms",
+   "question": "What's the smallest value of green bar?",
+   "answer": "9"
+  },
+  {
+   "record_id": "chartqa:39baf0845866aaaa4373eb3c",
+   "candidate": "Twin birth · 1960",
+   "question": "What was the number of twin births in Russia in 1960?",
+   "answer": "32126"
+  },
+  {
+   "record_id": "chartqa:ce9a293758fdaffd041c29a0",
+   "candidate": "Approve · The situation in Kashmir",
+   "question": "What's the approval rate on the Kashmir situation?",
+   "answer": "60"
+  },
+  {
+   "record_id": "chartqa:4c0ddb3da069c0c88e3b389a",
+   "candidate": "Jul '20",
+   "question": "What was the monthly sales of cannabis in Quebec in July of 2020?",
+   "answer": "43.9"
+  },
+  {
+   "record_id": "chartqa:50d38d2860868d338b072264",
+   "candidate": "Divided · Canada",
+   "question": "What's percentage value of blue bars for Canada?",
+   "answer": "29"
+  },
+  {
+   "record_id": "chartqa:af4cc718c894ec117a8b480c",
+   "candidate": "Hotels · Aug 2020",
+   "question": "How many overnight stays did hotels in Denmark count in August 2020?",
+   "answer": "1207821"
+  },
+  {
+   "record_id": "chartqa:4e901e2d89b64d9ef58d0e55",
+   "candidate": "2017*",
+   "question": "How many action cams were sold in Western Europe in 2015?",
+   "answer": "3.2"
+  },
+  {
+   "record_id": "chartqa:653ec31fde8885fb493d0f5d",
+   "candidate": "2018",
+   "question": "How much did the total revenue for video and OTT television increase by between 2017 and 2018?",
+   "answer": "28.79"
+  },
+  {
+   "record_id": "chartqa:c43b2b1d81c622df23e2d54e",
+   "candidate": "Q1 '21",
+   "question": "How much revenue did Intel's Internet of Things Group generate in the first quarter of 2021?",
+   "answer": "914"
+  },
+  {
+   "record_id": "chartqa:40d517127da799e5395f0269",
+   "candidate": "Private cards* · 2018",
+   "question": "What was the value of fraud damage that involved private type cards in France in 2018?",
+   "answer": "11"
+  },
+  {
+   "record_id": "chartqa:55018d17d41f1c4c831e2509",
+   "candidate": "17",
+   "question": "How many commercial space launches did the United States conduct in 2017?",
+   "answer": "21"
+  },
+  {
+   "record_id": "chartqa:381b26c0eda2acedb8a6da5d",
+   "candidate": "London · 2017*",
+   "question": "What was London's domestic travel spending in 2013?",
+   "answer": "17.5"
+  },
+  {
+   "record_id": "chartqa:5f8c46efb6685486aecd8bb5",
+   "candidate": "Q3 '20",
+   "question": "How many advertisers were using Facebook in the third quarter of 2020?",
+   "answer": "10"
+  },
+  {
+   "record_id": "chartqa:37737f6d5285cb8b049dca99",
+   "candidate": "BC Lara\n (West Indies vs England - 2004)*",
+   "question": "How many runs did Brian Lara score against England in 2004?",
+   "answer": "400"
+  },
+  {
+   "record_id": "chartqa:254aebd7dccd5cafd13f5376",
+   "candidate": "2018/19",
+   "question": "What was the sales value of sparkling wine in Canada in 2011?",
+   "answer": "472.37"
+  },
+  {
+   "record_id": "chartqa:de2826adb7463e6b940b7fa2",
+   "candidate": "Q2 '16",
+   "question": "How many members did LinkedIn have in the previous quarter?",
+   "answer": "450"
+  },
+  {
+   "record_id": "chartqa:3dd04e541840307f29f5311e",
+   "candidate": "Previous forecast · Notebooks",
+   "question": "What was the previous forecast for notebook shipments in the first quarter of 2020?",
+   "answer": "35"
+  },
+  {
+   "record_id": "chartqa:fb22c3b637ce05539520dc9e",
+   "candidate": "2017",
+   "question": "What was the number of CTS scanners in Italy in 2018?",
+   "answer": "2093"
+  },
+  {
+   "record_id": "chartqa:a0a4f2b6d1ec9a8d814fc997",
+   "candidate": "Buffalo milk",
+   "question": "How much cow milk was produced in India in fiscal year 2017?",
+   "answer": "81.27"
+  },
+  {
+   "record_id": "chartqa:a395ac4a70237210a40725de",
+   "candidate": "Q4 2020",
+   "question": "How many daily active users did Facebook have in the Asia Pacific region in the fourth quarter of 2020?",
+   "answer": "744"
+  },
+  {
+   "record_id": "chartqa:b440d6d08c9dc41687e314c9",
+   "candidate": "Problem",
+   "question": "How many times did Putin use the word \"child\" in 2018?",
+   "answer": "13"
+  },
+  {
+   "record_id": "chartqa:a60146260404fde1a93d4b23",
+   "candidate": "Q1 '21",
+   "question": "How much was Intel's IOTG revenue in the third quarter of 2019?",
+   "answer": "914"
+  },
+  {
+   "record_id": "chartqa:1b7277873df77fcaa39988b0",
+   "candidate": "Liner* · 2013",
+   "question": "How much money did Hamburg Süd generate from its liner segment in 2013?",
+   "answer": "6399"
+  }
+ ],
+ [
+  {
+   "record_id": "chartqa:96129e6cb2cf4f811f73dc78",
+   "candidate": "2010",
+   "question": "What was Kazakhstan's total consumer spending in 2008?",
+   "answer": "56.66"
+  },
+  {
+   "record_id": "chartqa:e97c14da26f18f44537c3b1a",
+   "candidate": "2012/2013 · Spain",
+   "question": "What was the highest number of sexual assaults recorded in Spain in 2012/2013?",
+   "answer": "39"
+  },
+  {
+   "record_id": "chartqa:b8c6922c15d7b0a74bfb27ce",
+   "candidate": "2020*",
+   "question": "What was Ireland's population in 2019?",
+   "answer": "4.99"
+  },
+  {
+   "record_id": "chartqa:4daebd6130852ef44ed7e92e",
+   "candidate": "9-year average",
+   "question": "What's the value of largest bar?",
+   "answer": "0.0886"
+  },
+  {
+   "record_id": "chartqa:e4880c5ad37b05ee0e3820f7",
+   "candidate": "2011",
+   "question": "What was the turnover of Moschino S.p.A. in 2012?",
+   "answer": "39.8"
+  },
+  {
+   "record_id": "chartqa:35661d520fdfe6e2fc7f73e0",
+   "candidate": "Using military force is the best way to defeat terrorism · Democrat",
+   "question": "What's the percentage of Democrats who say using military force is the best way to defeat terrorism?",
+   "answer": "27"
+  },
+  {
+   "record_id": "chartqa:36625e84df5c73fd6425c5fc",
+   "candidate": "2020",
+   "question": "How many newly discovered ransomware families were there in the most recent measured period?",
+   "answer": "127"
+  },
+  {
+   "record_id": "chartqa:9f1a4e97b398ada7d37ca14e",
+   "candidate": "Bottles · 2010",
+   "question": "What is the number of bottles of Canadian brand beer sold in Canada in the year 2010 (in million hectoliters)?",
+   "answer": "10.6"
+  },
+  {
+   "record_id": "chartqa:365ec00efbc22675061cebff",
+   "candidate": "2018",
+   "question": "What was the total sales of arms and military services by the largest arms producing companies in 2018?",
+   "answer": "420"
+  },
+  {
+   "record_id": "chartqa:9d57480ef5bc51be2b425aac",
+   "candidate": "Q1 2019",
+   "question": "What was the consumer confidence index in Mexico in the first quarter of 2019?",
+   "answer": "101"
+  },
+  {
+   "record_id": "chartqa:9ea03080ea51beb56b92cddb",
+   "candidate": "Impact · South Africa",
+   "question": "What was South Africa's score in awareness and openness for mHealth in 2012?",
+   "answer": "6"
+  },
+  {
+   "record_id": "chartqa:2c2b3ff9f286babc59ef6917",
+   "candidate": "61-70",
+   "question": "What's the value of the largest bar?",
+   "answer": "31"
+  },
+  {
+   "record_id": "chartqa:25118d2a0ccc0aa6cf5698d2",
+   "candidate": "Peak Games (Turkey)",
+   "question": "What percentage of Vostok Oil did Trafigura acquire in 2020?",
+   "answer": "1.61"
+  },
+  {
+   "record_id": "chartqa:5542b88571438a6fd2ba5e6a",
+   "candidate": "2019",
+   "question": "What is the global cropland area projected to be in 2015?",
+   "answer": "889.16"
+  },
+  {
+   "record_id": "chartqa:8a51824124412cae5e1f59ae",
+   "candidate": "Jan '21",
+   "question": "How many people in Argentina used Facebook Messenger in January 2021?",
+   "answer": "29.06"
+  },
+  {
+   "record_id": "chartqa:3e10135f9c1f64463865c2f7",
+   "candidate": "2019",
+   "question": "What was the average sales per square foot of Ross Stores a year earlier?",
+   "answer": "432"
+  },
+  {
+   "record_id": "chartqa:faecbfbb6b0cf8685120233a",
+   "candidate": "2025*",
+   "question": "What is the projected number of social network users in Canada in 2023?",
+   "answer": "32.07"
+  },
+  {
+   "record_id": "chartqa:774e020e019ee60b269101fa",
+   "candidate": "3rd",
+   "question": "What was the average number of children per household in the third decile?",
+   "answer": "1.2"
+  },
+  {
+   "record_id": "chartqa:d6e84e6c0317c67758429a88",
+   "candidate": "T-VoD services (renting via VoD) · 2010",
+   "question": "How much money was generated by T-VoD services in Germany in 2010?",
+   "answer": "21"
+  },
+  {
+   "record_id": "chartqa:59b1fca667892fb6a84256eb",
+   "candidate": "FY '21",
+   "question": "How many units of software did Nintendo sell in the fiscal year ending March 2021?",
+   "answer": "230.88"
+  },
+  {
+   "record_id": "chartqa:f997af10904e7b856c485837",
+   "candidate": "Worldwide · The Hunger Games: Catching Fire",
+   "question": "What is the box office revenue of The Hunger Games: Catching Fire in North America (in million U.S. dollars)",
+   "answer": "424.67"
+  },
+  {
+   "record_id": "chartqa:55e3600df44d9c51d1780ef8",
+   "candidate": "Ticket income",
+   "question": "What was the total income from ticketing of all 22 clubs in Italy in 2011/12?",
+   "answer": "27.2"
+  },
+  {
+   "record_id": "chartqa:e4dfb82ef748d98eace918d8",
+   "candidate": "2015",
+   "question": "How many polluted rivers were there in Malaysia in 2019?",
+   "answer": "5"
+  },
+  {
+   "record_id": "chartqa:5b21ba29a92748791e4ea4dd",
+   "candidate": "Santander/Banco Popular (2017)",
+   "question": "How much did Santander pay for Banco Popular?",
+   "answer": "8.22"
+  },
+  {
+   "record_id": "chartqa:ad518c67e385ed2a61fa21d1",
+   "candidate": "Stay the same",
+   "question": "What's the total share of increasing debts?",
+   "answer": "23"
+  },
+  {
+   "record_id": "chartqa:02d4b0ac5e278a75d03b6df2",
+   "candidate": "2045",
+   "question": "What is the global expenditure for diabetes treatment expected to grow from 2019 to 2045?",
+   "answer": "845"
+  },
+  {
+   "record_id": "chartqa:28ab3c08b53c24564e8f7c3a",
+   "candidate": "No such possibility",
+   "question": "What is the percentage that there is no such possibiltiy?",
+   "answer": "18"
+  },
+  {
+   "record_id": "chartqa:2319c63861448f3ff60030c3",
+   "candidate": "2000 · Alaska",
+   "question": "How many cubic feet of natural gas was produced in Alaska in 2000?",
+   "answer": "0.42"
+  },
+  {
+   "record_id": "chartqa:31160716fe89834662b0bd2e",
+   "candidate": "BNP Paribas · 2020",
+   "question": "What was BNP Paribas' market capital as of January 2020?",
+   "answer": "69.83"
+  },
+  {
+   "record_id": "chartqa:5a5af2d5de420c7fae023801",
+   "candidate": "Q3 2020",
+   "question": "How many users has Pandora lost in the last two years?",
+   "answer": "58.58"
+  },
+  {
+   "record_id": "chartqa:12bcad24f6ffdb1d3d414ada",
+   "candidate": "2025*",
+   "question": "In 2023, how many users are projected to use social networks in the United States, Canada, and Mexico?",
+   "answer": "370.7"
+  },
+  {
+   "record_id": "chartqa:054e962b60cb0376c049c704",
+   "candidate": "Accessories · 2010/11",
+   "question": "How many units of snow sports accessories were sold in the US in the 2010/11 season?",
+   "answer": "34.09"
+  },
+  {
+   "record_id": "chartqa:64fcaf08b24434462627399e",
+   "candidate": "Ben Haggerty \"Macklemore\"",
+   "question": "What was Ben Haggerty's estimated net worth?",
+   "answer": "16"
+  },
+  {
+   "record_id": "chartqa:7d968b084662e1952d35ab32",
+   "candidate": "2016",
+   "question": "How many mobile subscriptions were registered for every 100 people in Equatorial Guinea between 2000 and 2016?",
+   "answer": "65.9"
+  },
+  {
+   "record_id": "chartqa:a1b4a6b588220bc99aae021e",
+   "candidate": "Food and Drink",
+   "question": "How many ventures in the food & drink category were funded on Crowdcube in February 2013?",
+   "answer": "10"
+  },
+  {
+   "record_id": "chartqa:7656cf6fa42ea6199c26beef",
+   "candidate": "2009 · Sub-Saharan",
+   "question": "How many people in Sub-Saharan Africa had no access to electricity in 2016?",
+   "answer": "586"
+  },
+  {
+   "record_id": "chartqa:064cdfc7d9aa6206197605a4",
+   "candidate": "Sanofi (U.S.)",
+   "question": "How many patents did Sanofi have in 2019?",
+   "answer": "39"
+  },
+  {
+   "record_id": "chartqa:f71d32e92bf4f5932b74e011",
+   "candidate": "2021*",
+   "question": "How many people were employed in Canada in 2019?",
+   "answer": "18.88"
+  },
+  {
+   "record_id": "chartqa:e9944fa58ee612b749015963",
+   "candidate": "Аcсeptable · Total",
+   "question": "What's the Acceptable bar value in Total?",
+   "answer": "66"
+  },
+  {
+   "record_id": "chartqa:000c0b797407abe8cc7ac837",
+   "candidate": "Beer* · 2011/12",
+   "question": "What is the sale price of beer in New York Knicks games in 2011/12?",
+   "answer": "9.5"
+  }
+ ],
+ [
+  {
+   "record_id": "chartqa:c77949bef701c17fbe0e7d4b",
+   "candidate": "Insects",
+   "question": "How many insect species are in danger of becoming extinct?",
+   "answer": "74"
+  },
+  {
+   "record_id": "chartqa:56706c0032b7e906788ecfd7",
+   "candidate": "FY 2021",
+   "question": "What was Take-Two Interactive's net income in 2021?",
+   "answer": "588.89"
+  },
+  {
+   "record_id": "chartqa:79c8d9b37c8135e264d5fd2a",
+   "candidate": "2020",
+   "question": "How much money did Etsy invest in its marketing activities in the last reported year?",
+   "answer": "500.76"
+  },
+  {
+   "record_id": "chartqa:6a11182d91d670dd359ca50d",
+   "candidate": "Q1 2021",
+   "question": "How many more users did Pluto TV have in the first quarter of 2021 than in the previous quarter?",
+   "answer": "50"
+  },
+  {
+   "record_id": "chartqa:cc13a05020d2057b18c94af1",
+   "candidate": "2018",
+   "question": "How much did Apple pay to iOS app developers in the prior year?",
+   "answer": "34"
+  },
+  {
+   "record_id": "chartqa:1cacf762e571576ef579ac54",
+   "candidate": "Box office · 2020",
+   "question": "How much money did Cineplex generate in Canadian dollars in 2020?",
+   "answer": "132.71"
+  },
+  {
+   "record_id": "chartqa:4a6f7ac47943348ddf780e4c",
+   "candidate": "2015",
+   "question": "How many people lived in the Birmingham-Hoover metropolitan area in 2019?",
+   "answer": "1079752"
+  },
+  {
+   "record_id": "chartqa:202b15b91c08fddce392d7c4",
+   "candidate": "Extreme cold · 2019",
+   "question": "How many people died due to extreme cold?",
+   "answer": "35"
+  },
+  {
+   "record_id": "chartqa:05b5bfd3e3fd6294b27f1943",
+   "candidate": "Telecom & IT",
+   "question": "How many M&A deals did the telecoms and IT sector make up in 2020?",
+   "answer": "333"
+  },
+  {
+   "record_id": "chartqa:a8462e7f33c9c1d8cc37410d",
+   "candidate": "Q1 2020",
+   "question": "How much revenue did Consumer Electronics generate in the first quarter of 2020?",
+   "answer": "911"
+  },
+  {
+   "record_id": "chartqa:71c54baca25482c594698e00",
+   "candidate": "In Italy · 2019",
+   "question": "How many cubic meters of gas sales did Eni Sp.A. have in Italy in 2019?",
+   "answer": "37.85"
+  },
+  {
+   "record_id": "chartqa:887a6166b964aef3aff25bdf",
+   "candidate": "Starbucks · Vancouver",
+   "question": "How many Starbucks coffee houses were there in Vancouver in January 2015?",
+   "answer": "108"
+  },
+  {
+   "record_id": "chartqa:ff6cf303cd023f595b55965f",
+   "candidate": "20 to 24",
+   "question": "What was the suicide rate in Canada for 20-24 year olds in 2019?",
+   "answer": "12.4"
+  },
+  {
+   "record_id": "chartqa:e311edc92a577466bf9ecb4d",
+   "candidate": "Q2 '18",
+   "question": "How many Status users were there in the second quarter of 2018?",
+   "answer": "450"
+  },
+  {
+   "record_id": "chartqa:86b493e264b83d56696334ed",
+   "candidate": "2025 · Video games",
+   "question": "How many users will augmented and virtual reality software for video games have by 2025?",
+   "answer": "216"
+  },
+  {
+   "record_id": "chartqa:9fe5b442a99614aa0bbc01a9",
+   "candidate": "Approve · Black",
+   "question": "What's the value of the 1st Longest bar in the graph??",
+   "answer": "82"
+  },
+  {
+   "record_id": "chartqa:4244b7405169d94ef85eec8e",
+   "candidate": "2013-2015",
+   "question": "How many females were present for every 1,000 males?",
+   "answer": "900"
+  },
+  {
+   "record_id": "chartqa:a551e4dff3bf6eaa2bf10a33",
+   "candidate": "2017",
+   "question": "What was the B2B e-commerce value of furniture and related product manufacturing shipments in the previous measured period?",
+   "answer": "41785"
+  },
+  {
+   "record_id": "chartqa:de641de2321795df84c52b5f",
+   "candidate": "Male · Hispanic",
+   "question": "How many men of Hispanic origin died in the United States in 2018?",
+   "answer": "373.9"
+  },
+  {
+   "record_id": "chartqa:100705b09beef00480e106cf",
+   "candidate": "2018",
+   "question": "What was the previous year's production volume of avocados?",
+   "answer": "6.77"
+  },
+  {
+   "record_id": "chartqa:01588e9bb21e2b23e103e8db",
+   "candidate": "Computer Accessories · 2020",
+   "question": "What was the export value of computer accessories in the U.S. in 2020?",
+   "answer": "25.18"
+  },
+  {
+   "record_id": "chartqa:e16419e16961b44a4340247b",
+   "candidate": "Divorces between two men · 2020",
+   "question": "How many male couples were divorced in 2020?",
+   "answer": "26"
+  },
+  {
+   "record_id": "chartqa:5805df886c0dfca10fd16611",
+   "candidate": "Remake",
+   "question": "How many remakes were made between 1995 and 2020?",
+   "answer": "330"
+  },
+  {
+   "record_id": "chartqa:6f2d50b0b5691bf0152e7cc5",
+   "candidate": "Q4 2017",
+   "question": "What was the net income of BT in the fourth quarter of 2017/18?",
+   "answer": "722"
+  },
+  {
+   "record_id": "chartqa:f72d4ac292bc99f8d6135f9c",
+   "candidate": "Exports · 2019",
+   "question": "Exports from the 27 EU member countries to Mercosur countries totaled how much in 2019?",
+   "answer": "41.2"
+  },
+  {
+   "record_id": "chartqa:d774b9ea2f51f6a64152e61b",
+   "candidate": "EMEA · 2020",
+   "question": "How much revenue did Kuehne + Nagel generate in the fiscal year of 2020?",
+   "answer": "14830"
+  },
+  {
+   "record_id": "chartqa:2447ac81adfe84ab404763ba",
+   "candidate": "2019",
+   "question": "What was Ollie's Bargain Outlet Inc.'s average sales per store a year earlier?",
+   "answer": "4.23"
+  },
+  {
+   "record_id": "chartqa:0bb46d2f9e69baed14ccc373",
+   "candidate": "District 2",
+   "question": "How many people were infected with coronavirus?",
+   "answer": "116"
+  },
+  {
+   "record_id": "chartqa:1ea0fbec7f720e1129554e03",
+   "candidate": "Total",
+   "question": "How many psychiatric hospitals were there in the United States as of 2019?",
+   "answer": "708"
+  },
+  {
+   "record_id": "chartqa:6ac4c5874f1496800327708a",
+   "candidate": "Surface · 2018",
+   "question": "What is the diffrence between highest and lowest value of dark blue bar?",
+   "answer": "350"
+  },
+  {
+   "record_id": "chartqa:2d09547f3fa404a3318dd892",
+   "candidate": "KC Sangakkara, DPMD Jayawardene\n (Sri",
+   "question": "How many runs did Kumar Sangakkara and Mahela Jayawardene share against South Africa in 2006?",
+   "answer": "624"
+  },
+  {
+   "record_id": "chartqa:d300f8eb4b76bac593b66cb1",
+   "candidate": "2019",
+   "question": "How many crimes related to extremism were there in Russia in the previous year?",
+   "answer": "585"
+  },
+  {
+   "record_id": "chartqa:367d6adbfc0c2b4b2bc1117a",
+   "candidate": "2019*",
+   "question": "What was the revenue of Japan Airlines Co, Ltd. in yen in the previous fiscal year?",
+   "answer": "1.39"
+  },
+  {
+   "record_id": "chartqa:9f83d5be3aa90b548ed6557c",
+   "candidate": "2019",
+   "question": "How much is the advertising and public relations industry worth in dollars?",
+   "answer": "138.61"
+  },
+  {
+   "record_id": "chartqa:ae2662ddb48f3614bf0897af",
+   "candidate": "Q4 '20",
+   "question": "How much was Naver's revenue in the most recent quarter?",
+   "answer": "1512.6"
+  },
+  {
+   "record_id": "chartqa:447a7b3544b28e9b7627ef62",
+   "candidate": "Between men · 2019",
+   "question": "How many same-sex marriages took place between two men in 2019?",
+   "answer": "675"
+  },
+  {
+   "record_id": "chartqa:e2bfe6a9c15a92c2da4c346b",
+   "candidate": "Q1 2021",
+   "question": "How many monthly active users did Facebook have in the first quarter of 2021?",
+   "answer": "423"
+  },
+  {
+   "record_id": "chartqa:05eeb8af43d1ad7130aaf1ce",
+   "candidate": "Very well · Most of the time, it is easy for me to determine what information is trustworthy",
+   "question": "What's the value of first Very well bar from the bottom?",
+   "answer": "41"
+  },
+  {
+   "record_id": "chartqa:bcd8fafa12e713111edc6389",
+   "candidate": "North America · Harry Potter and the Goblet of Fire",
+   "question": "What is the worldwide box office revenue of Harry Potter and the Goblet of Fire (in million U.S. dollars)?",
+   "answer": "896.9"
+  },
+  {
+   "record_id": "chartqa:4ec0491f77dfeac33335826a",
+   "candidate": "2013",
+   "question": "How many copies did Playboy have five years earlier?",
+   "answer": "1.2"
+  }
+ ],
+ [
+  {
+   "record_id": "chartqa:c8b720784fd233da4c94edd6",
+   "candidate": "April 2014 to March 2015",
+   "question": "What was the annual revenue of RealD for the fiscal year ending March 31, 2015?",
+   "answer": "163.46"
+  },
+  {
+   "record_id": "chartqa:a80fd0a596514bc9ec4f5051",
+   "candidate": "WarnerMedia - Turner & Warner Bros.",
+   "question": "How many video views did Warner Media-Turner and Warner Bros. have on social media in 2019?",
+   "answer": "611"
+  },
+  {
+   "record_id": "chartqa:acd0dc8acbad1ab010bda5b5",
+   "candidate": "Male · 30-34",
+   "question": "How many men were there in Russia between 30 and 34 years old?",
+   "answer": "6.36"
+  },
+  {
+   "record_id": "chartqa:0e1fa8340d3fc08a9aef46e3",
+   "candidate": "2020",
+   "question": "How many new BEV models are expected to be launched worldwide between 2015 and 2020?",
+   "answer": "55"
+  },
+  {
+   "record_id": "chartqa:f4cd673d1854f1bfc50e1e42",
+   "candidate": "United Kingdom",
+   "question": "What was the increase in the average basket size in the UK from 2015 to 2016?",
+   "answer": "17.1"
+  },
+  {
+   "record_id": "chartqa:56aece349b4a8819ce999831",
+   "candidate": "2019",
+   "question": "What is the average price for acrylic nails in the U.S.?",
+   "answer": "46.01"
+  },
+  {
+   "record_id": "chartqa:4102c447a71cb7b798a1935e",
+   "candidate": "Q4 2020",
+   "question": "What was Gannett Company's revenue in the fourth quarter of 2020?",
+   "answer": "875.45"
+  },
+  {
+   "record_id": "chartqa:a3f52d31c24f531087f0466d",
+   "candidate": "FY 2018",
+   "question": "How many Indian rupees did condiments and spices from Bihar account for in the Indian economy in fiscal year 2018?",
+   "answer": "686"
+  },
+  {
+   "record_id": "chartqa:8f7e451650461827b7465e67",
+   "candidate": "'10",
+   "question": "How many people were registered in 2010?",
+   "answer": "4.44"
+  },
+  {
+   "record_id": "chartqa:228d618d391e79af2194159a",
+   "candidate": "2019",
+   "question": "How many poker tables were in casinos in Nevada in 2010?",
+   "answer": "578"
+  },
+  {
+   "record_id": "chartqa:7a3c088118c47dbc2cc4fc2a",
+   "candidate": "2019",
+   "question": "What was the total value of direct debit payments through Bacs from 2007 to 2018?",
+   "answer": "1326.77"
+  },
+  {
+   "record_id": "chartqa:d9ff542bacd9ec395d8f4283",
+   "candidate": "Exports · 2019",
+   "question": "What was the value of automotive exports in 2019?",
+   "answer": "42.4"
+  },
+  {
+   "record_id": "chartqa:9f6fefb8e619d49b1260b6b8",
+   "candidate": "2019",
+   "question": "What was the retail value of all LPs and EPs shipped in the U.S. a year earlier?",
+   "answer": "479.5"
+  },
+  {
+   "record_id": "chartqa:bb9532cfdd7a403b1917ace4",
+   "candidate": "2015 - online spending*",
+   "question": "How many of the 1.9 billion spent online will be spent on Black Friday in 2015?",
+   "answer": "0.72"
+  },
+  {
+   "record_id": "chartqa:3a5739f7f9c46540c63b466d",
+   "candidate": "Season 2019/20",
+   "question": "How many people attended the football league championship in the 2019/2020 season?",
+   "answer": "8.25"
+  },
+  {
+   "record_id": "chartqa:2041d46501345aa654813ffd",
+   "candidate": "Good · Hospitals and medical centers in your area",
+   "question": "What's the least value of gray bar?",
+   "answer": "8"
+  },
+  {
+   "record_id": "chartqa:bc3c82affb4b49eede3457f9",
+   "candidate": "At home · Switzerland",
+   "question": "What was the average price per night for a hotel room in Switzerland in 2014?",
+   "answer": "206"
+  },
+  {
+   "record_id": "chartqa:c46502a106ba54d5052eecec",
+   "candidate": "Outside Italy · 2017",
+   "question": "In 2017. what is the outside Italy value?",
+   "answer": "43.4"
+  },
+  {
+   "record_id": "chartqa:8edb1b8ac9f65ffd632f6ce4",
+   "candidate": "2026*",
+   "question": "What was the population of Poland in 2020?",
+   "answer": "37.65"
+  },
+  {
+   "record_id": "chartqa:32166cc16909635da6a9b950",
+   "candidate": "Renewable energy** · 2050",
+   "question": "How many exajoules will renewable energy consumption reach by 2050?",
+   "answer": "161"
+  },
+  {
+   "record_id": "chartqa:8932d16cf4587f046331463e",
+   "candidate": "Phase I",
+   "question": "How many trials were still in the first phase?",
+   "answer": "619"
+  },
+  {
+   "record_id": "chartqa:42e84a18b5d8fd67c9176221",
+   "candidate": "California",
+   "question": "What's the value of 1st Longest bar in the graph??",
+   "answer": "17416"
+  },
+  {
+   "record_id": "chartqa:be95a33788ebbf4dfc0b2d03",
+   "candidate": "May: Brexit vote (2019)",
+   "question": "How many votes did Theresa May's Brexit deal get?",
+   "answer": "230"
+  },
+  {
+   "record_id": "chartqa:c416346da5056a41eca25ef8",
+   "candidate": "2017",
+   "question": "What was the population of the San Francisco-Oakland-Berkeley metropolitan area in 2020?",
+   "answer": "4648164"
+  },
+  {
+   "record_id": "chartqa:15549951524c4c6f979c4952",
+   "candidate": "Bank Central Asia (BCA)",
+   "question": "What was Bank Central Asia's brand value in dollars in 2019?",
+   "answer": "13.05"
+  },
+  {
+   "record_id": "chartqa:d426636eeae2ab6bb6fc7e2b",
+   "candidate": "Apple Computers",
+   "question": "What was Apple Computer's score out of 100?",
+   "answer": "65.06"
+  },
+  {
+   "record_id": "chartqa:20d71cd767be419a5cdad218",
+   "candidate": "Small and mini segment · 2016",
+   "question": "How many small and mini cars were registered in France in 2016?",
+   "answer": "1052155"
+  },
+  {
+   "record_id": "chartqa:c1c304490dfe4c7df26d3612",
+   "candidate": "Irish Republic",
+   "question": "What was Ireland's cider import value in British pounds in 2020?",
+   "answer": "40.5"
+  },
+  {
+   "record_id": "chartqa:1987cc5019a67a9eba4828a7",
+   "candidate": "Global",
+   "question": "What was the estimated suicide rate per every 100 thousand people worldwide in 2012?",
+   "answer": "11.4"
+  },
+  {
+   "record_id": "chartqa:7095332445c1b22381867cfd",
+   "candidate": "Q1 '14",
+   "question": "What was the retail sales of bedding, linens and bathroom accessories in Canada in the first quarter of 2013?",
+   "answer": "506.19"
+  },
+  {
+   "record_id": "chartqa:ccf24de59273a433c5cf3aad",
+   "candidate": "Feb '21",
+   "question": "How many dollars did Rhode Island generate from sports betting in February 2021?",
+   "answer": "1.56"
+  },
+  {
+   "record_id": "chartqa:27e5b7aba1eceab55fbe49e1",
+   "candidate": "2019",
+   "question": "How many stores did Abercrombie & Fitch have in the prior year?",
+   "answer": "308"
+  },
+  {
+   "record_id": "chartqa:e613c55afa88f264d9745558",
+   "candidate": "Intel",
+   "question": "How many fans did Sony's PlayStation brand have on Facebook in April 2018?",
+   "answer": "38.88"
+  },
+  {
+   "record_id": "chartqa:5c94600a7b6a84d4ed99c06d",
+   "candidate": "The Master Trust Bank of Japan, Ltd. (as",
+   "question": "How many shares did The Master Trust Bank of Japan, Ltd. own?",
+   "answer": "25.8"
+  },
+  {
+   "record_id": "chartqa:0947f1fdb333f4bdf623c221",
+   "candidate": "Tourism economic contribution to GDP",
+   "question": "How much did London tourism contribute to the UK's GDP in 2013?",
+   "answer": "36"
+  },
+  {
+   "record_id": "chartqa:1a7c61922a15dc0afde28a25",
+   "candidate": "Broadcasting · 2019/20",
+   "question": "How much did Arsenal earn from the broadcasting stream in 2019/2020?",
+   "answer": "136"
+  },
+  {
+   "record_id": "chartqa:8aa1cab64ba435c11783a5c3",
+   "candidate": "United States",
+   "question": "How much did Viagra cost per pill in the U.S. in Q2 2017?",
+   "answer": "58.72"
+  },
+  {
+   "record_id": "chartqa:82d7d1f04012f88826e65f0a",
+   "candidate": "Q2 2020*",
+   "question": "What was the net sales of H&M in Italy in the second quarter of 2020?",
+   "answer": "0.68"
+  },
+  {
+   "record_id": "chartqa:8315501a22bf9019a3f30de7",
+   "candidate": "Anxiety disorders",
+   "question": "How many people worldwide suffered from anxiety as of 2017?",
+   "answer": "284"
+  },
+  {
+   "record_id": "chartqa:46f6e02bddad2e59e03c89b2",
+   "candidate": "United Kingdom",
+   "question": "How much did the tourism sector contribute to the UK's GDP in 2013?",
+   "answer": "126"
+  }
+ ],
+ [
+  {
+   "record_id": "chartqa:a3ffd3083c19222d74d07113",
+   "candidate": "Interest on Department of",
+   "question": "How much did the interest on additional borrowing alone cost the United States?",
+   "answer": "456.8"
+  },
+  {
+   "record_id": "chartqa:6d898cb9a4db30fcd0d692ea",
+   "candidate": "TIS Container Terminal",
+   "question": "How much did Dragon Capital Investments pay for 101 Tower Business Center?",
+   "answer": "101.8"
+  },
+  {
+   "record_id": "chartqa:384044fcd8711c1c92da06ac",
+   "candidate": "Offshore wind",
+   "question": "What is the estimated capital cost per megawatt hour for new offshore power generating sites entering the power grid in 2026?",
+   "answer": "89.2"
+  },
+  {
+   "record_id": "chartqa:ff97ee92ae70f54f5562cecc",
+   "candidate": "Q4 '20",
+   "question": "What was Naver's net income in the most recent quarter?",
+   "answer": "375.3"
+  },
+  {
+   "record_id": "chartqa:5144d1e7e972067bc7df57a5",
+   "candidate": "19/20",
+   "question": "What was the estimated revenue of the San Antonio Spurs in 2019/20?",
+   "answer": "255"
+  },
+  {
+   "record_id": "chartqa:2a3e11bd8fe5604d0a279ea0",
+   "candidate": "July 12",
+   "question": "How many daily active users did Pokmon GO have in the U.S.?",
+   "answer": "21"
+  },
+  {
+   "record_id": "chartqa:e281a65c602e3d671b548c93",
+   "candidate": "Turkish Airlines, Turkey",
+   "question": "What was the score of Turkish Airlines out of five?",
+   "answer": "3.6"
+  },
+  {
+   "record_id": "chartqa:b8b9515c7c1c5b332847dbb1",
+   "candidate": "Immigrants · 2021",
+   "question": "How many people of Danish origin lived in Denmark in 2021?",
+   "answer": "0.62"
+  },
+  {
+   "record_id": "chartqa:10a3bc25e04affafa951ba81",
+   "candidate": "Asia Pacific · 2019",
+   "question": "How much carbon dioxide was emitted in Asia Pacific in 2019?",
+   "answer": "17269.5"
+  },
+  {
+   "record_id": "chartqa:594a9617138a6b63959f4e42",
+   "candidate": "Jan 1, 2020 - Dec 31, 2020",
+   "question": "What was the total attendance at AMC movie theaters in fiscal year 2020?",
+   "answer": "75.19"
+  },
+  {
+   "record_id": "chartqa:e27efd62ecc7458d9d367392",
+   "candidate": "Tim Horton's · Vancouver",
+   "question": "How many Tim Hortons stores were in Vancouver in January 2015?",
+   "answer": "59"
+  },
+  {
+   "record_id": "chartqa:05d38e7d6ea763a6a7037b17",
+   "candidate": "Safety and risk reduction",
+   "question": "How much was invested in renewables?",
+   "answer": "24.7"
+  },
+  {
+   "record_id": "chartqa:9182c7f62ea450e66da741f1",
+   "candidate": "2013",
+   "question": "How much money was invested in road transport infrastructure in Russia in 2008?",
+   "answer": "9836"
+  },
+  {
+   "record_id": "chartqa:a34dbb138924818909a157a2",
+   "candidate": "China - Death Rate",
+   "question": "What is the death rate in China?",
+   "answer": "6.3"
+  },
+  {
+   "record_id": "chartqa:950d8124878c01d0bd32a22f",
+   "candidate": "Disapprove",
+   "question": "What percentage of Americans disapproved of the Affordable Care Act in January 2014?",
+   "answer": "54"
+  },
+  {
+   "record_id": "chartqa:3ba668adf99a3aeefa771fb7",
+   "candidate": "2024*",
+   "question": "What was the population of Portugal in 2020?",
+   "answer": "10.2"
+  },
+  {
+   "record_id": "chartqa:ec6a09e741cf8e51a8585aa8",
+   "candidate": "Music publishers · 2016",
+   "question": "What was the number of music publishers in the US in 2016?",
+   "answer": "705"
+  },
+  {
+   "record_id": "chartqa:2ff7f6aa00ba57e9b27bed67",
+   "candidate": "Americas · 2015",
+   "question": "How much did mobile net-to-publisher app revenues in the Americas amount to in 2015?",
+   "answer": "27.4"
+  },
+  {
+   "record_id": "chartqa:b697f679a87b2035b3f9f5b9",
+   "candidate": "2013 · UK",
+   "question": "What was the sales revenue of wearable technology devices in the UK in 2013?",
+   "answer": "140.67"
+  },
+  {
+   "record_id": "chartqa:cb198e93c800285a3133d93f",
+   "candidate": "14",
+   "question": "What was the gross margin on apparel, piece goods, and notions in U.S. wholesale in 2014?",
+   "answer": "52.49"
+  },
+  {
+   "record_id": "chartqa:8c4a97217fd915199a6fcbcb",
+   "candidate": "2014",
+   "question": "What was the value of the Chinese market for mechanical engineering in 2015?",
+   "answer": "976.24"
+  },
+  {
+   "record_id": "chartqa:a3f01bb9f7f48f8269441334",
+   "candidate": "Rarely · Feel as if they have to respond to messages from other people immediately",
+   "question": "What's the percentage of people choosing rarely or never for the first category?",
+   "answer": "25"
+  },
+  {
+   "record_id": "chartqa:d6cf3380fd4c020fc32ea0ad",
+   "candidate": "Jan",
+   "question": "What was the highest retail price of bottled water in Russia in January?",
+   "answer": "39.84"
+  },
+  {
+   "record_id": "chartqa:ebe34a014ec5ea87aa195b6c",
+   "candidate": "Hydroelectricity · China*",
+   "question": "How much oil equivalent did China consume in 2015?",
+   "answer": "189.3"
+  },
+  {
+   "record_id": "chartqa:0845671d77566f8cf20fea42",
+   "candidate": "Music publishers · 2017",
+   "question": "What was the number of music publishers in the United States in 2017?",
+   "answer": "696"
+  },
+  {
+   "record_id": "chartqa:de81bf40a4792d253b2cf006",
+   "candidate": "USA",
+   "question": "How many H&M stores were closed in the United States in 2020?",
+   "answer": "20"
+  },
+  {
+   "record_id": "chartqa:f07ad6c80bab238e815936cf",
+   "candidate": "Jan '16",
+   "question": "As of January 2016, how many subscription retail sites in the U.S. were visited?",
+   "answer": "21.4"
+  },
+  {
+   "record_id": "chartqa:f2183c53d1e2b878fe9736c2",
+   "candidate": "Samsung · 2017*",
+   "question": "In 2017, Samsung is expected to have a semiconductor capital expenditure budget of how much?",
+   "answer": "12500"
+  },
+  {
+   "record_id": "chartqa:3ebe0b5abbb844745eb8c74a",
+   "candidate": "Jiff Pom @Jiffpom",
+   "question": "How many followers did Jiff Pom have on Instagram?",
+   "answer": "6.6"
+  },
+  {
+   "record_id": "chartqa:6456014908a4c059303be3bb",
+   "candidate": "Spaniards · 2014",
+   "question": "What was the Spanish-born population in January 2020?",
+   "answer": "41.84"
+  },
+  {
+   "record_id": "chartqa:a5e8a7cfa0ddf312bf6e48e8",
+   "candidate": "Use IS · WhatsApp de",
+   "question": "What's the percentage of using Whatsapp?",
+   "answer": "84"
+  },
+  {
+   "record_id": "chartqa:9175fb2d5c4c86dc3d5a9274",
+   "candidate": "2020",
+   "question": "What was the operating revenue of ANA Holdings Inc. as of March 31, 2021?",
+   "answer": "0.73"
+  },
+  {
+   "record_id": "chartqa:7bf91a686aca41ea5e0ae060",
+   "candidate": "Only Spanish",
+   "question": "What is the percetage of people living in Catalonia in July 2020 who strongly identify as Spanish?",
+   "answer": "5.5"
+  },
+  {
+   "record_id": "chartqa:6b07af141fa19d2caa198074",
+   "candidate": "2018",
+   "question": "What was the number of prescriptions for lisinopril in 2010?",
+   "answer": "97.61"
+  },
+  {
+   "record_id": "chartqa:37bf30893a230bba17000ecc",
+   "candidate": "China .cn",
+   "question": "How many domains were registered in.cn as of April 2021?",
+   "answer": "25.73"
+  },
+  {
+   "record_id": "chartqa:e0d46c39b738a7c816ed70f3",
+   "candidate": "Bank of America Stadium, 1996",
+   "question": "How much did the Bank of America Stadium cost?",
+   "answer": "247"
+  },
+  {
+   "record_id": "chartqa:2d7ffb1d5ebe4e004e427628",
+   "candidate": "Illegally obtained",
+   "question": "How many mass shootings occurred between 1982 and 2021?",
+   "answer": "16"
+  },
+  {
+   "record_id": "chartqa:c05c966f1474373ac740b14f",
+   "candidate": "Some · Be interested in sports",
+   "question": "What's the percentage of men who have some interest in sports?",
+   "answer": "44"
+  },
+  {
+   "record_id": "chartqa:18418eb634b9dc38691fb0a0",
+   "candidate": "2011",
+   "question": "How many suicide bombings occurred between 2011 and 2013?",
+   "answer": "200"
+  },
+  {
+   "record_id": "chartqa:56ee49a9d023d8b2bb62fa15",
+   "candidate": "Men · 2019/20",
+   "question": "What was the rate of coronary artery bypass graft for men in Scotland in 2019/20?",
+   "answer": "44.5"
+  }
+ ],
+ [
+  {
+   "record_id": "chartqa:1759209b19e5a1591994e3b9",
+   "candidate": "Not a threat · South Korea",
+   "question": "How many colors are in the bar??",
+   "answer": "3"
+  },
+  {
+   "record_id": "chartqa:4ed39d5d4efa0f7cb6e03075",
+   "candidate": "2020 · Nexgard",
+   "question": "What was the net sales of Boehringer Ingelheim's top animal health product in 2020?",
+   "answer": "804"
+  },
+  {
+   "record_id": "chartqa:bc5903c00c27d44c7d58e248",
+   "candidate": "A lot · Family and friends",
+   "question": "What percent of US Adults rely a lot on their family and friends for advice when making major life decisions?",
+   "answer": "43"
+  },
+  {
+   "record_id": "chartqa:85f39e3e4eff4421ba478643",
+   "candidate": "Cardiovascular products · 2009",
+   "question": "How many dollars did sales of cardiovascular products reach in 2009?",
+   "answer": "66.7"
+  },
+  {
+   "record_id": "chartqa:a67084d2ca66144d2b920bd9",
+   "candidate": "Female · 2019",
+   "question": "How many females lived in the United States as of July 1, 2019?",
+   "answer": "166.58"
+  },
+  {
+   "record_id": "chartqa:192af07c3dc4a77687c6bc2a",
+   "candidate": "2003",
+   "question": "What was the combined circulation of magazines from 2000 to 2012?",
+   "answer": "352601091"
+  },
+  {
+   "record_id": "chartqa:d857892bfc4ea060f8775b84",
+   "candidate": "Women · 70-74",
+   "question": "How many cases of pancreatic cancer were diagnosed in England in 2018?",
+   "answer": "863"
+  },
+  {
+   "record_id": "chartqa:269a3d1d1bb12d5be74180d1",
+   "candidate": "Other countries",
+   "question": "What is the median of the three smallest segments?",
+   "answer": "4.2"
+  },
+  {
+   "record_id": "chartqa:f1bf62aa8ee16dfd5eec003e",
+   "candidate": "Music publishing",
+   "question": "What was the estimated value of British music publishing exports in 2018?",
+   "answer": "618"
+  },
+  {
+   "record_id": "chartqa:089af14fcd062441621e43bd",
+   "candidate": "2018",
+   "question": "What was the total income of the Indian gaming industry in the U.S. in the previous year?",
+   "answer": "33.7"
+  },
+  {
+   "record_id": "chartqa:5dcde1c3bd31cb0cf92c759a",
+   "candidate": "USA",
+   "question": "How many times have Americans won the Nobel Prize in economics?",
+   "answer": "57"
+  },
+  {
+   "record_id": "chartqa:e4ea3e19a3ae2d0fef033cc0",
+   "candidate": "2019",
+   "question": "How many mobile internet users will be in Singapore by 2025?",
+   "answer": "4.74"
+  },
+  {
+   "record_id": "chartqa:ecc58963ecda588c6b66b236",
+   "candidate": "2016",
+   "question": "What was the BSH Group's revenue in 2020?",
+   "answer": "13.1"
+  },
+  {
+   "record_id": "chartqa:bf17f326d46b25647af2193f",
+   "candidate": "Median · Maximum spending in U.S. dollars",
+   "question": "What was the median maximum spending for mobile wallet transactions?",
+   "answer": "114"
+  },
+  {
+   "record_id": "chartqa:2d783d102cea91affbbab336",
+   "candidate": "Premier League",
+   "question": "How many spectators attended a football match in the UK in 2019?",
+   "answer": "14.5"
+  },
+  {
+   "record_id": "chartqa:7a835148e77ba5437e4469bc",
+   "candidate": "Baby feeding supplies",
+   "question": "How much did baby bath products sell in the United States in 2018?",
+   "answer": "76.16"
+  },
+  {
+   "record_id": "chartqa:d9c4f2df36497134f7a4da6e",
+   "candidate": "Mentions (in millions) · Twitter",
+   "question": "what's the total mentions on Twitter?",
+   "answer": "3.1"
+  },
+  {
+   "record_id": "chartqa:169e4edbd0b968cc8d2ef109",
+   "candidate": "Jan 1, 2017 - Dec 31, 2017",
+   "question": "What was the total attendance of AMC movie theaters in 2017?",
+   "answer": "346.76"
+  },
+  {
+   "record_id": "chartqa:b9286859113960467dfeac73",
+   "candidate": "3.5\" · 2013",
+   "question": "How many 3.5\" HDD were shipped in 2013?",
+   "answer": "124.7"
+  },
+  {
+   "record_id": "chartqa:60381e96bee1f02089ba45bc",
+   "candidate": "Rape and sexual assault · Adolescents (14 to 17 years)",
+   "question": "How many adolescents were suspected of rape and sexual assault in Germany in 2020?",
+   "answer": "934"
+  },
+  {
+   "record_id": "chartqa:e5e565082d73c2f6397cea4f",
+   "candidate": "2018 · Monthly Active Users (MAU)",
+   "question": "How many MAU users did Gameloft have in 2018?",
+   "answer": "98"
+  },
+  {
+   "record_id": "chartqa:2115f2b173f52d357a996114",
+   "candidate": "2019/2020",
+   "question": "What was the North Sea revenue in 2019/20?",
+   "answer": "650"
+  },
+  {
+   "record_id": "chartqa:25b83d1a017d9a9352356e63",
+   "candidate": "2019 · Germany",
+   "question": "What was Germany's market value in 2019?",
+   "answer": "14"
+  },
+  {
+   "record_id": "chartqa:adcd45ba6b457b4b1c991fd2",
+   "candidate": "2020",
+   "question": "What was the profit of Richemont SA in FY2020?",
+   "answer": "931"
+  },
+  {
+   "record_id": "chartqa:f1395438950e337e21a2a650",
+   "candidate": "2016",
+   "question": "What was the population of the San Diego-Chula Vista-Carlsbad metropolitan area in 2020?",
+   "answer": "3305462"
+  },
+  {
+   "record_id": "chartqa:cf2acb824ccfb09dadac7fc2",
+   "candidate": "Golden State Warriors",
+   "question": "How much revenue did the Los Angeles Lakers generate in the 2019/20 season?",
+   "answer": "474"
+  },
+  {
+   "record_id": "chartqa:49b0d69231db7ef4d592b216",
+   "candidate": "Midwest · 2019",
+   "question": "What was the total amount of farm production expenditures in the Midwest in 2019?",
+   "answer": "111460"
+  },
+  {
+   "record_id": "chartqa:95c59389e14830c7dd30c043",
+   "candidate": "United States",
+   "question": "What was the production volume of the US cow milk in 2020?",
+   "answer": "101.02"
+  },
+  {
+   "record_id": "chartqa:4c9423fe147a58f1bb4d9648",
+   "candidate": "Mobile in-app advertising · 2016",
+   "question": "What was the gross advertiser spend within apps in 2016?",
+   "answer": "72.4"
+  },
+  {
+   "record_id": "chartqa:b876d3678d699b5584ead0bc",
+   "candidate": "July 2020",
+   "question": "How many PUBG units have been sold worldwide?",
+   "answer": "70"
+  },
+  {
+   "record_id": "chartqa:5fb1d5dd99799657ab2ca751",
+   "candidate": "Revenue from financial services · FIS",
+   "question": "What was the revenue from financial services of FIS in 2015?",
+   "answer": "5.7"
+  },
+  {
+   "record_id": "chartqa:f700b9a8d4209857a5999f41",
+   "candidate": "United States · 2020",
+   "question": "How much revenue did Seretide/Advair generate in the United States in 2020?",
+   "answer": "434"
+  },
+  {
+   "record_id": "chartqa:24561121d943a74c9ca91d85",
+   "candidate": "Without Alzheimer's disease or other dementias · Hospice",
+   "question": "What was the average per-beneficiary payment for hospice services?",
+   "answer": "170"
+  },
+  {
+   "record_id": "chartqa:d2dd82732f7d0b93478c3073",
+   "candidate": "2015",
+   "question": "How much was the Italian entertainment and media market worth in 2011?",
+   "answer": "29.64"
+  },
+  {
+   "record_id": "chartqa:c370aa59f7d4600dc83dff67",
+   "candidate": "Celine - Celine Dion",
+   "question": "How much did Celine Dion's residency make as of late 2018?",
+   "answer": "245.5"
+  },
+  {
+   "record_id": "chartqa:120dfff780db97ef33ea2ae9",
+   "candidate": "Internet users",
+   "question": "What was the total number of people using the internet in Germany in November 2020?",
+   "answer": "61.17"
+  },
+  {
+   "record_id": "chartqa:501b2797a4aa93655e21d907",
+   "candidate": "2019",
+   "question": "How much did Publicis Groupe generate in net income in the previous year?",
+   "answer": "841"
+  },
+  {
+   "record_id": "chartqa:872d548253c8afa083b57b99",
+   "candidate": "Oppose · Rep/Lean Rep",
+   "question": "What's the highest value of the yellow bar?",
+   "answer": "49"
+  },
+  {
+   "record_id": "chartqa:88cccfc949851fff2de78e9f",
+   "candidate": "Jul '17",
+   "question": "What was the average number of retweets by brands on Twitter during the last month?",
+   "answer": "29"
+  },
+  {
+   "record_id": "chartqa:c6dc732f4435aa81a3d96036",
+   "candidate": "2018",
+   "question": "What was the total amount of Hudson's Bay Company's total assets in dollars?",
+   "answer": "9.78"
+  }
+ ],
+ [
+  {
+   "record_id": "chartqa:a531b3f7ec65e4367d47f6de",
+   "candidate": "Roma",
+   "question": "How much did Internazionale pay its players in US dollars in 2019/2020?",
+   "answer": "4.49"
+  },
+  {
+   "record_id": "chartqa:2ed08b76882e24dc2b35e98e",
+   "candidate": "Held by the public · 2019",
+   "question": "How much money did the U.S. Government spend on interest for debt held by the public in 2019?",
+   "answer": "404"
+  },
+  {
+   "record_id": "chartqa:08ee05fdb328daae90dda7c7",
+   "candidate": "FY 2018",
+   "question": "How much Indian rupees did agriculture, forestry, and fishing contribute to India's gross value output in fiscal year 2018?",
+   "answer": "23.3"
+  },
+  {
+   "record_id": "chartqa:ebe5e25dfa7321e474e7bf21",
+   "candidate": "2020",
+   "question": "What was the total amount of The Cheesecake Factory's assets?",
+   "answer": "2.75"
+  },
+  {
+   "record_id": "chartqa:d788dc22d4ee07be0802ef31",
+   "candidate": "Good thing because it creates new markets, growth · Greece",
+   "question": "What is the value of the smallest green bar??",
+   "answer": "35"
+  },
+  {
+   "record_id": "chartqa:a55984c3f75173f5e224061d",
+   "candidate": "BTS / @btw_twt (K-Pop group)",
+   "question": "How many interactions did BTS have on Twitter?",
+   "answer": "407"
+  },
+  {
+   "record_id": "chartqa:184c81d294f3dadcedd393dd",
+   "candidate": "Silent/Greatest (69 and older) · U.S. born",
+   "question": "What is the value of the shortest bar?",
+   "answer": "3"
+  },
+  {
+   "record_id": "chartqa:7725b67f27c0cbbf72ce17cd",
+   "candidate": "2016",
+   "question": "How many mobile subscriptions were registered for every 100 people in Yemen between 2000 and 2016?",
+   "answer": "67.17"
+  },
+  {
+   "record_id": "chartqa:990c512e3a0fdf3a97e59e32",
+   "candidate": "2015",
+   "question": "How many people lived in the San Jose-Sunnyvale-Santa Clara metropolitan area in 2019?",
+   "answer": "1974501"
+  },
+  {
+   "record_id": "chartqa:aa46e5764e321392f0ef0c1b",
+   "candidate": "Domestic market · 2019",
+   "question": "How many companies were in Portugal's insurance market by the end of 2019?",
+   "answer": "37"
+  },
+  {
+   "record_id": "chartqa:718e52edb7b4f1134ad4b7ba",
+   "candidate": "Orderbook",
+   "question": "How many ships were in the United Arab Shipping Company's order book on December 3, 2014?",
+   "answer": "16"
+  },
+  {
+   "record_id": "chartqa:14b15997cc69a8390c68501c",
+   "candidate": "Q1 '14",
+   "question": "What was the equity trading market value in the first quarter of 2014?",
+   "answer": "14"
+  },
+  {
+   "record_id": "chartqa:bc79c82118ad108964a08680",
+   "candidate": "Mar '21",
+   "question": "How many subscribers did PlayStation Plus have as of March 2021?",
+   "answer": "47.6"
+  },
+  {
+   "record_id": "chartqa:6e01d0ca8387489c8aab6aa7",
+   "candidate": "2011",
+   "question": "What was the value of life insurance premiums in 2008?",
+   "answer": "155.41"
+  },
+  {
+   "record_id": "chartqa:7242672a674035a9f38daf45",
+   "candidate": "2001/02",
+   "question": "How many adults were admitted to hospital in England in 2000/01 due to smoking?",
+   "answer": "1283477"
+  },
+  {
+   "record_id": "chartqa:86e394ba94dcf8303cc02009",
+   "candidate": "90 years or older",
+   "question": "what is the smallest percentage value in this chart",
+   "answer": "2.1"
+  },
+  {
+   "record_id": "chartqa:15c9dc219a9ec6e71d1a6667",
+   "candidate": "2026*",
+   "question": "What was the population of Cambodia in 2020?",
+   "answer": "16.64"
+  },
+  {
+   "record_id": "chartqa:a975f423c948b9761ef15614",
+   "candidate": "Feb 3 - Mar 1 · wyborcza.pl",
+   "question": "How many viewers did RMF24's news section gain in the observed period?",
+   "answer": "2.21"
+  },
+  {
+   "record_id": "chartqa:5bed3689c5c46dc8505a3605",
+   "candidate": "Yes",
+   "question": "According to a survey carried out in Mexico in March 2020, what percentage of respondents had cancelled or were decided to cancel their trips due to the COVI",
+   "answer": "91"
+  },
+  {
+   "record_id": "chartqa:1caf2f1aa1c9f27b9573cce5",
+   "candidate": "2015",
+   "question": "How many people lived in the Virginia Beach-Norfolk-Newport News metropolitan area in 2019?",
+   "answer": "1756340"
+  },
+  {
+   "record_id": "chartqa:3c20d9ec447dd4f5d1da854f",
+   "candidate": "EU-28",
+   "question": "How much cow milk did the 28 countries of the European Union produce in 2020?",
+   "answer": "157.5"
+  },
+  {
+   "record_id": "chartqa:f1395438950e337e21a2a650",
+   "candidate": "2016",
+   "question": "What was the population of the San Diego-Chula Vista-Carlsbad metropolitan area in 2020?",
+   "answer": "3305462"
+  },
+  {
+   "record_id": "chartqa:f2c2602d774be94dad2bbf60",
+   "candidate": "Commercial · 2019/20",
+   "question": "How much money did the commercial stream generate for Chelsea FC in 2019/2020?",
+   "answer": "199.4"
+  },
+  {
+   "record_id": "chartqa:ab5ed8b5ab70bc927e9ab02d",
+   "candidate": "United States",
+   "question": "What is the projection for U.S. spending on 3D printers in 2019?",
+   "answer": "5"
+  },
+  {
+   "record_id": "chartqa:3af348cb1af1e25e665add80",
+   "candidate": "1990 · China",
+   "question": "How much CO2 did China's cement industry emit in 1990?",
+   "answer": "84.5"
+  },
+  {
+   "record_id": "chartqa:a8c0ebfa404fc299596aee27",
+   "candidate": "2020",
+   "question": "How many quadrillion British thermal units did the coronavirus pandemic affect?",
+   "answer": "16.76"
+  },
+  {
+   "record_id": "chartqa:f2a7facae4ebd00f324f83b4",
+   "candidate": "Urban · 2006",
+   "question": "What is the highest urban coefficient in South Africa from 2006 to 2015?",
+   "answer": "0.65"
+  },
+  {
+   "record_id": "chartqa:5c64bbc8ca85a517d55ca77d",
+   "candidate": "Low estimate · Antwerp",
+   "question": "How much revenue did Antwerp generate from diamond sales in the United States in 2012?",
+   "answer": "50"
+  },
+  {
+   "record_id": "chartqa:b0a899511d6ba1d022b10455",
+   "candidate": "Total England",
+   "question": "What was the GDP of England in 2013?",
+   "answer": "106"
+  },
+  {
+   "record_id": "chartqa:fca4c5983e459d563fecf085",
+   "candidate": "January 2016",
+   "question": "What was the average cost of a 30-second commercial during an episode of 'Scandal' in 2016?",
+   "answer": "215"
+  },
+  {
+   "record_id": "chartqa:ae9312f1cd2b8e2ddb5a5085",
+   "candidate": "Wounded by shotgun",
+   "question": "How many people were wounded by shotguns?",
+   "answer": "643"
+  },
+  {
+   "record_id": "chartqa:a786462a4c52c6a3941c0c2b",
+   "candidate": "Oct-Dec 2016",
+   "question": "What was the price per gram for pure methamphetamine in the U.S. in Q4 2012?",
+   "answer": "54"
+  },
+  {
+   "record_id": "chartqa:3967a32833f715a0fc2608ea",
+   "candidate": "Part-time · 2020",
+   "question": "How many part-time employees did Emmis Communications employ in 2020?",
+   "answer": "178"
+  },
+  {
+   "record_id": "chartqa:cdecc9d8a9a3b712ba852560",
+   "candidate": "20/21",
+   "question": "How many passenger journeys were made using the light rail system in 2020/21?",
+   "answer": "39.7"
+  },
+  {
+   "record_id": "chartqa:323ce688a12346b9f856d7aa",
+   "candidate": "40-44 years",
+   "question": "How many divorces per 1,000 females were there in Norway in 2020?",
+   "answer": "18.4"
+  },
+  {
+   "record_id": "chartqa:82bd4398048ca2f4e72453b3",
+   "candidate": "2018/19",
+   "question": "What was the total global supply of rice in 2018/2019?",
+   "answer": "738.75"
+  },
+  {
+   "record_id": "chartqa:1172ca60db86f54a5fc5b56c",
+   "candidate": "Sydney (Pitt Street Mall)",
+   "question": "What was the cost of rent to own retail in Pitt Street Mall?",
+   "answer": "732"
+  },
+  {
+   "record_id": "chartqa:86d01084eca9ec4bb0cd737f",
+   "candidate": "75 years and over",
+   "question": "How many refugees arrived in the United States in 2019?",
+   "answer": "183"
+  },
+  {
+   "record_id": "chartqa:ebd0fc8d4b39491769282a6e",
+   "candidate": "Q1 '16",
+   "question": "How much did the sales of stationery, office and party supplies in Canada in the first quarter of 2013?",
+   "answer": "639.87"
+  },
+  {
+   "record_id": "chartqa:483e3cfd430ccc7cdcb86fb4",
+   "candidate": "Urban capacities & resources",
+   "question": "What was Mumbai's urban capacities and resources score in 2017?",
+   "answer": "5.9"
+  }
+ ],
+ [
+  {
+   "record_id": "chartqa:9d053f663a33df462bcec243",
+   "candidate": "Williams Partners (Global Infrastructure",
+   "question": "How much did Williams Partners buy Global Infrastructure Partners?",
+   "answer": "6"
+  },
+  {
+   "record_id": "chartqa:02fda9b2effc45d987b9f733",
+   "candidate": "Male · 1990-1999",
+   "question": "How many male directors were nominated for the Golden Globe Best Director Award in the 1990s?",
+   "answer": "49"
+  },
+  {
+   "record_id": "chartqa:40298b5cb520e45a18e49453",
+   "candidate": "Jan 2017 · Asda Superstore",
+   "question": "How many of Asda's stores were in the UK in January 2017?",
+   "answer": "339"
+  },
+  {
+   "record_id": "chartqa:b69a7d4c2b47f7469a8d4537",
+   "candidate": "2014",
+   "question": "What was the population of the Philadelphia-Camden-Wilmington metropolitan area in 2020?",
+   "answer": "6049852"
+  },
+  {
+   "record_id": "chartqa:44f4f22b458afe8164d2b575",
+   "candidate": "Footwear · 2020",
+   "question": "What was Nike's footwear revenue from the EMEA region in 2020?",
+   "answer": "5892"
+  },
+  {
+   "record_id": "chartqa:5c11bd76e5820eb9cefaecb6",
+   "candidate": "Region",
+   "question": "How many deaths by homicide were registered in Stockholm in 2020?",
+   "answer": "45"
+  },
+  {
+   "record_id": "chartqa:5280b17ee1306ef6104b3ba7",
+   "candidate": "Selective herbicides · 2020",
+   "question": "What was Syngenta AG's sales of selective herbicides in the crop protection segment in the U.S. in 2020?",
+   "answer": "2831"
+  },
+  {
+   "record_id": "chartqa:ed45df07433eab997eff3cb1",
+   "candidate": "Tickets available · 1988",
+   "question": "How many Olympic Winter Games tickets were available in 1988?",
+   "answer": "1.9"
+  },
+  {
+   "record_id": "chartqa:36f238198038dc52ecf594ae",
+   "candidate": "Low · Black",
+   "question": "Find missing value- 69, ___, 64",
+   "answer": "55"
+  },
+  {
+   "record_id": "chartqa:576f3bdd31016bda1947d7b7",
+   "candidate": "Immediate and longer term bushfire",
+   "question": "How much money did the Australian Red Cross allocate for bushfire assistance?",
+   "answer": "55.5"
+  },
+  {
+   "record_id": "chartqa:052ce3089667c975acd88334",
+   "candidate": "Walloon Region · 2009",
+   "question": "What was the median disposable income for a household in the Walloon Region in 2010?",
+   "answer": "39205"
+  },
+  {
+   "record_id": "chartqa:bedae90347a15e9a0f74e51c",
+   "candidate": "Americas · 2017*",
+   "question": "What is the estimated value of the flash memory market in the United States in 2017?",
+   "answer": "18.7"
+  },
+  {
+   "record_id": "chartqa:97e189a4e905eea4aae11307",
+   "candidate": "Bottom",
+   "question": "What was the average number of adults in the bottom decile group?",
+   "answer": "1.5"
+  },
+  {
+   "record_id": "chartqa:81dadb55539ac049f30b7dac",
+   "candidate": "2018",
+   "question": "What was the population of the Washington-Altington-Alexandria metropolitan area in the previous year?",
+   "answer": "6256312"
+  },
+  {
+   "record_id": "chartqa:d1cdb0a659189d19d6023aed",
+   "candidate": "World",
+   "question": "In 2020, fixed broadband subscriptions reached how many active subscriptions per 100 inhabitants of the global population?",
+   "answer": "15.2"
+  },
+  {
+   "record_id": "chartqa:7b7dae2c399d84a6e4366a6f",
+   "candidate": "Injuries · 2019",
+   "question": "How many injuries were reported due to lightning in the United States in 2019?",
+   "answer": "100"
+  },
+  {
+   "record_id": "chartqa:8dcdc3f08df7594f9e93f235",
+   "candidate": "2020/21**",
+   "question": "What was Russia's cereal production forecast for 2020/2021?",
+   "answer": "129.2"
+  },
+  {
+   "record_id": "chartqa:beccfffd1dd7fa700e990c96",
+   "candidate": "2011",
+   "question": "How many people live in the New York-Newark-Jersey City metropolitan area in 2020?",
+   "answer": "19053124"
+  },
+  {
+   "record_id": "chartqa:aa4c1adef27ff7b450b394ad",
+   "candidate": "2016",
+   "question": "How many people died in traffic accidents during New Year's Eve and New Year's Day in 2013?",
+   "answer": "40"
+  },
+  {
+   "record_id": "chartqa:7c4c1aa28ff37f62f3cf41ba",
+   "candidate": "2009 · Trade shows",
+   "question": "What was the total number of people who participated in trade shows in 2009?",
+   "answer": "24.8"
+  },
+  {
+   "record_id": "chartqa:81d0e013ba963bcd6ddb76d5",
+   "candidate": "Worldwide · Jurassic World",
+   "question": "How much did \"Jurassic World\" gross in the United States as of October 2018?",
+   "answer": "652.27"
+  },
+  {
+   "record_id": "chartqa:7c0c23a95e25cf5f9f672f93",
+   "candidate": "LOCOG*",
+   "question": "How much money does the London Organising Committee contribute to the Olympics budget?",
+   "answer": "3.18"
+  },
+  {
+   "record_id": "chartqa:6bf05e19b2744bda0ffbf8fb",
+   "candidate": "Banksy",
+   "question": "How much did Bansky's art sell in the United States as of September 30 2013?",
+   "answer": "39.56"
+  },
+  {
+   "record_id": "chartqa:b972fcb6c2d8eaf0be5c84be",
+   "candidate": "Confidence се · Angela Merkel",
+   "question": "what percent have Confidence in Angela Merkel?",
+   "answer": "46"
+  },
+  {
+   "record_id": "chartqa:5a8f0d50f620a8413b6d18e1",
+   "candidate": "2020",
+   "question": "What was the total attendance of cinemas in France between 2007 and 2020?",
+   "answer": "65.2"
+  },
+  {
+   "record_id": "chartqa:b57f858d799e42d5783dbbca",
+   "candidate": "Neymar (LW)",
+   "question": "What was Neymar's market value in US dollars?",
+   "answer": "140.8"
+  },
+  {
+   "record_id": "chartqa:d54848d7984073aa9cd086ac",
+   "candidate": "United Kingdom",
+   "question": "How many small and medium enterprises did the UK have in the cosmetics manufacturing industry in 2019?",
+   "answer": "652"
+  },
+  {
+   "record_id": "chartqa:1150a93c279fa6b5edecffd7",
+   "candidate": "Less than a year",
+   "question": "What was the child abuse rate for children under a year in 2019?",
+   "answer": "25.7"
+  },
+  {
+   "record_id": "chartqa:d9cd1e85ce8a8a00b9f565bd",
+   "candidate": "2026**",
+   "question": "What was the market size for hemophilia A and B in 2016?",
+   "answer": "8"
+  },
+  {
+   "record_id": "chartqa:5167244a5699ec42812011e0",
+   "candidate": "Taylor Swift",
+   "question": "How much was Kanye West's earnings between June 2018 and June 2019?",
+   "answer": "185"
+  },
+  {
+   "record_id": "chartqa:2d758d945b676a6a5deb578d",
+   "candidate": "Excellent/good · Elected officials",
+   "question": "What is the 'Excellent/good' value for Elected officials?",
+   "answer": "20"
+  },
+  {
+   "record_id": "chartqa:d046d5c15c855ac3cefbbca1",
+   "candidate": "BB McCullum\n (New Zealand vs",
+   "question": "What was the record score against Bangladesh during the 2012 T20 World Cup?",
+   "answer": "123"
+  },
+  {
+   "record_id": "chartqa:c8d14fca4b486367fc47982e",
+   "candidate": "2020*",
+   "question": "What is the projected number of internet users in Singapore in 2025?",
+   "answer": "4.82"
+  },
+  {
+   "record_id": "chartqa:728fa88bf9a012e0a7d41987",
+   "candidate": "Commercial · 2019/20",
+   "question": "How much money did Manchester City earn in 2019/2020 from sponsorship, merchandising, stadium tours and other commercial operations?",
+   "answer": "284.6"
+  },
+  {
+   "record_id": "chartqa:a8e554060c949ab517a6c88c",
+   "candidate": "Ticket income",
+   "question": "What was the total income from ticketing of all 18 clubs in the second-tier football division in Germany in 2011/12?",
+   "answer": "84.5"
+  },
+  {
+   "record_id": "chartqa:7b59ec3076ead78fa207e1fc",
+   "candidate": "Flood",
+   "question": "What was the estimated value of Italy's flooding losses?",
+   "answer": "777.37"
+  },
+  {
+   "record_id": "chartqa:5a730b211ff8c9f1a9578d1c",
+   "candidate": "2016*",
+   "question": "What was the total cost of food waste in quick service restaurants in 2011?",
+   "answer": "279.5"
+  },
+  {
+   "record_id": "chartqa:86b0004381362788c023fda9",
+   "candidate": "Likely · U.S",
+   "question": "What is the value of US likely to believe that rivalry between china n Us will escalate to a confrontation resembling the cold war ?",
+   "answer": "59"
+  },
+  {
+   "record_id": "chartqa:7a37a705d6f8d3584383cc81",
+   "candidate": "North America and Caribbean",
+   "question": "How much money did the North American and Caribbean region spend on diabetes care in 2019?",
+   "answer": "324.5"
+  },
+  {
+   "record_id": "chartqa:5ef96f672654228f5e10ff48",
+   "candidate": "Germany",
+   "question": "What is the Gross enrollment ratio in secondary education in Germany?",
+   "answer": "1.032"
+  }
+ ],
+ [
+  {
+   "record_id": "chartqa:7342afa1d5c258eae8f68a70",
+   "candidate": "Q1 '21",
+   "question": "What was Cineplex's revenue for the first quarter of 2021?",
+   "answer": "41.41"
+  },
+  {
+   "record_id": "chartqa:5d1bf456c6af137d16739b60",
+   "candidate": "2017",
+   "question": "What was Square's net revenue in the previous year?",
+   "answer": "983.96"
+  },
+  {
+   "record_id": "chartqa:86009bbe840eece23ee115d2",
+   "candidate": "Helsinki, Finland",
+   "question": "What was the average cost of a room in Helsinki in 2014?",
+   "answer": "88.94"
+  },
+  {
+   "record_id": "chartqa:46e764360d419825b8c7cc9b",
+   "candidate": "Oct '14",
+   "question": "How many members did Foursquare have between December 2010 and October 2014?",
+   "answer": "55"
+  },
+  {
+   "record_id": "chartqa:a22022cc391c1a57c7ba08c0",
+   "candidate": "Google LLC",
+   "question": "How many app downloads did Google have by iPhone users in January 2021?",
+   "answer": "60.89"
+  },
+  {
+   "record_id": "chartqa:3882b7f8d8fa7eea55ff70a9",
+   "candidate": "Dental services · 2019*",
+   "question": "What was the estimated amount of dental service expenditures in Canada's private sector in 2019?",
+   "answer": "15646.9"
+  }
+ ]
+]

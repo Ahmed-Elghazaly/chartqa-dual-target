@@ -4353,3 +4353,66 @@ component that was pointed the wrong way. The audit brief asks that each decisio
 as a hypothesis rather than a settled fact; "search backwards from the answer" had never been
 stated as a decision at all, so it was never re-examined. **The costly assumptions are the
 ones nobody wrote down.**
+
+---
+
+## 0086 — Pattern matching recognises templates, not language, and that skews the training set
+
+**Context.** Ahmed: *"bruh like how do u read the question with a python program without
+llm"*. The honest answer is that it does not. `plans.intent` detects surface features — does
+the question contain a chart label verbatim, does it contain *highest*/*most*, does it open
+with *which*/*what*/*who* — and that is pattern recognition, not reading. The question deserved
+a measurement rather than a defence.
+
+**Measured.** Forward construction over 3,000 random ChartQA training records, split by where
+the question came from:
+
+| question origin | a plan was built |
+|---|---:|
+| **machine** (generated from templates) | **53.5%** (1,232/2,302) |
+| **human** (free-form) | **14.8%** (103/698) |
+
+A 3.6x gap. It works on templates and fails on real phrasing, exactly as the objection
+predicted. The residual misses are paraphrase and world knowledge, which no pattern reaches:
+*"the 2019/20 season"* against a label `2019/2020`, *"the second quarter of 2018"* against
+`Mobile · Q2 '18`, *"second division of German professional soccer"* against `2. Bundesliga`.
+
+**The consequence is worse than low coverage — it is a skewed training distribution.**
+
+| | human | machine |
+|---|---:|---:|
+| ChartQA **test**, and the headline metric averages the halves | **50%** | 50% |
+| ChartQA **train**, the pool available | 26.1% (7,398) | 73.9% (20,901) |
+| what forward construction actually admits | 14.8% | 53.5% |
+
+Supervision built this way is **~92% machine-generated** (1,232 against 103 in the sample),
+while **half the score comes from human questions**. That mismatch is introduced by the
+mining method; it is not a property of ChartQA, and it would show up as a weak human-split
+number with no obvious cause.
+
+**Decision.** Split the work by what each method is actually good at, rather than choosing
+one.
+
+* **Machine-generated questions** — `plans.forward`. Templated phrasing is what pattern
+  matching is for, it is free, deterministic and unit-testable, and every plan is still
+  checked against the gold answer. 53.5% of the largest part of the corpus, at no cost.
+* **Human-written questions** — a language model reads them. This is where paraphrase and
+  world knowledge live, where patterns measurably fail, and where **half the metric** is
+  decided. **6,303 records**, which is a size a subscription session can cover; the twenty
+  thousand that made an API key necessary were mostly the templated ones a regex settles.
+
+**Consequences.** The LLM stops being a cheaper substitute for the miner and becomes the only
+tool for the half of the benchmark that decides the score. It also makes the earlier cost
+estimates moot: the records worth a model's attention are a quarter of what was priced, and
+they are the ones a `--proposals` batch can carry.
+
+`plans.resolve` — a reader judging *"is this label the thing the question asks about?"*, with
+the candidate fixed by arithmetic — stays as the cheap path for the subset whose answer is
+some element's value outright. It is a binary judgement, so it packs densely, and it is the
+right shape for the machine-question residual.
+
+**What this cost, and the lesson.** Two full attempts were built before this measurement:
+a tie-breaker over the old miner (86–89% precision, rejected) and forward construction (kept,
+but now correctly scoped). Neither was wasted, but the split by question origin was one query
+away the whole time and would have aimed both from the start. **Measure who your method
+works for before measuring how well it works.**

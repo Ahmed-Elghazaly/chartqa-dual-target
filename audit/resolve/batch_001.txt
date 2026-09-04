@@ -1,0 +1,174 @@
+For each numbered item below, decide ONE thing: is the named label the thing the question is asking about?
+
+The arithmetic is already settled — that label's value IS the given answer. You are only judging whether the question refers to that label, which often needs a paraphrase resolved:
+  "the 2019/20 season"                     -> a label written '2019/2020'      yes
+  "the second quarter of 2018"             -> a label written "Q2 '18"          yes
+  "second division of German soccer"       -> a label written '2. Bundesliga'   yes
+  "Tibet's RURAL population"               -> a label 'Urban population · Tibet' NO
+
+Answer "no" whenever the question is about something else, is about the whole chart rather than one item, or you cannot tell. A wrong "yes" teaches a model to point at the wrong mark, which is worse than teaching it nothing.
+
+0. Q: What was Kazakhstan's total consumer spending in 2008?
+   answer '56.66' is the value of: '2010'
+   other labels: ['2007', '2008', '2009', '2011']
+
+1. Q: What was the highest number of sexual assaults recorded in Spain in 2012/2013?
+   answer '39' is the value of: '2012/2013 · Spain'
+   other labels: ['2013/2014 · Spain', 'USA', '2013/2014 · Thailand', '2013/2014 · France', '2013/2014 · Greece', '2013/2014 · United Arab Emirates', '2013/2014 · Cyprus', 'Australia', '2013/2014 · India', '2013/2014 · Turkey']
+
+2. Q: What was Ireland's population in 2019?
+   answer '4.99' is the value of: '2020*'
+   other labels: ['2016', '2017', '2018', '2019', '2021*', '2022*', '2023*', '2024*', '2025*', '2026*']
+
+3. Q: What's the value of largest bar?
+   answer '0.0886' is the value of: '9-year average'
+   other labels: ['Extreme one-day precipitation']
+
+4. Q: What was the turnover of Moschino S.p.A. in 2012?
+   answer '39.8' is the value of: '2011'
+   other labels: ['2012', '2013', '2014', '2015', '2016', '2017', '2018']
+
+5. Q: What's the percentage of Democrats who say using military force is the best way to defeat terrorism?
+   answer '27' is the value of: 'Using military force is the best way to defeat terrorism · Democrat'
+   other labels: ['Relying too much on force creates hatred, more terrorism · Total', 'Relying too much on force creates hatred, more terrorism · Republican', 'Relying too much on force creates hatred, more terrorism · Democrat', 'Relying too much on force creates hatred, more terrorism · Independent', 'Using military force is the best way to defeat terrorism · Total', 'Using military force is the best way to defeat terrorism · Republican', 'Using military force is the best way to defeat terrorism · Independent']
+
+6. Q: How many newly discovered ransomware families were there in the most recent measured period?
+   answer '127' is the value of: '2020'
+   other labels: ['2015', '2016', '2017', '2018', '2019']
+
+7. Q: What is the number of bottles of Canadian brand beer sold in Canada in the year 2010 (in million hectoliters)?
+   answer '10.6' is the value of: 'Bottles · 2010'
+   other labels: ['Bottles · 2008', 'Bottles · 2009', 'Bottles · 2011', 'Bottles · 2012', 'Bottles · 2013', 'Bottles · 2014', 'Bottles · 2015', 'Cans · 2008', 'Cans · 2009', 'Cans · 2010']
+
+8. Q: What was the total sales of arms and military services by the largest arms producing companies in 2018?
+   answer '420' is the value of: '2018'
+   other labels: ['2002', '2003', '2004', '2005', '2006', '2007', '2008', '2009', '2010', '2011']
+
+9. Q: What was the consumer confidence index in Mexico in the first quarter of 2019?
+   answer '101' is the value of: 'Q1 2019'
+   other labels: ['Q3 2017', 'Q4 2017', 'Q1 2018', 'Q2 2018', 'Q3 2018', 'Q4 2018']
+
+10. Q: What was South Africa's score in awareness and openness for mHealth in 2012?
+   answer '6' is the value of: 'Impact · South Africa'
+   other labels: ['Impact · India', 'Impact · Brazil', 'Impact · United States', 'Impact · Spain', 'Impact · China', 'Impact · Germany', 'Impact · United Kingdom', 'Impact · Turkey', 'Impact · Denmark', 'Technology · South Africa']
+
+11. Q: What's the value of the largest bar?
+   answer '31' is the value of: '61-70'
+   other labels: ['17 and younger', '26-40', '41-60', '71+']
+
+12. Q: What percentage of Vostok Oil did Trafigura acquire in 2020?
+   answer '1.61' is the value of: 'Peak Games (Turkey)'
+   other labels: ['Vostok Oil (Russia)', 'Payakhskoye oil field (Russia)', 'Play Communications (Poland)', 'IKS Holding (Russia)', 'Uralkali (Russia)', 'Globe Trade Centre Group (Poland)', 'Selected power production and', 'Elga coal complex (Russia)', 'CEE business of AXA (Poland; Czech']
+
+13. Q: What is the global cropland area projected to be in 2015?
+   answer '889.16' is the value of: '2019'
+   other labels: ['2025', '2023', '2020', '2018', '2017', '2016', '2015', '2014', '2013', '2012']
+
+14. Q: How many people in Argentina used Facebook Messenger in January 2021?
+   answer '29.06' is the value of: "Jan '21"
+   other labels: ["May '20", "Jun '20", "Jul '20", "Aug '20", "Sep '20", "Oct '20", "Nov '20", "Dec '20"]
+
+15. Q: What was the average sales per square foot of Ross Stores a year earlier?
+   answer '432' is the value of: '2019'
+   other labels: ['2014', '2015', '2016', '2017*', '2018', '2020']
+
+16. Q: What is the projected number of social network users in Canada in 2023?
+   answer '32.07' is the value of: '2025*'
+   other labels: ['2017', '2018', '2019', '2020', '2021*', '2022*', '2023*', '2024*']
+
+17. Q: What was the average number of children per household in the third decile?
+   answer '1.2' is the value of: '3rd'
+   other labels: ['Bottom', '2nd', '4th', '5th', '6th', '7th', '8th', '9th', 'Top']
+
+18. Q: How much money was generated by T-VoD services in Germany in 2010?
+   answer '21' is the value of: 'T-VoD services (renting via VoD) · 2010'
+   other labels: ['T-VoD services (renting via VoD) · 2008', 'T-VoD services (renting via VoD) · 2009', 'T-VoD services (renting via VoD) · 2011', 'T-VoD services (renting via VoD) · 2012', 'EST services (electronic sell through) · 2008', 'EST services (electronic sell through) · 2009', 'EST services (electronic sell through) · 2010', 'EST services (electronic sell through) · 2011', 'EST services (electronic sell through) · 2012']
+
+19. Q: How many units of software did Nintendo sell in the fiscal year ending March 2021?
+   answer '230.88' is the value of: "FY '21"
+   other labels: ["FY '17", "FY '18", "FY '19", "FY '20"]
+
+20. Q: What is the box office revenue of The Hunger Games: Catching Fire in North America (in million U.S. dollars)
+   answer '424.67' is the value of: 'Worldwide · The Hunger Games: Catching Fire'
+   other labels: ['Worldwide · The Hunger Games', 'Worldwide · The Hunger Games: Mockingjay - Part 1', 'Worldwide · The Hunger Games: Mockingjay - Part 2', 'North America · The Hunger Games', 'North America · The Hunger Games: Catching Fire', 'North America · The Hunger Games: Mockingjay - Part 1', 'North America · The Hunger Games: Mockingjay - Part 2']
+
+21. Q: What was the total income from ticketing of all 22 clubs in Italy in 2011/12?
+   answer '27.2' is the value of: 'Ticket income'
+   other labels: ['Other (incl. sponsors)', 'TV/broadcast']
+
+22. Q: How many polluted rivers were there in Malaysia in 2019?
+   answer '5' is the value of: '2015'
+   other labels: ['2013', '2014', '2016', '2017', '2018', '2019']
+
+23. Q: How much did Santander pay for Banco Popular?
+   answer '8.22' is the value of: 'Santander/Banco Popular (2017)'
+   other labels: ['Deutsche Bank/Deutsche Postbank', 'CaixaBank/Banca Civica (2012)', 'DZ Bank/WGZ Bank (2016)', 'Bank of Cyprus/Cyprus Popular Bank', 'BBVA/Catalunya Bank (2015)', 'Kutxabank/BBK, Kutxa and Vital merger', 'Banco Sabadell/Banco Cam (2012)', 'Caixabank/BPI (2017)', 'Alpha Bank/Emporiki Bank (2013)', 'Caixabank/Banco de Valencia (2013)']
+
+24. Q: What's the total share of increasing debts?
+   answer '23' is the value of: 'Stay the same'
+   other labels: ['Decrease somewhat', 'Decrease significantly', 'Increase significantly', 'Increase somewhat']
+
+25. Q: What is the global expenditure for diabetes treatment expected to grow from 2019 to 2045?
+   answer '845' is the value of: '2045'
+   other labels: ['2019']
+
+26. Q: What is the percentage that there is no such possibiltiy?
+   answer '18' is the value of: 'No such possibility'
+   other labels: ['Low', 'Difficult to answer', 'High']
+
+27. Q: How many cubic feet of natural gas was produced in Alaska in 2000?
+   answer '0.42' is the value of: '2000 · Alaska'
+   other labels: ['2000 · Coalbed methane', '2000 · Lower 48', '2000 · Lower 48', '2000 · Tight gas', '2000 · Shale gas', '2020* · Alaska', '2020* · Coalbed methane', '2020* · Lower 48', '2020* · Lower 48', '2020* · Tight gas']
+
+28. Q: What was BNP Paribas' market capital as of January 2020?
+   answer '69.83' is the value of: 'BNP Paribas · 2020'
+   other labels: ['BNP Paribas · 2016', 'BNP Paribas · 2017', 'BNP Paribas · 2018', 'BNP Paribas · 2019', 'Credit Agricole · 2016', 'Credit Agricole · 2017', 'Credit Agricole · 2018', 'Credit Agricole · 2019', 'Credit Agricole · 2020', 'Societe Generale · 2016']
+
+29. Q: How many users has Pandora lost in the last two years?
+   answer '58.58' is the value of: 'Q3 2020'
+   other labels: ['Q4 2013', 'Q4 2014', 'Q2 2015', 'Q4 2015', 'Q2 2016', 'Q4 2016', 'Q2 2017', 'Q4 2017', 'Q1 2018', 'Q2 2018']
+
+30. Q: In 2023, how many users are projected to use social networks in the United States, Canada, and Mexico?
+   answer '370.7' is the value of: '2025*'
+   other labels: ['2017', '2018', '2019', '2020', '2021*', '2022*', '2023*', '2024*']
+
+31. Q: How many units of snow sports accessories were sold in the US in the 2010/11 season?
+   answer '34.09' is the value of: 'Accessories · 2010/11'
+   other labels: ['Equipment · 2010/11', 'Equipment · 2011/12', 'Equipment · 2012/13', 'Equipment · 2013/14', 'Apparel · 2010/11', 'Apparel · 2011/12', 'Apparel · 2012/13', 'Apparel · 2013/14', 'Accessories · 2011/12', 'Accessories · 2012/13']
+
+32. Q: What was Ben Haggerty's estimated net worth?
+   answer '16' is the value of: 'Ben Haggerty "Macklemore"'
+   other labels: ['"Ray J" Norwood', 'Early Stevens aka "E-40"', 'Aaron Dontez Yates "Tech N9NE"', 'Malcom James McCormick "Mac Miller"', 'Donald Glover "Childish Gambino"', 'Atmosphere', 'David Styles "Styles P"']
+
+33. Q: How many mobile subscriptions were registered for every 100 people in Equatorial Guinea between 2000 and 2016?
+   answer '65.9' is the value of: '2016'
+   other labels: ['2000', '2001', '2002', '2003', '2004', '2005', '2006', '2007', '2008', '2009']
+
+34. Q: How many ventures in the food & drink category were funded on Crowdcube in February 2013?
+   answer '10' is the value of: 'Food and Drink'
+   other labels: ['Internet / Technology', 'Consumer products', 'Oil & Gas', 'Professional business', 'Financial services', 'Leisure & Tourism', 'Environmental', 'Manufacturing']
+
+35. Q: How many people in Sub-Saharan Africa had no access to electricity in 2016?
+   answer '586' is the value of: '2009 · Sub-Saharan'
+   other labels: ['2009 · Central and', '2009 · Middle East', '2009 · India', 'China', '2009 · Rest of', '2016 · Central and', '2016 · Sub-Saharan', '2016 · Middle East', '2016 · India', '2016 · Rest of']
+
+36. Q: How many patents did Sanofi have in 2019?
+   answer '39' is the value of: 'Sanofi (U.S.)'
+   other labels: ['Abbvie (U.S.)', 'Merck (U.S.)', 'Bristol-Myers Squibb (U.S.)', 'GW Pharmaceuticals (U.K.)', 'Pfizer (U.S.)', 'Hebrew University of Jerusalem (Israel)', 'Roche (Switzerland)', 'University of Connecticut (U.S.)', 'U.S. Health and Human Services (U.S.)']
+
+37. Q: How many people were employed in Canada in 2019?
+   answer '18.88' is the value of: '2021*'
+   other labels: ['2012', '2013', '2014', '2015', '2016', '2017', '2018', '2019', '2020', '2022*']
+
+38. Q: What's the Acceptable bar value in Total?
+   answer '66' is the value of: 'Аcсeptable · Total'
+   other labels: ['Not acceptable · Total', 'Not acceptable · Rep/Lean Rep', 'Not acceptable · Dem/Lean Dem', 'Аcсeptable · Rep/Lean Rep', 'Аcсeptable · Dem/Lean Dem']
+
+39. Q: What is the sale price of beer in New York Knicks games in 2011/12?
+   answer '9.5' is the value of: 'Beer* · 2011/12'
+   other labels: ['Beer* · 2010/11', 'Beer* · 2012/13', 'Beer* · 2013/14', 'Beer* · 2014/15', 'Beer* · 2015/16', 'Soft drink** · 2010/11', 'Soft drink** · 2011/12', 'Soft drink** · 2012/13', 'Soft drink** · 2013/14', 'Soft drink** · 2014/15']
+
+Reply with one JSON object in a ```json block, mapping each item number to true or false:
+```json
+{"0": true, "1": false, ...}
+```
