@@ -37,6 +37,7 @@ from chartqa_dt.data.records import (
 from chartqa_dt.eval.metrics import to_float
 from chartqa_dt.plans.executor import (
     folds_over_evidence,
+    parse_numeric,
     plan_labels,
 )
 from chartqa_dt.plans.roundtrip import check_record
@@ -77,7 +78,14 @@ def _table_values(record: ChartRecord) -> dict[Any, Any]:
         label = str(row[0]).strip()
         first = True
         for i, cell in enumerate(row[1:], start=1):
-            number = to_float(cell)
+            # `parse_numeric`, NOT `to_float`. A table cell is a chart VALUE, and
+            # `eval.metrics.to_float` is the official parser for gold ANSWERS: it divides a
+            # trailing `%` by 100 and cannot read a spaced thousand. Using it here made every
+            # percentage chart's evidence 100x too small, so a plan verified against the
+            # annotation's own values then failed its round-trip against the table's —
+            # `sum` over two 43.6% bars executed to 0.821 against an answer of 82.1. Third
+            # occurrence of one root cause; `DECISIONS.md` 0082 is the first two.
+            number = parse_numeric(cell)
             if number is None:
                 continue
             if i < len(columns):
@@ -111,7 +119,10 @@ def values_agree(table_value: Any, element_value: Any) -> bool:
     in that state ship scale-invariant plans (27 `ratio`, 2 `count`) and every one of them
     round-trips.
     """
-    a, b = to_float(table_value), to_float(element_value)
+    # Both sides are chart VALUES, so both use `parse_numeric`. Using the official answer
+    # parser here compared a table's 43.6 against an annotation's '43.6%' -- which it reads
+    # as 0.436 -- and refused the record for a disagreement that did not exist.
+    a, b = parse_numeric(table_value), parse_numeric(element_value)
     if a is None or b is None:
         return True                      # nothing to compare; other guards handle it
     if abs(a - b) <= VALUE_AGREEMENT_TOLERANCE * max(abs(a), abs(b), 1e-9):
@@ -161,11 +172,21 @@ def _evidence_from(record: ChartRecord) -> list[dict[str, Any]]:
     bare_of = {n: str(e.get("label")) for n, e in zip(names, elements)}
 
     def value_for(name: str, element: dict[str, Any]) -> Any:
-        """The gold table's value for this element, by series where the table has one."""
+        """The gold table's value for this element, by series where the table has one.
+
+        The bare-label fallback is used **only for an element whose label does not collide**.
+        On a grouped chart the bare key returns the row's FIRST numeric cell, which belongs
+        to whichever series the table happens to list first — so falling back to it for a
+        qualified element silently hands one series another series' number. Where the
+        series-to-column join fails on such an element, the annotation's own value is the
+        only source that is certainly about this mark.
+        """
         keyed = table_values.get((fold_for_matching(series_of.get(name)), bare_of[name]))
         if keyed is not None:
             return keyed
-        return table_values.get(bare_of[name], element.get("value"))
+        if name == bare_of[name]:                 # label did not collide; the row is unique
+            return table_values.get(bare_of[name], element.get("value"))
+        return element.get("value")
     boxes = record.boxes or []
     wanted = plan_labels(record.plan)
     # The plan was mined and verified against the gold TABLE, so the table is the

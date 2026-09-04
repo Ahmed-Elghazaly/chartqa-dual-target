@@ -1,0 +1,104 @@
+You are given a chart question, the chart's underlying data, and the correct answer. Write the small program that computes that answer from the data.
+
+OPERATIONS you may use, and nothing else:
+  - argmax() -> the LABEL of the largest item (a name)
+  - argmin() -> the LABEL of the smallest item (a name)
+  - boolean(a) -> true if a is non-zero
+  - compare(a, b) -> 'greater' | 'less' | 'equal'
+  - count() -> how many items; count(a, b, ...) -> how many were listed
+  - difference(a, b) -> a - b
+  - lookup(label) -> the value of that one item
+  - max() -> the largest VALUE (a number)
+  - mean() over all items, or mean(a, b, ...)
+  - median() over all items, or median(a, b, ...)
+  - min() -> the smallest VALUE (a number)
+  - percent_change(a, b) -> 100 * (a - b) / b
+  - ratio(a, b) -> a / b
+  - sum() over all items, or sum(a, b, ...) over the named ones
+  - trend() -> 'increasing' | 'decreasing' | 'flat', first item to last
+  - unanswerable() -> the chart does not contain the answer
+
+Reply with a JSON object in a ```json block:
+  {"op": "<operation>", "args": [...]}
+An argument is either a label string from the ITEMS list, or a nested {"op":…,"args":[…]}.
+Nesting may go at most 4 levels deep and a node takes at most 4 arguments.
+
+Choose the operation the QUESTION asks for, not merely one that reaches the right number. If the question names a specific item, that is a lookup even when the item happens to be the largest. If the question asks which item is largest, that is argmax even when you could name it directly.
+
+If no combination of these operations expresses what the question asks, do NOT force a fit.
+You have two ways to say so, and the difference matters:
+
+  * The question cannot be answered from this chart at all — it is ambiguous, the gold answer
+    contradicts the data, or it asks for something the chart does not contain:
+    ```json
+    {"refused": "<one short reason>"}
+    ```
+  * The question is perfectly answerable, but the operation it needs is missing from the list
+    above. Say what that operation would be:
+    ```json
+    {"needs_operator": {"name": "<short_snake_case>", "signature": "<name(args) -> result>", "why": "<what this question needs it for>"}}
+    ```
+
+Refusing is a correct answer, and naming a missing operation is a *useful* one — those
+suggestions are collected and ranked, and the operations asked for most often get built. A
+plan that reaches the right number by the wrong route is worse than either, because it will
+be used to teach a model the wrong reasoning.
+
+--- Answer every numbered item below. Reply with ONE ```json block mapping each
+--- item number to a plan, to {"refused": "..."}, or to {"needs_operator": {...}}.
+
+0. Q: What's the color of the bar whose smallest value is 22??
+   ANSWER: 'blue'
+   items: 'Would not · Ride in a driverless vehicle'='56' [green], 'Would not · Use a robot caregiver'='59' [green], 'Would not · Apply for a job that used a computer program to select applicants'='76' [green], 'Would · Ride in a driverless vehicle'='44' [blue], 'Would · Use a robot caregiver'='41' [blue], 'Would · Apply for a job that used a computer program to select applicants'='22' [blue]
+
+1. Q: What's the average of DOTA 2 and Fifa 21
+   ANSWER: '40.9'
+   items: 'Grand Theft Auto V'='239.5' [blue], 'League of Legends'='157' [blue], 'Call of Duty: Modern Warfare'='111.5' [blue], 'Fortnite'='94.1' [blue], 'Valorant'='85.6' [blue], 'Minecraft'='79.4' [blue], 'Counter-Strike: Global Offensive'='70.1' [blue], 'Apex Legends'='51.4' [blue], 'DOTA 2'='49.8' [blue], 'FIFA 21'='32' [blue]
+
+2. Q: Is the value of the smallest green bar 8?
+   ANSWER: 'Yes'
+   items: 'Bad thing · Sweden'='89' [orange], 'Bad thing · Netherlands'='75' [orange], 'Bad thing · Germany'='74' [orange], 'Bad thing · Hungary'='70' [orange], 'Bad thing · Spain'='70' [orange], 'Bad thing · Poland'='66' [orange], 'Bad thing · Greece'='65' [orange], 'Bad thing · France'='62' [orange], 'Bad thing · Italy'='57' [orange], 'Good thing · Sweden'='8' [green], 'Good thing · Netherlands'='17' [green], 'Good thing · Germany'='16' [green], 'Good thing · Hungary'='10' [green], 'Good thing · Spain'='16' [green], 'Good thing · Poland'='11' [green], 'Good thing · Greece'='14' [green], 'Good thing · France'='32' [green], 'Good thing · Italy'='23' [green]
+
+3. Q: More solar panel farms, oppose - 10, what is favor?
+   ANSWER: '89'
+   items: 'Oppo se · More solar panel farms'='10' [green], 'Oppo se · More wind turbine farms'='13' [green], 'Oppo se · More nuclear power plants'='54' [green], 'Oppo se · More hydraulic fracturing'='58' [green], 'Oppo se · More offshore drilling'='60' [green], 'Oppo se · More coal mining'='61' [green], 'Favor · More solar panel farms'='89' [blue], 'Favor · More wind turbine farms'='85' [blue], 'Favor · More nuclear power plants'='44' [blue], 'Favor · More hydraulic fracturing'='39' [blue], 'Favor · More offshore drilling'='39' [blue], 'Favor · More coal mining'='37' [blue]
+
+4. Q: Which year is the number of Twitter users in South Korea the greatest?
+   ANSWER: '2016'
+   items: '2014'='4.66' [blue], '2015'='4.92' [blue], '2016'='5.13' [blue]
+
+5. Q: Which country has the highest yttrium reserves ?
+   ANSWER: 'China'
+   items: 'China'='220 000' [blue], 'United States'='120 000' [blue], 'Australia'='100 000' [blue], 'India'='72 000' [blue], 'Malaysia'='13 000' [blue], 'Brazil'='2 200' [blue], 'Sri Lanka'='240' [blue], 'Other countries'='17 000' [blue]
+
+6. Q: Whose the leading egg producing countries worldwide in 2019 (in number of eggs in billions)?
+   ANSWER: 'China'
+   items: 'China'='661.79' [blue], 'United States of America'='113.25' [blue], 'Indonesia'='105.63' [blue], 'India'='105' [blue], 'Mexico'='55.65' [blue], 'Brazil'='55.4' [blue], 'Russia'='44.49' [blue], 'Japan'='43.99' [blue], 'Turkey'='19.9' [blue], 'Pakistan'='19.05' [blue]
+
+7. Q: What's the median value across all the FYs?
+   ANSWER: '241'
+   items: 'FY 2012'='213' [blue], 'FY 2013'='238' [blue], 'FY 2014'='225' [blue], 'FY 2015'='274' [blue], 'FY 2016'='244' [blue], 'FY 2017'='297' [blue], 'FY 2018'='295' [blue]
+
+8. Q: What is the revenue in 2016 in Americas for the company ( in million U.s dollars)?
+   ANSWER: '1289.2'
+   items: 'Americas · 2015'='1 329.4' [blue], 'Americas · 2016'='1 289.2' [blue], 'Americas · 2017'='1 344.6' [blue], 'Americas · 2018'='1 436.9' [blue], 'Americas · 2019'='1 527.4' [blue], 'Americas · 2020'='1 534.7' [blue], 'EMEA* · 2015'='730.5' [dark blue], 'EMEA* · 2016'='798.1' [dark blue], 'EMEA* · 2017'='759.2' [dark blue], 'EMEA* · 2018'='942.8' [dark blue], 'EMEA* · 2019'='1 073.4' [dark blue], 'EMEA* · 2020'='1 000.1' [dark blue], 'APAC** · 2015'='430.8' [light gray], 'APAC** · 2016'='506.4' [light gray], 'APAC** · 2017'='515.5' [light gray], 'APAC** · 2018'='539.4' [light gray], 'APAC** · 2019'='624.3' [light gray], 'APAC** · 2020'='633.4' [light gray]
+
+9. Q: Which response has the lowest answer rate?
+   ANSWER: 'Often'
+   items: 'Never'=56.0 [blue], 'Rarely'=17.0 [dark blue], 'Sometimes'=14.0 [light gray], 'Often'=13.0 [dark red]
+
+10. Q: What's the sum of the median and the largest value?
+   ANSWER: '96'
+   items: 'All adults'='39', 'White'='34', 'Black'='57', 'Hispanic'='46', 'Asian'='32'
+
+11. Q: What is the highest percentage of share of respondents in medical?
+   ANSWER: '44'
+   items: 'High (4-5) · Networking & communications'='12%' [blue], 'High (4-5) · Automotive'='16%' [blue], 'High (4-5) · Computing'='18%' [blue], 'High (4-5) · Consumer'='15%' [blue], 'High (4-5) · Industrial'='20%' [blue], 'High (4-5) · Medical'='21%' [blue], 'Neither low nor high (3) · Networking & communications'='26%' [dark blue], 'Neither low nor high (3) · Automotive'='33%' [dark blue], 'Neither low nor high (3) · Computing'='30%' [dark blue], 'Neither low nor high (3) · Consumer'='36%' [dark blue], 'Neither low nor high (3) · Industrial'='40%' [dark blue], 'Neither low nor high (3) · Medical'='44%' [dark blue], 'Low (1-2) · Networking & communications'='61%' [light gray], 'Low (1-2) · Automotive'='52%' [light gray], 'Low (1-2) · Computing'='52%' [light gray], 'Low (1-2) · Consumer'='49%' [light gray], 'Low (1-2) · Industrial'='40%' [light gray], 'Low (1-2) · Medical'='35%' [light gray]
+
+12. Q: What does Navyblue indicate?
+   ANSWER: 'Leathers'
+   items: 'Watches'=81.3 [blue], 'Leathers'=10.8 [dark blue], 'Jewelry'=5.6 [light gray], 'Other'=2.3 [dark red]
+
+```json
+{"0": {"op": "...", "args": [...]}, "1": {"refused": "..."}}
+```

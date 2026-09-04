@@ -42,6 +42,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from chartqa_dt.eval.metrics import to_float
+from chartqa_dt.plans.executor import parse_numeric
 
 _JSON_BLOCK = re.compile(r"```(?:json)?\s*(.*?)```", re.S)
 
@@ -71,12 +72,16 @@ def candidates(*, question: str, answer: Any,
     Not unique means the reading cannot be settled this way — two elements holding the same
     number are indistinguishable by arithmetic, so no yes/no answer would determine a plan.
     """
+    # The ANSWER is parsed with the official parser and the chart VALUES with ours. They are
+    # different kinds of text and the difference is load-bearing: `to_float` divides a
+    # trailing `%` by 100 because the official evaluator does, which is right for an answer
+    # and wrong for a bar (`DECISIONS.md` 0082).
     target = to_float(answer)
     if target is None:
         return None
     holders = [str(e.get("label")) for e in evidence
-               if to_float(e.get("value")) is not None
-               and abs(to_float(e.get("value")) - target) < 1e-9]
+               if parse_numeric(e.get("value")) is not None
+               and abs(parse_numeric(e.get("value")) - target) < 1e-9]
     return holders[0] if len(holders) == 1 else None
 
 

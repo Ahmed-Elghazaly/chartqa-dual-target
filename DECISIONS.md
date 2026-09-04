@@ -4540,3 +4540,62 @@ supplying a weak one, and the count is visible on every build.
 measurements they produced — that pattern matching gets 53.5% of machine questions and 14.8%
 of human ones, and that the split skews supervision 92% machine — are the reason the reader is
 being pointed at human questions first.
+
+---
+
+## 0089 — One root cause, four defects, and a test that ends it
+
+**Context.** Running the new two-stage pipeline end to end — build a complete record, have a
+reader mine its plan, verify, attach, build a target — produced a target that failed its own
+round-trip: a `sum` over two 43.6% bars **executed to 0.821 against a gold answer of 82.1**.
+The plan was right and had passed all five gates. The evidence it was verified against and
+the evidence the target carried were parsed by different functions.
+
+**The root cause, stated once.** The project has two numeric parsers and they are *supposed*
+to disagree:
+
+| | reads | trailing `%` | `'1 234'` |
+|---|---|---|---|
+| `eval.metrics.to_float` | a gold **answer** | divided by 100 | `None` |
+| `plans.executor.parse_numeric` | a chart **value** | kept | `1234.0` |
+
+`to_float` is byte-faithful to the official ChartQA evaluator and must stay that way — a more
+generous parser makes our numbers incomparable with the literature while looking better
+(0045). `parse_numeric` keeps the scale a chart is drawn in. **Using the answer parser on
+anything drawn on a chart makes it 100x too small, silently.**
+
+0082 found this twice, in `mining.to_number` against `executor.to_number`, and fixed those two.
+It did not ask where else the same confusion lived. It lived in two more places:
+
+* `_table_values` parsed every gold-table cell with `to_float`, so a percentage chart's
+  evidence was a hundredth of its real value.
+* `values_agree` — the guard added by 0075 to catch a target pointing at one mark and stating
+  another's number — compared a table's `43.6` against an annotation's `'43.6%'`, read the
+  second as `0.436`, and **refused correct records for a disagreement it had invented**.
+* `resolve.candidates` compared a gold answer against chart values with the answer parser on
+  both sides.
+
+**Decision.** Fix the class, not the instance. All three now use `parse_numeric` for chart
+values, and `tests/test_value_parsers.py` walks the AST of every module outside `eval/`,
+collects every `to_float(...)` call site with its argument, and fails unless that call site is
+on a short allow-list with a stated reason. Four call sites are allowed and each really does
+read an answer.
+
+A fifth defect of this shape now cannot reach `main` without someone deliberately adding it
+to a list that says, in the file, what the rule is.
+
+**Also fixed while here.** `value_for` fell back to the bare table label when the
+series-to-column join failed. On a grouped chart the bare key returns the row's **first**
+numeric cell — whichever series the table happens to list first — so the fallback handed one
+series another series' number. It now falls back to the annotation's own value for any element
+whose label collides, since that is the only source certainly about that mark.
+
+**Consequences.** The end-to-end path now works on real records: a complete record, a plan
+mined by a reader, five gates, the cache, the join, and a target that round-trips. Two of two
+in the first run.
+
+**The lesson, and it is the third time this audit has learned it.** 0085 found a costly
+assumption nobody had written down; 0087 found a field nobody had decided to drop; this found
+a fix that was applied to the two call sites that had broken rather than to the rule. **When a
+defect has a root cause, the fix is a test that ranges over every place the cause could
+recur** — not a patch at the place it was noticed.
