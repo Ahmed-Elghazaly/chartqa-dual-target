@@ -34,6 +34,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from chartqa_dt.plans.distinguish import indistinguishable_from
 from chartqa_dt.plans.executor import (
     MAX_DEPTH,
     OPS,
@@ -67,6 +68,12 @@ class Verdict:
     status: str
     plan: dict | None = None
     executed: Any = None
+    #: Rival readings this record's evidence cannot tell the plan apart from
+    #: (`plans.distinguish`). Non-empty means the plan passed every arithmetic gate but the
+    #: chart does not contain the information needed to know it was the reading intended —
+    #: 0080's blind spot, now visible. Recorded on the verdict rather than rejected, so the
+    #: cost of refusing them can be measured before anyone decides to (`DECISIONS.md` 0097).
+    underdetermined: list[dict] = field(default_factory=list)
     detail: str = ""
 
     @property
@@ -77,6 +84,8 @@ class Verdict:
 @dataclass
 class VerificationStats:
     counts: dict[str, int] = field(default_factory=dict)
+    #: Accepted plans whose record could not distinguish them from another reading.
+    underdetermined: int = 0
 
     def note(self, status: str) -> None:
         self.counts[status] = self.counts.get(status, 0) + 1
@@ -101,6 +110,10 @@ class VerificationStats:
         for status, n in sorted(self.counts.items(), key=lambda kv: -kv[1]):
             if status != OK:
                 lines.append(f"    {status:<46}{n:>5}")
+        if self.underdetermined:
+            lines.append(f"    {'of the accepted, underdetermined':<46}"
+                         f"{self.underdetermined:>5}   <-- passed every gate, but the "
+                         f"evidence cannot tell them from another reading")
         return "\n".join(lines)
 
 
@@ -183,7 +196,8 @@ def verify(plan: Any, *, answer: Any, evidence: Sequence[dict[str, Any]],
         return Verdict(WRONG_OPERANDS, plan=plan, executed=got,
                        detail=f"{outside[0]!r} is not a marked region")
 
-    return Verdict(OK, plan=plan, executed=got)
+    return Verdict(OK, plan=plan, executed=got,
+                   underdetermined=indistinguishable_from(plan, items))
 
 
 def verify_many(proposals: Sequence[dict[str, Any]]) -> tuple[list[Verdict], VerificationStats]:
@@ -195,6 +209,8 @@ def verify_many(proposals: Sequence[dict[str, Any]]) -> tuple[list[Verdict], Ver
                          evidence=p.get("evidence") or [],
                          marked_labels=p.get("marked_labels"))
         stats.note(verdict.status)
+        if verdict.underdetermined:
+            stats.underdetermined += 1
         out.append(verdict)
     return out, stats
 

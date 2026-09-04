@@ -5057,3 +5057,112 @@ that no metric scores.** They are not waste — the executor needs them, and a p
 a label the model never emitted cannot run — but if the answer policy turns out to be
 `stated`, then a sixth of the objective is spent on a scaffold for a calculator nobody reads.
 That is the sharpest argument for settling the policy before Phase 6 rather than after.
+
+---
+
+## 0097 — Detecting a plan the evidence cannot certify, from the weak-supervision literature
+
+**Context.** 0080 found a blind spot in the five-gate verifier and could not close it:
+
+> *"Where the marked evidence has one element, `argmax`, `argmin` and `lookup` all trivially
+> return it, so arithmetic verification cannot distinguish them. A careless teacher scores
+> 100% here while being semantically wrong three times."*
+
+Every gate in `plans.llm_mining` runs the plan on **one** input — the record's own evidence —
+so a plan that coincides with the truth on that input passes.
+
+**The literature has a name and a method for this.** Weakly supervised semantic parsing calls
+such a program **spurious**: wrong semantics, right denotation. Lee, Kim and Jung (EMNLP 2023),
+*Weakly Supervised Semantic Parsing with Execution-based Spurious Program Filtering*, build a
+program's semantic representation by executing it **under various inputs** and comparing
+results. Two programs with different semantics diverge somewhere, even where they agree on the
+gold input.
+
+**Applied here** (`plans/distinguish.py`), the question becomes sharper than *"which reading is
+right"*: **does this chart's evidence contain enough information to tell the proposed plan
+apart from a different reading of the same question?** If not, a plan accepted here was
+accepted by luck, and refusing costs a record we could never have got right.
+
+**Perturbation by shuffling, not scaling.** Values are permuted among labels. That keeps every
+number the chart actually contains — so units, magnitudes and executor guards still behave —
+while breaking the label-to-value association, which is exactly what separates
+`lookup("Nigeria")` from `max()`. Scaling would leave the ordering intact, and ordering is what
+the extrema read.
+
+**It behaves correctly on the cases that motivated it:**
+
+| evidence | plan | rivals it cannot be told from |
+|---|---|---|
+| one element | `argmax()` | `argmin` |
+| one element | `max()` | `min`, `mean`, `sum`, `median` |
+| three distinct values | `max()` | — distinguishable |
+| three distinct values | `lookup("Nigeria")` | — distinguishable |
+| **three *equal* values** | `max()` | `min`, `mean`, `median` — **but not `sum`** |
+
+The last row is the check that it is measuring semantics rather than pattern-matching: with
+three equal values `sum` is 15 where the others are 5, and it separates them.
+
+**Decision.** Record it on the verdict, do not reject on it yet. `Verdict.underdetermined`
+lists the rival readings, `VerificationStats` counts them, and `describe()` reports them under
+the accepted plans. Turning it into a sixth gate is a judgement about how much supervision to
+trade for certainty, and that trade should be priced on real ChartQA proposals — which need
+the mining run — rather than assumed.
+
+**Consequences.** 0080's blind spot is now visible rather than merely documented. The
+measurement that made this actionable came from reading the primary literature for the problem
+we already had, which is what `Prompt.md` Phase 3 is for: the technique is a decade old in
+semantic parsing and we had reinvented the problem without reaching for it.
+
+---
+
+## 0098 — Synthetic charts are half the size of real ones, and `elements` means two things
+
+**Context.** Measuring what the spurious-program detector would cost flagged 25.2% of
+synthetic targets — every one a `lookup` seeing a single evidence item. That looked like a
+detector problem and was not.
+
+**Finding 1: `meta[ELEMENTS_KEY]` means different things by source.** `Prompt.md` Idea 2 and
+Idea 5 ask exactly this.
+
+| source | median elements stored | what it is |
+|---|---:|---|
+| synthetic, `lookup` | **1** | only what the plan needs |
+| synthetic, `difference` / `argmax` | 4 | only what the plan needs |
+| **ChartQA** | **11** (min 2, max 55) | **the whole chart** |
+
+The same key holds *the operands* on one source and *the chart* on the other. `_evidence_from`
+prunes ChartQA's to the plan's labels at target time, so the **targets** agree — which is why
+this has never surfaced — but anything reading `ELEMENTS_KEY` directly gets two different
+things. The verifier is one such reader, and the detector was another.
+
+`ChartRecord.table` has the same problem: ChartQA writes `{columns, rows}` and synthetic writes
+`{labels, values, quantity, unit}`. `_table_values` reads `columns`/`rows`, finds neither on a
+synthetic record, and silently returns `{}` — harmless today because synthetic element values
+are exact by construction, and a trap for anything that later assumes a table is a table.
+
+**Finding 2, and the consequential one: synthetic charts are far sparser than real ones.**
+
+| marks per chart | p10 | p50 | p90 | max | mean |
+|---|---:|---:|---:|---:|---:|
+| synthetic (24,000) | 3 | 4 | 6 | **7** | 4.6 |
+| ChartQA (1,500) | 4 | **10** | 24 | **77** | **12.7** |
+
+**No synthetic chart has more than 7 marks. 63.9% of real charts have more than 8.** The model
+practises localising among four distractors and is evaluated among ten to seventy-seven. For
+grounding — half the metric — the number of competing marks *is* the difficulty.
+
+**Decision.** Record both; fix neither yet.
+
+Unlike 0091's other two mismatches, **this one cannot be fixed by reweighting.** Chart type and
+operation share were selection problems: 24,000 examples already existed and a different subset
+solved them. No selection produces a dense chart when none was generated. Fixing this means
+regenerating with a mark-count distribution matched to ChartQA's — which is hours of compute
+and a change to `synth/generator.py`, and belongs in the same pass as 0091's operation
+reweighting rather than as a third separate edit.
+
+**Consequences.** The synthetic corpus now has three measured mismatches with the corpus it
+prepares for: chart type (fixed, by selection), operation distribution (13.8x over on
+`difference`), and mark density (2.8x under). Taken together they say the corpus was built to
+demonstrate that the *format* can be learned — which it did, and which 0071's defects needed —
+rather than to resemble the target domain. That was the right first goal and it is no longer
+the binding one.

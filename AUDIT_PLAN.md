@@ -40,11 +40,11 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | 3.1 | Qwen3-VL preprocessing — official implementation | ✅ inspected the installed processor directly; no double resize; factor 32 verified |
 | 3.2 | ChartQA paper / repo — annotation semantics | ⬜ |
 | 3.3 | RefChartQA paper / repo — grounding provenance | 🔄 measured: its boxes ARE ChartQA elements (0077) |
-| 3.4 | Semantic parsing from denotations · weak supervision | ⬜ |
+| 3.4 | Semantic parsing from denotations · weak supervision | ✅ | our blind spot has a name (**spurious programs**) and an established fix (Lee/Kim/Jung EMNLP 2023, execution-based filtering). Implemented as `plans/distinguish.py` (0097) |
 | 3.5 | Program synthesis · execution-guided search/decoding | ⬜ |
 | 3.6 | LLM program generation · teacher distillation · self-consistency | ⬜ |
 | 3.7 | Constrained / structured generation | ⬜ |
-| 3.8 | Chart QA + grounded chart QA state of the art | ⬜ |
+| 3.8 | Chart QA + grounded chart QA state of the art | ✅ | RefChartQA Table 2 read from the primary source: six models, three splits, four metrics. 32.83 is **not in the paper**; ChartGemma 2B @448 is the size-matched baseline (0093) |
 | 3.9 | Curriculum learning · synthetic data | ⬜ |
 
 ## Specific ideas 1–15
@@ -55,13 +55,13 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | 2 | Distinguish ELEMENTS from EVIDENCE | 🔄 | 74.2% of charts have non-unique labels; series discarded at the boundary (H3) |
 | 3 | Connect RefChartQA grounding to ChartQA elements | ✅ implemented | 0077 — 98.9% at IoU≥0.9; 85.2% aligned |
 | 4 | Reconsider ChartQA ↔ RefChartQA merging | 🔄 | H2 found fusion is discarded; dedup vs fusion now separated in practice |
-| 5 | Evidence should have one clear meaning | ⬜ | depends on idea 2 |
+| 5 | Evidence should have one clear meaning | ✅ | **it does not** (0098): `meta[elements]` holds *the operands* on synthetic records and *the whole chart* on ChartQA ones (median 1–4 vs 11), and `record.table` has two shapes. Targets agree only because `_evidence_from` prunes |
 | 6 | Target builder | 🔄 | 0075 added the value/box gate; grounding-only targets still open |
 | 7 | Plan mining — deterministic vs LLM-assisted | ✅ | **settled: LLM only** (0085, 0086, 0088). Backwards search must refuse 53.9%; pattern matching gets 53.5% of machine questions and 14.8% of human ones, which would skew supervision 92% machine against a 50/50 test split |
 | 8 | Improve deterministic mining | ✅ | *not pursued, deliberately* — deterministic mining is off the supervision path (0088). `plans/mining.py` stays as an independent cross-check only |
 | 9 | Synthetic data | ✅ | **designed for a job it no longer has** (0091). 25% of the corpus is chart types ChartQA does not contain; `difference` is 13.8x over-weighted and `lookup` 2.6x under. Fix by reweighting at mixture time, not regenerating |
 | 10 | DSL + executor | 🔄 | `within` added on measured demand (0090). Six requested operations remain, each now a number: Yes/No comparison 8.0% of human questions, threshold filter, count-of-series, constancy, `product`, argmax-over-computed |
-| 11 | Round-trip verification | 🔄 | 0075/0077 showed it cannot catch wrong evidence |
+| 11 | Round-trip verification | ✅ | 0075/0077 showed it cannot catch wrong evidence; 0097 adds what it cannot catch on one input either — a plan the evidence cannot distinguish from another reading |
 | 12 | Qwen3-VL preprocessing | ✅ | no change needed — verified correct |
 | 13 | Model output format | ✅ | **audited, no change** (0094). Short keys save 0 tokens/item — Qwen encodes JSON keys as single tokens; a line format saves 32%/item but costs the schema, unambiguous parsing and JSON priors for +2.2% of questions, and we are not sequence-constrained (p99 679 of 1,024) |
 | 14 | Training objective | ✅ | measured what the loss spends itself on (0096): boxes 35.6%, `model_answer` **3.7%**, and 17.1% on labels/values no metric scores. Found the README claimed the executor replaces the answer when it only checks it; made the three answer policies scoreable from one generation set |
