@@ -30,6 +30,7 @@ Nine markdown files at the root is a lot; each answers a different question.
 | **how the system works today**, end to end | `ARCHITECTURE.md` |
 | **the audit's verdict** — what was wrong, what changed, what to test next | `VERDICT.md` |
 | **every finding in the brief's 15-field record** | `FINDINGS.md` |
+| **the 99-item audit checklist, item by item** | `AUDIT_COVERAGE.md` |
 | **why any choice was made** — the permanent record, ~100 entries, newest last | `DECISIONS.md` |
 | **what is currently wrong** and how bad, ranked | `AUDIT.md` |
 | **what the audit still has to do** and what is blocked | `AUDIT_PLAN.md` |
