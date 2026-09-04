@@ -5723,3 +5723,60 @@ implementation. The 5.6% that series cannot separate are refused rather than res
 position, and that refusal is the honest cost of not having a geometry-derived id — it is
 recorded here so that if it ever becomes the binding constraint, the alternative is already
 worked out.
+
+---
+
+## 0108 — Every consumer of `boxes`, `elements` and `plan`, and what each assumes
+
+**Context.** `Prompt.md` Idea 5 asks for something mechanical that the audit had done
+piecemeal: *"Review ALL downstream code that currently assumes a meaning for `boxes`,
+`meta["elements"]`, `plan` — so that a representation change cannot silently break target
+construction."*
+
+C2 found `boxes` means three different things by source and M3 found `meta[elements]` means
+two. Both were found by tracing a specific failure, not by enumerating consumers. This is the
+enumeration.
+
+### `record.boxes` — thirteen sites, three assumptions
+
+| site | assumes | verdict |
+|---|---|---|
+| `cli/train.py::grounding_truth_for` | boxes are **question-specific grounding** | ✅ fixed by 0076 — returns them only for `refchartqa` and `synthetic`, and `[]` for ChartQA, whose boxes are the whole chart |
+| `train/targets.py` fallback branch | boxes are the evidence, labelled `item1…` | ⚠️ true only when a record has **no** elements, which is RefChartQA-without-alignment. ChartQA never reaches it because it always has elements. **Safe by circumstance, not by contract** |
+| `data/mixture.py` — `with_boxes` count | boxes exist | ✅ a count; no semantics assumed |
+| `data/mixture.py::build_stage1` — `if r.boxes` | boxes present ⇒ the record can supply grounding | ✅ true for every source. The **target** is built by `_evidence_from`, not from `record.boxes`, so this is a filter and not a content path |
+| `data/dedup.py::merge_pair` | boxes from either source are interchangeable | ⚠️ **false** — merging ChartQA's all-chart boxes into a RefChartQA record would change what its grounding means. **Inert**, because the merge is discarded before training (H2); a hazard the moment fusion is reconnected |
+| `scripts/align_refchartqa.py` | boxes are RefChartQA grounding | ✅ correct for that source |
+| `scripts/cache_refchartqa.py` | a record without boxes is unusable | ✅ correct |
+| `scripts/build_mixtures.py` — `plan or boxes` | the record has something to supervise | ✅ a filter, as above |
+| `eval/generate.py`, `scripts/run_zeroshot.py` | these are the **model's predicted** boxes | ✅ a different object entirely; no contract shared with `record.boxes` |
+
+### `meta[ELEMENTS_KEY]` — four sites
+
+| site | assumes | verdict |
+|---|---|---|
+| `data/chartqa.py` | writes **every** element on the chart | ✅ by construction |
+| `scripts/build_mixtures.py::refchartqa_records` | overwrites with the **aligned** elements | ✅ deliberate — the join must happen in the reader (H2) |
+| `train/targets.py::_evidence_from` | elements are a **superset** of what the plan needs, to be pruned | ✅ correct for ChartQA and RefChartQA. **For synthetic it is already the operands** (M3), so the pruning is a no-op rather than wrong |
+| `scripts/align_refchartqa.py` | elements are ChartQA's, to be matched against | ✅ correct |
+
+### `record.plan` — the contract that is now explicit
+
+Since 0088, `plan` is `None` on a freshly built record and filled by `attach_mined_plans` in
+the reader. Every consumer either tolerates `None` (`build_target` refuses with a reason,
+`build_stage1` filters) or is downstream of a filter that removed it. `build_grounding_only_
+target` is the one consumer that requires `plan` to be **absent**, and it is selected by stage.
+
+**Decision.** No representation change. Two assumptions are recorded as **safe by circumstance
+rather than by contract** — `targets.py`'s fallback branch and `dedup`'s box merge — because
+that is the honest status and it is what a future change would trip over.
+
+**Consequences.** Idea 5's conceptual model — TABLE / ELEMENTS / EVIDENCE / PLAN / ANSWER — is
+already what the code does, with one exception: EVIDENCE is not a first-class stored object.
+It is *derived* by `_evidence_from` at target-build time from ELEMENTS plus PLAN. That
+derivation is where four separate defects lived (0067, 0071, 0075, 0082), which is an argument
+for making it explicit — and against changing it now, because every one of those defects is
+fixed and the derivation is the most heavily tested function in the repository.
+
+The enumeration is the deliverable. A representation change can now be checked against a list
+of nine consumers and their assumptions, rather than against memory.
