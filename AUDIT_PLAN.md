@@ -38,7 +38,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | # | topic | status |
 |---|---|---|
 | 3.1 | Qwen3-VL preprocessing — official implementation | ✅ inspected the installed processor directly; no double resize; factor 32 verified |
-| 3.2 | ChartQA paper / repo — annotation semantics | ⬜ |
+| 3.2 | ChartQA paper / repo — annotation semantics | ✅ | four of our own measurements independently confirmed (chart mix, `'unk'` colours, T5-generated machine questions only partly validated, unanswerable questions). One new: **values are printed on the elements**, so the sub-token bound applies to grounding, not to reading numbers (0103) |
 | 3.3 | RefChartQA paper / repo — grounding provenance | 🔄 measured: its boxes ARE ChartQA elements (0077) |
 | 3.4 | Semantic parsing from denotations · weak supervision | ✅ | our blind spot has a name (**spurious programs**) and an established fix (Lee/Kim/Jung EMNLP 2023, execution-based filtering). Implemented as `plans/distinguish.py` (0097) |
 | 3.5 | Program synthesis · execution-guided search/decoding | ✅ | fine-grained partial-program guidance is **inapplicable at our program size** (median depth 1–2, 8.8% of tokens). The coarse form is exactly 0096's `executed` answer policy — the record already writes the plan before the answer — plus resample-on-self-disagreement, to be settled by the same Phase 5 experiment (0102) |

@@ -5370,3 +5370,53 @@ research, and all three landed on the same conclusion from different directions:
 executor is the project's most under-used asset.** It currently checks targets at build time
 and diagnoses generations at eval time, and does not participate in either mining or
 inference, both of which the literature says it should.
+
+---
+
+## 0103 — What ChartQA's own literature says about ChartQA, and where it confirms us
+
+**Context.** `Prompt.md` Phase 3.2 asks for the ChartQA paper and repository read as primary
+sources on annotation semantics. Most of what this project needed was learned from the data
+itself — `annotation_boxes`, the two colour fields, series identity, the human/machine split.
+The value of reading the literature now is corroboration and blind spots.
+
+**Four findings that independently confirm measurements made here.**
+
+| the literature says | we measured, separately |
+|---|---|
+| ChartQA is *"primarily bar, line and pie charts"* | 83.6% bar, 12.8% line, 3.6% pie, **0.0% scatter or area** (0091) |
+| annotations *"omit essential visual encoding information such as bar or line colors"* | the literal string `'unk'` in the colour field, and 0.2% of colour questions with no usable colour (0087) |
+| machine questions were *"generated automatically from human-written chart summaries using a T5 model and manually validated [on] a subset"* | gold answers that contradict their own gold table — *"Uruguay's bestselling car brand"* says Chevrolet at 14.97% where the table's maximum is Suzuki at 18.45% (0081) |
+| *"some questions are either incomplete or not answerable from the chart"* | 5 of 40 human questions refused as not derivable from the data (0086) |
+
+Four measurements taken from the data, each matching a stated property of the dataset. That is
+worth recording because it raises confidence in the ones that have **no** external
+confirmation — the 21.8% of human questions mentioning a colour, the 26.6% `lookup`-versus-
+extremum collision, the chart-density gap.
+
+**One finding we had not accounted for, and it matters.** ChartQA charts carry *"numeric labels
+directly on visual elements"*, which the literature notes as a criticism — it *"reduc[es] the
+need for actual visual reasoning"*. The values are printed on the bars.
+
+That is a property of the benchmark rather than a defect in our work, and it changes how one
+of our own measurements should be read. 0060 and 0095 treat *"targets smaller than one visual
+token"* as a bound on what the model can recover, and for **boxes** that stands — a mark
+averaged into a 32×32 patch cannot be localised. But for **values** it is weaker than it
+looks: a number printed as text beside its bar is legible even when the bar is not, and the
+task becomes transcription rather than measurement.
+
+**It strengthens the project's thesis rather than weakening it.** If values are readable as
+text, the model's remaining job is to transcribe them and combine them — and combining them
+exactly is what the executor is for. A benchmark where the numbers are legible but the
+arithmetic is the model's own mental work is the best possible case for emitting a program
+instead. That is the argument to make in the write-up, and it is now sourced.
+
+**Decision.** Record, change nothing. Note in `AUDIT.md` that the sub-token argument applies
+to grounding rather than to value transcription, so it is not overstated later.
+
+**Consequences.** 3.2 closes. Also noted for context: `ChartQAPro` (2025) exists as the
+successor benchmark, built specifically because ChartQA is *"largely factoid questions
+requiring simple data extraction or basic arithmetic"* from *"a few online sources"*. It is
+not our target — the project is committed to ChartQA and RefChartQA, and the published numbers
+we can compare against are on those — but it is the honest answer to *"is this benchmark
+still current"*, and a limitation to state rather than discover in review.
