@@ -4275,6 +4275,15 @@ The interesting number is 90.3% — the cap never applies to nine questions in t
 evidence is selected by what the plan names. That is `DECISIONS.md` 0014's "emit few boxes"
 paying off in a place it was not designed for.
 
+> **Verified on real targets after the change.** 1,198 synthetic targets built and tokenised
+> with the real Qwen3-VL tokenizer, at `MAX_EVIDENCE = 12` and with series-qualified labels:
+> p50 **500** tokens, p99 **679**, max **693**, against `max_seq_len` 1,024 — **zero** over
+> the limit and 345 tokens of headroom at p99. The 915-token figure priced above is a worst
+> case in which every one of twelve items is qualified and carries a unit; real plans name one
+> or two labels, so the cap costs far less than it could. ChartQA targets are not yet measured
+> — only two plans have been mined — and their labels are longer, so this is re-checked once
+> the mining run produces a real sample.
+
 ---
 
 ## 0085 — Mining the other way round, which dissolves the ambiguity instead of patching it
