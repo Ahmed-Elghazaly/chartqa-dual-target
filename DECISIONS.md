@@ -4657,3 +4657,71 @@ a Yes/No comparison (8.0% of human questions), a threshold filter, a count of di
 series, a constancy check, `product`, and an argmax over a computed quantity. `filter` and
 `rank` are still declared in `OPS` and unimplemented, which is its own small dishonesty to
 resolve.
+
+---
+
+## 0091 — The synthetic corpus was designed for a job it no longer has
+
+**Context.** `synth/generator.py` opens by stating its own purpose:
+
+> *"That is what makes this the primary source of plan supervision, given that the uniqueness
+> rule admits only ~5.7% of real ChartQA questions."*
+
+**The premise is gone.** The uniqueness rule is off the supervision path: a reader mines plans
+for real ChartQA questions directly (0085, 0088). Synthetic data is no longer the only way to
+teach a plan, so the distribution chosen when it *was* is worth re-examining — and nothing had
+re-examined it, because the sentence justifying it was true when written.
+
+**Measured** (`audit/measure_synthetic_fit.py`), 24,000 synthetic examples against 3,000 real
+ChartQA train charts:
+
+| chart family | synthetic | real | |
+|---|---:|---:|---|
+| bar | 37.5% | **83.6%** | 2.2x under |
+| line | 25.0% | 12.8% | 2.0x over |
+| pie | 12.5% | 3.6% | 3.5x over |
+| **area** | 12.5% | **0.0%** | **not in ChartQA** |
+| **scatter** | 12.5% | **0.0%** | **not in ChartQA** |
+
+**6,000 of 24,000 examples — a quarter of the corpus — are chart types ChartQA does not
+contain.** Bars are 84% of what the model will be tested on and get 37.5% of its practice.
+
+The operation mismatch is worse. Against Claude's judgement of 60 random real questions
+(0081) — a small sample, quoted as the best available estimate rather than a precise figure:
+
+| operation | synthetic | real | |
+|---|---:|---:|---|
+| `lookup` | 25.0% | **64.3%** | 2.6x under |
+| `argmax`/`argmin` | 7.3% | **21.4%** | 2.9x under |
+| `difference` | **24.6%** | 1.8% | **13.8x over** |
+| `ratio` | **17.2%** | 1.8% | **9.6x over** |
+| `compare` | 8.3% | 0.0% | not in the sample at all |
+
+Half the synthetic budget goes to `difference`, `ratio` and `compare`, which together are
+about 2% of real questions; the two operations that are ~86% of real questions get a third of
+it. The n=60 sample has wide intervals, but no sampling error explains a 13.8x gap.
+
+**Decision.** Do not regenerate. Reweight at mixture time.
+
+The generator is uniform by construction — 8 chart types x 4 levels x equal shares — and
+24,000 examples already exist with exact boxes, exact answers and exact plans. A mixture that
+**samples** them to match the real distribution costs nothing but a different selection: drop
+area and scatter, weight bars up, and weight `lookup` and `argmax` up against `difference` and
+`ratio`. Regenerating would spend hours of compute to produce examples we can select from the
+ones we have.
+
+**Not yet implemented**, deliberately: this changes what stage 1 trains on, and stage 1's
+purpose is itself a live question. Uniform coverage is defensible for *teaching the output
+format* — the model should see every operation — and indefensible for *teaching a prior over
+which operation a question wants. Which of those stage 1 is for decides how hard to match, and
+that is worth settling before the reweighting is written rather than after.
+
+**Consequences.** Whatever stage 1 is for, 25% of it is currently spent on chart types that
+cannot appear at evaluation. That part is waste under any reading, and it is the first thing
+to remove.
+
+**The pattern, a fourth time.** 0085 found an assumption nobody had written down; 0087 a field
+nobody had decided to drop; 0089 a fix applied to instances rather than to its rule. This is a
+justification that was **true when written and quietly expired**, with the code still carrying
+the sentence that explained it. A decision record dated by the belief it rests on would have
+caught it; nothing else did.
