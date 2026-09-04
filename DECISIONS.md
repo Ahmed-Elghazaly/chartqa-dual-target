@@ -5473,3 +5473,58 @@ yet**. Wiring it into `build_stage1` changes what stage 1 trains on, which is a 
 take with the operation-mix and density work (0091, 0101) rather than three separate edits.
 A guard against the obvious failure is already in: a degenerate box is refused rather than
 emitted, because a grounding-only target is nothing *but* its boxes.
+
+---
+
+## 0105 — Provenance is complete and unread; fusion already happened under another name
+
+**Context.** Two of `Prompt.md`'s remaining ideas turn out to be about things the project
+already has and does not use.
+
+### Idea 15 — supervision provenance and confidence
+
+**Every source records where its supervision came from, and nothing downstream reads any of
+it.**
+
+| source | what it carries |
+|---|---|
+| synthetic | `style_seed`, `data_seed`, `level`, `chart_type` — reproducible by construction |
+| RefChartQA | `match_iou` and `match_margin` **per element**, plus `aligned_to_chartqa` |
+| ChartQA | `plan_provenance` — the model, the prompt hash, the prompt version, the gates passed |
+
+That is a genuinely complete chain: a target built from an LLM-mined plan can be traced to the
+exact request that produced it, and a RefChartQA element to how well its box matched the
+ChartQA element it was identified with. Nothing in `train/` or `data/mixture.py` mentions any
+of it.
+
+**Decision. Report by provenance before weighting by it.** `eval/stratified.py` already groups
+AP@0.5, P@F1 and accuracy by a categorical field, so the mechanism exists; provenance just has
+to reach evaluation. That answers a question worth asking on its own — *does LLM-mined
+supervision perform as well as supervision that is exact by construction?* — and it costs one
+extra column.
+
+Loss weighting and confidence filtering are the obvious next steps and both are **unmeasured
+interventions on a pipeline that has not trained yet**. Weighting a loss by a confidence nobody
+has validated adds a hyperparameter and a failure mode; stratified reporting adds neither and
+produces the evidence that would justify them. If mined supervision underperforms exact
+supervision, `match_iou` and `gates_passed` are already there to filter on.
+
+### Idea 4 — reconsidering the ChartQA ↔ RefChartQA merge
+
+`AUDIT.md` H2 found the dedup merge is discarded before training sees it, and the obvious
+reading was that fusion needed rebuilding. It does not: **the fusion already happens, under
+another name.**
+
+`scripts/align_refchartqa.py` matches each RefChartQA grounding box to a ChartQA element on the
+same image — 98.9% at IoU ≥ 0.9, median 1.000 — and attaches ChartQA's labels, values and gold
+table to the RefChartQA record (0077). That *is* the fusion Idea 4 asks for, done by geometry
+rather than by question-string equality, and it is strictly better: the two datasets share
+86.9% of their images but only **42.1% of their questions** (Q5), so a merge keyed on the
+question would have recovered less than half of what matching on boxes recovers.
+
+**Decision.** Keep dedup and fusion separate, as they now are. Dedup exists to stop the same
+example being counted twice; fusion exists to give a record everything known about its chart.
+They were conflated in one function, which is how H2's silent loss happened.
+
+**Consequences.** Both ideas close without new code. The recurring shape is the one `AUDIT.md`
+names first: the capability existed and no decision had ever connected it to the need.

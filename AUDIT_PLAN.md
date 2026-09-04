@@ -54,7 +54,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | 1 | Reconsider `ChartRecord` | ✅ measured | `boxes` genuinely means 3 different things; C2 fixed the immediate harm, structural fix open |
 | 2 | Distinguish ELEMENTS from EVIDENCE | ✅ | series now carried into element identity (0083), and the two meanings of `meta[elements]` measured and recorded (0098) |
 | 3 | Connect RefChartQA grounding to ChartQA elements | ✅ implemented | 0077 — 98.9% at IoU≥0.9; 85.2% aligned |
-| 4 | Reconsider ChartQA ↔ RefChartQA merging | 🔄 | H2 found fusion is discarded; dedup vs fusion now separated in practice |
+| 4 | Reconsider ChartQA ↔ RefChartQA merging | ✅ | **the fusion already happens under another name** (0105): the aligner matches boxes to ChartQA elements at 98.9% IoU≥0.9 and attaches labels, values and table — strictly better than a question-keyed merge, since the datasets share 86.9% of images but only 42.1% of questions |
 | 5 | Evidence should have one clear meaning | ✅ | **it does not** (0098): `meta[elements]` holds *the operands* on synthetic records and *the whole chart* on ChartQA ones (median 1–4 vs 11), and `record.table` has two shapes. Targets agree only because `_evidence_from` prunes |
 | 6 | Target builder | ✅ | 0075 value/box gate, 0082/0083/0089 fixes, and **grounding-only targets** (0104): RefChartQA goes from 56.6% to **98.5% supervisable**, +23,357 real grounding records projected. Builder written and tested; not yet wired into a mixture |
 | 7 | Plan mining — deterministic vs LLM-assisted | ✅ | **settled: LLM only** (0085, 0086, 0088). Backwards search must refuse 53.9%; pattern matching gets 53.5% of machine questions and 14.8% of human ones, which would skew supervision 92% machine against a 50/50 test split |
@@ -65,7 +65,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | 12 | Qwen3-VL preprocessing | ✅ | no change needed — verified correct |
 | 13 | Model output format | ✅ | **audited, no change** (0094). Short keys save 0 tokens/item — Qwen encodes JSON keys as single tokens; a line format saves 32%/item but costs the schema, unambiguous parsing and JSON priors for +2.2% of questions, and we are not sequence-constrained (p99 679 of 1,024) |
 | 14 | Training objective | ✅ | measured what the loss spends itself on (0096): boxes 35.6%, `model_answer` **3.7%**, and 17.1% on labels/values no metric scores. Found the README claimed the executor replaces the answer when it only checks it; made the three answer policies scoreable from one generation set |
-| 15 | Supervision provenance / confidence | 🔄 | match IoU + margin recorded by 0077; not yet used for weighting |
+| 15 | Supervision provenance / confidence | ✅ | **complete and unread** (0105): synthetic seeds, per-element `match_iou`/`match_margin`, and `plan_provenance` with model + prompt hash + gates. Decision: report by provenance before weighting by it — `eval/stratified.py` already groups by a categorical field |
 
 ## Cross-cutting requirements
 
@@ -76,7 +76,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | Prioritised findings with the 15-point record | ✅ `AUDIT.md` — 24 findings (C1–C5, H1–H10, M1–M4, G1–G5) plus the seven recurring patterns under them |
 | Empirical validation of each change | ✅ before/after measured for 0075–0079 |
 | Tests for each change | ✅ 1,006 → passing |
-| Documentation matches reality | 🔄 |
+| Documentation matches reality | ✅ | README's central claim corrected (0096), `ARCHITECTURE.md` written with a section on what is NOT built, `AUDIT.md` current at 24 findings, `STATUS.md` updated for 0093 |
 
 ## Open questions raised by Ahmed, to be answered with measurement
 
