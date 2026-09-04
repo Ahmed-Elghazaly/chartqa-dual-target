@@ -45,7 +45,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | 3.6 | LLM program generation · teacher distillation · self-consistency | ✅ | implemented as **verified** self-consistency (0100): the vote runs only among plans that already passed every gate, and the denominator is all samples so one lucky sample cannot carry a record. Paired with 0097 — sample K times only where the evidence cannot decide |
 | 3.7 | Constrained / structured generation | ✅ | **evidenced no** (0099). It would make schema validity 100% and costs ~2 points of accuracy, but it removes refusal — `answerable:false` becomes unreachable and boxes are forced, and 0014 measured one spurious box taking AP 1.00 → 0.68. Revisit only if post-training validity is still low, and then constrain structure only |
 | 3.8 | Chart QA + grounded chart QA state of the art | ✅ | RefChartQA Table 2 read from the primary source: six models, three splits, four metrics. 32.83 is **not in the paper**; ChartGemma 2B @448 is the size-matched baseline (0093) |
-| 3.9 | Curriculum learning · synthetic data | ⬜ |
+| 3.9 | Curriculum learning · synthetic data | ✅ | settles 0091's open question (0101): stage 1 is a **curriculum stage**, so the distribution matters, and the literature's remedy is a graded synthetic→real bridge. L1–L2 stay uniform for format; **L3–L4 should match ChartQA's operation mix and chart density** |
 
 ## Specific ideas 1–15
 

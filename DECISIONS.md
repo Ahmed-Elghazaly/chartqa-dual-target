@@ -5265,3 +5265,56 @@ Backfires* — so K is a parameter to measure, not a setting to assume.
 
 **Consequences.** Phase 3.6 closes. The mining run can now spend its budget unevenly: one pass
 everywhere, K passes where the evidence is silent, and nothing accepted that a gate rejects.
+
+---
+
+## 0101 — What stage 1 is for, settled: it is a curriculum stage, so the distribution matters
+
+**Context.** 0091 measured three ways the synthetic corpus differs from ChartQA and then
+deliberately declined to fix two of them, because the fix depends on a question nobody had
+answered:
+
+> *"Uniform coverage is defensible for teaching the output format — the model should see every
+> operation — and indefensible for teaching a prior over which operation a question wants.
+> Which of those stage 1 is for decides how hard to match."*
+
+`Prompt.md` Phase 3.9 asks about curriculum learning and synthetic data, and it answers it.
+
+**What the literature says.** The synthetic-to-real trade is stated almost exactly as ours:
+*"Real data often aligns with the test distribution better but suffers from deficiency, noise,
+low quality, or imbalance; synthetic data can fix these problems but suffers from a large
+distribution gap to the test."* We have precisely that: synthetic gives exact plans, exact
+boxes and exact answers that real ChartQA cannot supply, at the cost of not looking like
+ChartQA.
+
+The established remedy is a **staged curriculum that progressively bridges the gap** —
+recent work grades the synthetic-to-real spectrum across training stages rather than jumping
+between them — and the stated purpose is to stop a model *"collapsing onto dataset cues"*.
+
+**Decision.** Stage 1 is a **curriculum stage**, not merely a format lesson, so the
+distribution does matter. But the two purposes are not in conflict once they are staged, and
+this project already has the structure to stage them: `LEVEL_ORDER` runs **L1 → L4**.
+
+* **L1–L2 stay as they are.** Simple, uniform over operations, small charts. This is where the
+  output format is learned, and a model that has never seen the format benefits from seeing
+  every operation at least once. Uniform coverage is right here.
+* **L3–L4 should look like ChartQA.** ChartQA's operation mix (`lookup` ~64%, `argmax`/`argmin`
+  ~21%, not `difference` at 24.6%) and ChartQA's chart density (median 10 marks, not 4).
+  This is the bridge, and it is currently the widest part of the gap rather than the narrowest.
+
+That is the graded spectrum the literature describes, built out of a curriculum we already
+have, and it resolves 0091 without choosing between its two readings.
+
+**Not implemented, and this is the reason it is deferred rather than done.** The operation mix
+can be fixed by selection — 24,000 examples exist and a different subset has a different mix.
+Chart density cannot: **no synthetic chart has more than 7 marks** (0098), so no selection
+produces a chart that looks like ChartQA's median. L3–L4 need regenerating, and it should be
+one pass that fixes operation mix and density together rather than three separate edits to
+`synth/generator.py`.
+
+**Consequences.** 0091's open question closes. The remaining synthetic work is now one
+well-specified job — regenerate L3–L4 against ChartQA's measured operation and density
+distributions — with a stated reason, a literature basis, and a measurement to check it
+against afterwards. The alternative reading, that stage 1 only teaches format, is recorded as
+rejected and why: a stage that teaches format on charts maximally unlike the target is the
+worst case the curriculum literature warns about.
