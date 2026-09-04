@@ -5822,3 +5822,54 @@ automatically.
 three is unknown; the probe's failures were categorised by bucket, not by operation. If it was
 common, this fix moves real numbers; if it was rare, it removes a trap that would have fired
 eventually. Either way the system should not offer what it cannot run.
+
+---
+
+## 0110 — Two operators could not be mined, and a new test found both
+
+**Context.** Ahmed asked for substantially more tests, *"because u made so many bugs before"*.
+The right target was not module coverage — 61 of 65 modules were already referenced by a test,
+and every serious defect still got through, because each lived **between** modules. So the new
+suites test *relationships*: `tests/test_invariants.py` for cross-module contracts,
+`tests/test_target_properties.py` for properties over seeded random records, and
+`tests/test_mining_gates.py` for each of the five gates in isolation.
+
+They found three defects while being written, which is the argument for them.
+
+**1. `within` was unminable.** It was added to the DSL, the schema, the prompt and the executor
+(0090) — and `llm_mining` carried its **own copy** of the label extractor, which did not know
+that `within`'s first argument names a *series* rather than an element. So every `within` plan
+was rejected as `operand_not_in_evidence`. Four components agreed and a fifth quietly did not,
+and the operator was unusable through the only path that mines it.
+
+This is the same class as 0084, 0089, 0090, 0095 and 0109 — one concept, two implementations —
+in its **function** form rather than its constant form. `_labels_in` is deleted;
+`executor.plan_labels` is the definition. A new test refuses any module that walks a plan's
+arguments collecting strings instead of calling it.
+
+**2. `boolean` could never verify.** It returns Python `True`; ChartQA writes `"Yes"`. The
+answer gate compared the raw value, so a correct `boolean` plan always failed. `roundtrip.
+_as_answer` already knew the mapping — it formats `True` as `"Yes"` — and the gate did not use
+it. The gate now compares booleans the way the corpus writes them.
+
+That is worth more than a bug fix. When a reader mined 40 human questions it asked seven times
+for operations we do not have, and the most common request was *"a Yes/No comparison"* (8.0% of
+human questions, 0090). The DSL **had** an operator whose output domain is Yes/No, in a form
+nothing could ever accept. The request stands — `boolean(x)` is the truthiness of one value,
+not `greater_than(a, b)` — but the gap was one notch smaller than it looked.
+
+**3. `unanswerable` cannot be mined at all**, and this is a real limitation rather than a
+defect. It executes to `None`, and every ChartQA question has a gold answer, so no record can
+ever demonstrate it. It is listed in `_UNMINABLE` with that reason, so the coverage check
+cannot pass by quietly skipping it.
+
+**Decision.** Fix 1 and 2; record 3. Add the general property that would have caught all
+three: **every executable operation must be able to pass all five gates**, with a worked
+example per operation, and a second test asserting that every operation in `EXECUTABLE_OPS`
+either has one or is named unminable with a reason. Adding an operation to the DSL and
+forgetting to make it minable now fails.
+
+**Consequences.** An operation nothing can mine is an operation the model will never be
+taught — which makes it strictly worse than not having it, because it still occupies the
+prompt, the schema and the reader's attention. Two of seventeen were in that state and neither
+was visible from inside any single module.

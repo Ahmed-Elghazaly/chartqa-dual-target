@@ -130,18 +130,6 @@ class VerificationStats:
         return "\n".join(lines)
 
 
-def _labels_in(plan: Any) -> list[str]:
-    out: list[str] = []
-    if not isinstance(plan, dict):
-        return out
-    for arg in plan.get("args") or []:
-        if isinstance(arg, str):
-            out.append(arg)
-        elif isinstance(arg, dict):
-            out.extend(_labels_in(arg))
-    return out
-
-
 def _shape_ok(plan: Any) -> tuple[bool, str]:
     if not isinstance(plan, dict) or not isinstance(plan.get("op"), str):
         return False, BAD_SHAPE
@@ -183,7 +171,7 @@ def verify(plan: Any, *, answer: Any, evidence: Sequence[dict[str, Any]],
                        detail=f"the plan needs {needed} evidence items, over the "
                               f"schema's {MAX_EVIDENCE}")
     known = {i.label for i in items}
-    used = set(_labels_in(plan))
+    used = set(plan_labels(plan))
     missing = sorted(used - known)
     if missing:
         return Verdict(UNKNOWN_LABEL, plan=plan, detail=f"{missing[0]!r} is not in evidence")
@@ -193,7 +181,14 @@ def verify(plan: Any, *, answer: Any, evidence: Sequence[dict[str, Any]],
     except Exception as exc:                       # noqa: BLE001 — any refusal is one gate
         return Verdict(RAISES, plan=plan, detail=f"{type(exc).__name__}: {exc}")
 
-    if isinstance(got, str):
+    # A boolean is written the way the corpus writes it. `boolean` returns Python `True`
+    # and ChartQA writes "Yes", so comparing the raw value made the operator unverifiable —
+    # it could never be mined, and the reader that asked for a Yes/No comparison was asking
+    # for something the DSL already had in an unusable form (`DECISIONS.md` 0110).
+    # `roundtrip._as_answer` already knew this mapping; the gate did not use it.
+    if isinstance(got, bool):
+        agrees = str(answer).strip().lower() == ("yes" if got else "no")
+    elif isinstance(got, str):
         agrees = got.strip().lower() == str(answer).strip().lower()
     else:
         agrees = got is not None and matches_gold(got, answer)
