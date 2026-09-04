@@ -6023,3 +6023,70 @@ which is the point of measuring before building. Also recorded from the same run
 averages **3.04 items** per target and never exceeds 7 on synthetic data, so raising
 `MAX_EVIDENCE` to 12 (0084) buys nothing there and matters only for folds over real ChartQA
 charts, whose median is 10.
+
+---
+
+## 0114 — A quarter of the baseline is a decode bug, not a model limit
+
+**Context.** Looking for hardcaps that were not earning their place, the largest one turned
+out not to be a constant at all. It is the interaction between a token budget and the order
+of the fields in the schema, and it is worth roughly a quarter of the zero-shot evaluation.
+
+### What the 1,920 Phase 5 structured generations actually contain
+
+| | |
+|---|---:|
+| hit the 900-token cap | **26.0%** (500) |
+| of those, parsed | **0** |
+| share of all parse failures caused by truncation | **80.1%** |
+| truncated records that reached `"model_answer"` | **0 of 500** |
+
+Every truncated record scores zero. The reported baseline is 48.70%, and a quarter of the
+set never had a chance to be scored at all.
+
+**The failure has one shape.** A truncated record emits a median of **24** evidence items
+where a complete one emits 2; **72.4%** contain a byte-identical duplicate item against
+2.6% of complete records; **99.0%** of the characters sit inside the evidence array. The
+model falls into a repetition loop enumerating chart elements. Because `model_answer` is
+the *last* field of the schema, behind an unbounded array, a run-on does not cost us the
+grounding — it costs the entire record.
+
+**The prompt already tried to stop this.** `prompts.py` says *"NEVER more than
+{max_evidence} items"*, *"Each label appears at most ONCE"* and *"Do NOT keep listing"*.
+That hardening and the 512→900 raise landed together in `bfd1169` on 2026-08-27; this run
+is from 2026-08-29. The instructions are *in the prompt being measured*. A model in a
+repetition loop is not reading them, and the earlier raise from 512 is evidence on the same
+side: a bigger budget bought longer garbage, not more records.
+
+### The fix, and what it is worth
+
+`eval/decoding.py` closes the array from the outside: once `MAX_EVIDENCE` complete items
+have been emitted, every continuation except one beginning `]` is masked, and the model
+goes on to `"plan"` and `"model_answer"` normally. It adds no field and invents no value —
+it stops an enumeration the prompt already forbids, at the bound the schema already
+declares, which keeps it on the right side of non-negotiable rule 3.
+
+**Counterfactual, measured on the 500 truncated records with the real tokenizer:** 498 of
+them reach 8 evidence items at a median of 304 tokens (max 567), and the tail after the
+array costs a median of 24 tokens (p95 61). So **99.6%** would have had budget to finish —
+**25.9% of the whole evaluation set** moves from a guaranteed zero to a scoreable record.
+
+**What that is *not*.** Scoreable is not correct. How many of those 498 would be right
+cannot be known without running the model; comparable records score 60–81%, and the honest
+statement is a range, not a point.
+
+**Decision.** Land the guard, default it **off**, and expose it as `close_evidence`.
+Turning it on changes what the model may emit, so a run that uses it is not comparable with
+one that does not, and 48.70% was measured without it.
+
+**Consequences.** The one that matters most: the published baseline is depressed by a
+decode artifact that fine-tuning would fix incidentally, because training targets average
+3.04 evidence items and never exceed 7 (0113). **Comparing a fine-tuned model against
+48.70% would credit fine-tuning with repairing a truncation bug.** Before any headline
+gain is reported, the baseline must be re-run with `close_evidence=True` so both arms
+decode under the same rule — or the guard must be off in both. `PLAN.md` 5.x and the
+results table depend on this and are now blocked on that re-run.
+
+**Not done here:** reordering the schema so `model_answer` precedes `evidence`, which would
+make truncation cost only grounding. It is the deeper fix and it changes the target format,
+which needs Ahmed's agreement before any target is regenerated.

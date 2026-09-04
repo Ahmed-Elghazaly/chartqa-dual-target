@@ -148,12 +148,19 @@ def build_messages(question: str, image: Any, mode: str) -> list[dict[str, Any]]
 
 
 def generate_one(loaded: Any, question: str, image: Any, *, mode: str = "structured",
-                 max_new_tokens: int | None = None) -> tuple[str, float, int, bool]:
+                 max_new_tokens: int | None = None,
+                 close_evidence: bool = False) -> tuple[str, float, int, bool]:
     """Greedy generation for one item.
 
     Returns the decoded continuation, its latency, how many tokens it produced, and
     whether it stopped because the budget ran out. That last flag matters: a record
     truncated at the cap is invalid JSON for a reason the prompt cannot fix.
+
+    `close_evidence` adds the decode-time guard from `decoding.py`, which ends the
+    evidence array at `MAX_EVIDENCE` so a repetition loop cannot eat the whole budget
+    before `model_answer` is reached. Off by default: it changes what the model may
+    emit, so a run that uses it is not comparable with one that does not, and the
+    published baseline was measured without it (`DECISIONS.md` 0114).
     """
     import torch
 
@@ -165,12 +172,19 @@ def generate_one(loaded: Any, question: str, image: Any, *, mode: str = "structu
     inputs = {k: v.to(model.device) if hasattr(v, "to") else v for k, v in inputs.items()}
 
     budget = max_new_tokens or mode_spec(mode)[1]
+    extra: dict[str, Any] = {}
+    if close_evidence and mode != "plain":
+        from chartqa_dt.eval.decoding import CloseEvidenceArray
+        from chartqa_dt.prompting.prompts import MAX_EVIDENCE
+        extra["logits_processor"] = [CloseEvidenceArray(
+            processor.tokenizer, prompt_len=inputs["input_ids"].shape[1],
+            max_items=MAX_EVIDENCE)]
     start = time.perf_counter()
     with torch.inference_mode():
         out = model.generate(**inputs, max_new_tokens=budget, do_sample=False,
                              num_beams=1,
                              pad_token_id=processor.tokenizer.pad_token_id
-                             or processor.tokenizer.eos_token_id)
+                             or processor.tokenizer.eos_token_id, **extra)
     elapsed = time.perf_counter() - start
     prompt_len = inputs["input_ids"].shape[1]
     produced = out[0][prompt_len:]
@@ -181,7 +195,8 @@ def generate_one(loaded: Any, question: str, image: Any, *, mode: str = "structu
 def generate_over(loaded: Any, items: Iterable[dict[str, Any]], *,
                   mode: str = "structured", limit: int | None = None,
                   progress_every: int = 25,
-                  max_new_tokens: int | None = None
+                  max_new_tokens: int | None = None,
+                  close_evidence: bool = False
                   ) -> tuple[list[Generation], GenerationReport]:
     """Run a slice. Each item supplies `record_id`, `question` and a PIL `image`."""
     out: list[Generation] = []
@@ -192,7 +207,8 @@ def generate_over(loaded: Any, items: Iterable[dict[str, Any]], *,
         image = item["image"]
         raw, seconds, n_tok, capped = generate_one(loaded, item["question"], image,
                                                    mode=mode,
-                                                   max_new_tokens=max_new_tokens)
+                                                   max_new_tokens=max_new_tokens,
+                                                   close_evidence=close_evidence)
         gen = Generation(record_id=item["record_id"], raw=raw, seconds=seconds,
                          prompt_mode=mode, new_tokens=n_tok, hit_token_cap=capped,
                          image_size=tuple(image.size) if hasattr(image, "size") else None)
