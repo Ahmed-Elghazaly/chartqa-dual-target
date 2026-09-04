@@ -31,6 +31,7 @@ ordering intact, and ordering is what the extrema read.
 
 from __future__ import annotations
 
+import itertools
 import random
 from collections.abc import Sequence
 from typing import Any
@@ -73,11 +74,29 @@ def fingerprint(plan: Any, evidence: Sequence[EvidenceItem], *,
     return tuple(out)
 
 
-def rivals_for(plan: Any, evidence: Sequence[EvidenceItem]) -> list[dict]:
-    """Other readings of the same question, built from the operands the plan already names.
+#: Operations whose meaning depends on WHICH operands were chosen, and in what order.
+PAIRWISE: frozenset[str] = frozenset({"difference", "ratio", "percent_change"})
 
-    Only single-operation rivals: the point is to catch a proposal that is indistinguishable
-    from a *simpler* reading, not to enumerate the space.
+#: How many alternative operand pairs to test. The evidence a plan is verified against is a
+#: whole chart, so enumerating every pair is quadratic and mostly wasted; this samples the
+#: nearest alternatives, which is where a coincidence actually lives.
+MAX_OPERAND_RIVALS = 12
+
+
+def rivals_for(plan: Any, evidence: Sequence[EvidenceItem]) -> list[dict]:
+    """Other readings of the same question, as different operations AND as different operands.
+
+    **Both kinds matter, and only the first was obvious.** `Prompt.md` Idea 8 asks for special
+    attention to the case where *one operation type is unique but multiple concrete programs
+    of that type produce the same answer*, and measurement found it in **22.6%** of the
+    records where the deterministic miner called the operation unique — one of them with 176
+    operand pairs reaching the same number, and one computing a difference between a label and
+    **itself** on a chart where that label repeats.
+
+    `difference("Alpha","Beta")` and `difference("Gamma","Delta")` are different claims about
+    which marks a question is about — but they are also genuinely different *functions*, so a
+    fingerprint separates them and they never appear here. Operand ambiguity is a different
+    question and `coincidences` answers it.
     """
     from chartqa_dt.plans.executor import plan_labels
 
@@ -88,6 +107,7 @@ def rivals_for(plan: Any, evidence: Sequence[EvidenceItem]) -> list[dict]:
             out.extend({"op": "lookup", "args": [label]} for label in named[:4])
         else:
             out.append({"op": op, "args": []})
+
     return [r for r in out if r != plan]
 
 
@@ -110,4 +130,48 @@ def indistinguishable_from(plan: Any, evidence: Sequence[EvidenceItem], *,
             if fingerprint(rival, evidence, trials=trials, seed=seed) == mine]
 
 
-__all__ = ["RIVAL_OPS", "TRIALS", "fingerprint", "indistinguishable_from", "rivals_for"]
+def coincidences(plan: Any, evidence: Sequence[EvidenceItem], answer: Any) -> list[dict]:
+    """Other operand choices of the SAME operation that also reach the gold answer.
+
+    **A different question from `indistinguishable_from`, and both are needed.** That one asks
+    *is this plan a different function from its rivals?* — and `difference("A","B")` genuinely
+    is a different function from `difference("C","D")`, so a fingerprint separates them. This
+    asks the question that actually threatens supervision: *on this chart, does another choice
+    of operands land on the same answer?* If it does, the record cannot say which pair the
+    question meant, and a plan accepted here was accepted by coincidence.
+
+    `Prompt.md` Idea 8 asks for special attention to exactly this, and measurement found it in
+    **22.6%** of the records where the deterministic miner called the operation unique — one
+    with 176 pairs reaching the same number, and one taking a difference between a label and
+    *itself* on a chart where that label repeats (`DECISIONS.md` 0106).
+
+    Only the pairwise operations, because they are the ones where the choice is a claim. An
+    empty list means the evidence determines the operands.
+    """
+    from chartqa_dt.plans.mining import matches_gold
+
+    op = plan.get("op") if isinstance(plan, dict) else None
+    if op not in PAIRWISE:
+        return []
+    named = [a for a in (plan.get("args") or []) if isinstance(a, str)]
+    if len(named) != 2:
+        return []
+
+    out: list[dict] = []
+    for a, b in itertools.permutations(evidence, 2):
+        if len(out) >= MAX_OPERAND_RIVALS:
+            break
+        candidate = {"op": op, "args": [a.label, b.label]}
+        if candidate == plan:
+            continue
+        try:
+            got = execute(candidate, list(evidence))
+        except Exception:                        # noqa: BLE001 — a refusal is not a rival
+            continue
+        if got is not None and matches_gold(got, answer):
+            out.append(candidate)
+    return out
+
+
+__all__ = ["MAX_OPERAND_RIVALS", "PAIRWISE", "RIVAL_OPS", "TRIALS", "coincidences",
+           "fingerprint", "indistinguishable_from", "rivals_for"]

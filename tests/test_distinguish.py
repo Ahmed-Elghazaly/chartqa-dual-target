@@ -171,3 +171,50 @@ def test_argument_order_is_part_of_a_plan_identity():
 def test_an_empty_sample_set_is_not_a_consensus():
     got = _c([])
     assert got.plan is None and got.samples == 0 and got.agreement == 0.0
+
+
+# ------------------------------ operand ambiguity (Prompt.md Idea 8, DECISIONS.md 0106)
+
+
+PAIRS = [EvidenceItem("A", 10.0), EvidenceItem("B", 4.0),
+         EvidenceItem("C", 20.0), EvidenceItem("D", 14.0)]
+
+
+def test_another_operand_pair_reaching_the_answer_is_found():
+    """The brief asks for special attention to this: one operation TYPE is unique, but
+    several concrete programs of that type produce the same answer. A-B is 6 and so is C-D."""
+    from chartqa_dt.plans.distinguish import coincidences
+    got = coincidences({"op": "difference", "args": ["A", "B"]}, PAIRS, "6")
+    assert [r["args"] for r in got] == [["C", "D"]]
+
+
+def test_no_coincidence_when_the_operands_are_determined():
+    from chartqa_dt.plans.distinguish import coincidences
+    ev = [EvidenceItem("A", 10.0), EvidenceItem("B", 4.0), EvidenceItem("C", 99.0)]
+    assert coincidences({"op": "difference", "args": ["A", "B"]}, ev, "6") == []
+
+
+def test_operations_without_an_operand_choice_have_no_coincidence():
+    """`lookup` names one thing and folds name none; only the pairwise operations make a
+    claim about WHICH marks."""
+    from chartqa_dt.plans.distinguish import coincidences
+    assert coincidences({"op": "lookup", "args": ["A"]}, PAIRS, "10") == []
+    assert coincidences({"op": "max", "args": []}, PAIRS, "20") == []
+
+
+def test_it_is_a_different_question_from_being_indistinguishable():
+    """`difference(A,B)` and `difference(C,D)` are genuinely different FUNCTIONS, so a
+    fingerprint separates them -- and they still both reach the answer, which is the
+    problem. Both checks are needed and neither implies the other."""
+    from chartqa_dt.plans.distinguish import coincidences, indistinguishable_from
+    plan = {"op": "difference", "args": ["A", "B"]}
+    assert indistinguishable_from(plan, PAIRS) == []
+    assert coincidences(plan, PAIRS, "6") != []
+
+
+def test_the_verifier_reports_it_without_rejecting():
+    from chartqa_dt.plans import llm_mining
+    v = llm_mining.verify({"op": "difference", "args": ["A", "B"]}, answer="6",
+                          evidence=[{"label": e.label, "value": e.value} for e in PAIRS])
+    assert v.status == llm_mining.OK
+    assert [r["args"] for r in v.coincident_operands] == [["C", "D"]]

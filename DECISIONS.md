@@ -5593,3 +5593,70 @@ The one experiment that cannot run in this environment, stated as the brief requ
   `audit/plans/batch_NNN.txt`, save the replies as `{"0": {"0": <plan>, …}, …}`, then
   `python scripts/mine_plans.py --limit 20000 --score <that file>`. With a console key,
   `--api` does the same through the Message Batches API at half price.
+
+---
+
+## 0106 — The operation was unique; the operands were not
+
+**Context.** Re-reading `Prompt.md` line by line rather than by its section headers found a
+check it asks for by name, under Idea 8, that the audit had not run:
+
+> *"Pay special attention to cases where **one operation TYPE is unique** but **multiple
+> concrete programs of that type** produce the same answer."*
+
+The deterministic miner's uniqueness rule counts **operations** — `mining.py` returns
+`ambiguous` when more than one op reproduces the gold answer. It never asks whether, within
+the single surviving operation, more than one choice of *operands* also reproduces it. Neither
+did the five-gate verifier that replaced it.
+
+**Measured** (`audit/measure_concrete_ambiguity.py`), over 4,000 real ChartQA training rows,
+on the records where the miner called the operation unique and it is pairwise:
+
+| | |
+|---|---:|
+| unique operation, pairwise (`difference`, `ratio`, `percent_change`) | 93 |
+| **more than one operand pair reaches the same answer** | **21 (22.6%)** |
+| worst case | **176 pairs** |
+
+Three of the examples say it better than the number does:
+
+* `difference == '13'` via `('April 2010','April 2010')` — a difference between a label and
+  **itself**, non-zero because that label appears twice on the chart with different values.
+* `difference == '3.84'` via `('2019','2020')` *or* `('2018','2015')` *or* `('2018','2011')` —
+  three entirely different claims about which two marks the question is about.
+* `ratio == '0.6'` via four different pairs, on a question that names none of them.
+
+**This is invisible to every arithmetic gate by construction**, because each coincidence
+reproduces the answer — that is what makes it a coincidence.
+
+**Decision.** `plans.distinguish.coincidences` — other operand choices of the same operation
+that also reach the gold answer — reported on the verdict as `Verdict.coincident_operands`
+and counted in `VerificationStats`.
+
+**It is a different check from 0097's, and a first attempt conflated them.** I extended
+`rivals_for` to generate operand variants and the detector found nothing, which was correct
+and instructive: `indistinguishable_from` compares behaviour under *permuted* evidence, and
+`difference("A","B")` genuinely **is** a different function from `difference("C","D")` — a
+fingerprint separates them properly. The threat is not that they behave alike; it is that
+**both land on the answer on the real data**. That needs the answer, so it is its own
+function. The failed extension is recorded because the distinction is the finding.
+
+| check | asks | needs the answer |
+|---|---|---|
+| `indistinguishable_from` (0097) | is this plan a different *function* from its rivals? | no |
+| `coincidences` (this) | does another *operand choice* reach this answer? | yes |
+
+**Consequences.** Reported, not rejected — the same stance as 0097, and for the same reason:
+what refusing them costs should be priced on real proposals rather than assumed.
+
+It also qualifies a number the audit has leaned on. The deterministic miner's **94% precision**
+was established by hand-checking mined plans, and this measurement says up to 22.6% of its
+pairwise "unique" verdicts had an operand choice it never considered. The 94% is precision on
+*the operation*, not on *the program*. That does not change the decision to retire the miner —
+it was already retired for a different and larger reason — but the figure should not be quoted
+without the qualifier.
+
+**And the lesson is about how this was found.** Ahmed asked me to read the brief rather than
+its headers. The check is a single paragraph in a 1,832-line document, under a heading I had
+marked done. Skimming a specification for its structure finds what it is *about*; only reading
+it finds what it *asks for*.

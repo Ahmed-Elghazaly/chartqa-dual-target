@@ -35,7 +35,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from chartqa_dt.plans.distinguish import indistinguishable_from
+from chartqa_dt.plans.distinguish import coincidences, indistinguishable_from
 from chartqa_dt.plans.executor import (
     MAX_DEPTH,
     OPS,
@@ -75,6 +75,12 @@ class Verdict:
     #: 0080's blind spot, now visible. Recorded on the verdict rather than rejected, so the
     #: cost of refusing them can be measured before anyone decides to (`DECISIONS.md` 0097).
     underdetermined: list[dict] = field(default_factory=list)
+    #: Other operand choices of the SAME operation that also reach the gold answer. A
+    #: different failure from `underdetermined`: the operation is certain and *which marks it
+    #: is about* is not. Measured at 22.6% of the deterministic miner's "unique" verdicts
+    #: (`DECISIONS.md` 0106), and invisible to every arithmetic gate because each coincidence
+    #: reproduces the answer by definition.
+    coincident_operands: list[dict] = field(default_factory=list)
     detail: str = ""
 
     @property
@@ -87,6 +93,8 @@ class VerificationStats:
     counts: dict[str, int] = field(default_factory=dict)
     #: Accepted plans whose record could not distinguish them from another reading.
     underdetermined: int = 0
+    #: Accepted plans where another operand pair reaches the same answer.
+    coincident: int = 0
 
     def note(self, status: str) -> None:
         self.counts[status] = self.counts.get(status, 0) + 1
@@ -115,6 +123,10 @@ class VerificationStats:
             lines.append(f"    {'of the accepted, underdetermined':<46}"
                          f"{self.underdetermined:>5}   <-- passed every gate, but the "
                          f"evidence cannot tell them from another reading")
+        if self.coincident:
+            lines.append(f"    {'of the accepted, operands coincide':<46}"
+                         f"{self.coincident:>5}   <-- another operand pair reaches the "
+                         f"same answer")
         return "\n".join(lines)
 
 
@@ -198,7 +210,8 @@ def verify(plan: Any, *, answer: Any, evidence: Sequence[dict[str, Any]],
                        detail=f"{outside[0]!r} is not a marked region")
 
     return Verdict(OK, plan=plan, executed=got,
-                   underdetermined=indistinguishable_from(plan, items))
+                   underdetermined=indistinguishable_from(plan, items),
+                   coincident_operands=coincidences(plan, items, answer))
 
 
 def plan_key(plan: Any) -> str:
@@ -283,6 +296,8 @@ def verify_many(proposals: Sequence[dict[str, Any]]) -> tuple[list[Verdict], Ver
         stats.note(verdict.status)
         if verdict.underdetermined:
             stats.underdetermined += 1
+        if verdict.coincident_operands:
+            stats.coincident += 1
         out.append(verdict)
     return out, stats
 
