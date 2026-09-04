@@ -97,6 +97,60 @@ def answers_agree(stated: str, got: Any) -> bool:
     return scale == 0.0 or abs(a - b) <= RELAXED_TOLERANCE * scale
 
 
+#: How a scored answer is chosen from a generated record. **This is the project's central
+#: claim, made testable.** `README.md` says *"a small deterministic CPU interpreter re-runs
+#: that program, so the arithmetic never depends on the model doing mental maths"* — but every
+#: evaluation path scores `model_answer`, the model's own string, and the executor is only ever
+#: consulted as a diagnostic (`DECISIONS.md` 0096). 0059 states the weaker and accurate version:
+#: the executor makes the arithmetic *"checkable rather than asserted"*.
+#:
+#: Which policy is better is an empirical question nobody has asked, and it can be answered
+#: from **one** set of generations at no extra cost, because the executed value is already
+#: computed for the round-trip.
+ANSWER_POLICIES: tuple[str, ...] = ("stated", "executed", "executed_or_stated")
+
+
+def _as_answer(value: Any) -> str:
+    """Format an executed value the way an answer is written.
+
+    A whole float loses its `.0`: the official metric reads `"0"` and `"0.0"` as **different**
+    answers because of a truthiness guard it contains (`eval.metrics`, faithful to upstream),
+    so emitting `"245.0"` where the gold says `"245"` would lose marks to formatting rather
+    than to arithmetic.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
+def answer_under(policy: str, record: dict[str, Any]) -> str:
+    """The answer string a scoring policy would submit for one generated record.
+
+    * `stated` — the model's own `model_answer`. **What every path scores today.**
+    * `executed` — the executor's output, and the empty string when the plan does not run.
+      The strict reading of the project's claim: the model transcribes, the CPU computes.
+    * `executed_or_stated` — the executor's output where the plan runs, the stated answer
+      otherwise. The practical reading: never worse than today unless the executor is wrong.
+
+    Nothing here changes what is scored. It makes the three comparable on identical
+    generations, which is the only way to find out whether the interpreter earns its place.
+    """
+    if policy not in ANSWER_POLICIES:
+        raise ValueError(f"unknown answer policy {policy!r}; expected one of {ANSWER_POLICIES}")
+    stated = str(record.get("model_answer", ""))
+    if policy == "stated":
+        return stated
+    trip = check_record(record)
+    executed = _as_answer(trip.executed) if trip.outcome in ("agrees", "disagrees") else ""
+    if policy == "executed":
+        return executed
+    return executed or stated
+
+
 @dataclass
 class RoundTripStats:
     total: int = 0

@@ -3,8 +3,14 @@
 Fine-tune one small vision-language model so that, given a chart image and a question, it
 (a) says whether the question is answerable, (b) draws boxes around the evidence it used,
 (c) emits the required calculation as a **typed program**, and (d) gives an answer — then a
-small deterministic CPU interpreter re-runs that program, so the arithmetic never depends on
-the model doing mental maths.
+small deterministic CPU interpreter re-runs that program against the model's own evidence, so
+the arithmetic is **checkable rather than asserted**.
+
+> The interpreter currently *checks* the answer; it does not replace it. Every evaluation
+> path scores the model's stated answer, and disagreement between the two is reported as a
+> headline number (`DECISIONS.md` 0059). Whether scoring the executed value instead would do
+> better is a real question with a cheap answer — `plans.roundtrip.answer_under` scores all
+> three policies from one set of generations — and it is open (0096).
 
 Measured on **two** official public benchmarks, each against the same untrained model:
 **ChartQA** relaxed accuracy and **RefChartQA** grounding (AP@0.5 and P@F1).

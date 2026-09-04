@@ -154,3 +154,71 @@ def test_the_evidence_cap_does_not_break_verifiable_plans():
     many = [{"label": f"y{i}", "value": 1.0, "bbox": [0, 0, 1, 1]} for i in range(over)]
     assert check_record(record(plan, str(over), many)).outcome == "agrees"
     assert check_record(record(plan, str(over), many[:MAX_EVIDENCE])).outcome == "disagrees"
+
+
+# ------------------------------------------- which answer gets scored (DECISIONS.md 0096)
+
+
+def _generated(stated: str, plan, evidence):
+    return {"answerable": True, "model_answer": stated, "plan": plan,
+            "evidence": [{"label": k, "value": v, "bbox": [0, 0, 1, 1]}
+                         for k, v in evidence]}
+
+
+SUBTRACTION = _generated("46", {"op": "difference", "args": ["2019", "2018"]},
+                         [("2019", 245), ("2018", 198)])
+
+
+def test_the_three_policies_differ_exactly_where_it_matters():
+    """The model says 46; its own plan computes 47. Today's scoring takes the 46."""
+    from chartqa_dt.plans.roundtrip import answer_under
+    assert answer_under("stated", SUBTRACTION) == "46"
+    assert answer_under("executed", SUBTRACTION) == "47"
+    assert answer_under("executed_or_stated", SUBTRACTION) == "47"
+
+
+def test_they_agree_when_the_model_and_its_plan_agree():
+    from chartqa_dt.plans.roundtrip import ANSWER_POLICIES, answer_under
+    ok = _generated("47", {"op": "difference", "args": ["2019", "2018"]},
+                    [("2019", 245), ("2018", 198)])
+    assert {answer_under(p, ok) for p in ANSWER_POLICIES} == {"47"}
+
+
+def test_a_plan_that_cannot_run_falls_back_rather_than_scoring_nothing():
+    """`executed_or_stated` must never be worse than today just because a plan failed."""
+    from chartqa_dt.plans.roundtrip import answer_under
+    broken = _generated("46", {"op": "lookup", "args": ["absent"]}, [("2019", 245)])
+    assert answer_under("executed", broken) == ""
+    assert answer_under("executed_or_stated", broken) == "46"
+
+
+def test_a_record_with_no_plan_falls_back_too():
+    from chartqa_dt.plans.roundtrip import answer_under
+    bare = {"model_answer": "46", "evidence": []}
+    assert answer_under("executed", bare) == ""
+    assert answer_under("executed_or_stated", bare) == "46"
+
+
+def test_a_whole_number_loses_its_trailing_zero():
+    """The official metric reads "0" and "0.0" as DIFFERENT answers, so an executed 245.0
+    written as "245.0" would lose marks to formatting rather than to arithmetic."""
+    from chartqa_dt.plans.roundtrip import answer_under
+    rec = _generated("x", {"op": "lookup", "args": ["a"]}, [("a", 245.0)])
+    assert answer_under("executed", rec) == "245"
+    frac = _generated("x", {"op": "lookup", "args": ["a"]}, [("a", 24.5)])
+    assert answer_under("executed", frac) == "24.5"
+
+
+def test_a_boolean_result_is_written_the_way_chartqa_writes_it():
+    from chartqa_dt.plans.roundtrip import answer_under
+    rec = _generated("x", {"op": "boolean", "args": ["a"]}, [("a", 1)])
+    assert answer_under("executed", rec) == "Yes"
+
+
+def test_an_unknown_policy_raises_rather_than_defaulting():
+    """A typo must not silently score the current behaviour and look like a null result."""
+    import pytest
+
+    from chartqa_dt.plans.roundtrip import answer_under
+    with pytest.raises(ValueError, match="unknown answer policy"):
+        answer_under("excuted", SUBTRACTION)

@@ -31,7 +31,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | 2.4 | 0041 empty-args fold convention | 🔄 | interacted badly with 0067 → 0071 |
 | 2.5 | 0045 mining tolerance | 🔄 | see 0079 — tolerance is not the binding constraint, ambiguity is |
 | 2.6 | 0062 small-probe lesson | ✅ | reconfirmed by 5.3 (round-trip 69% → 58.8% at n=1,920) |
-| 2.7 | 0069 early stopping on loss | ⬜ | |
+| 2.7 | 0069 early stopping on loss | ✅ | *confirmed correct.* AP cannot resolve a stopping signal at affordable slice sizes (±8.7 to ±12.2 pts), the evaluator returns **negative** loss so the maximising stopper is right, and `test_validate.py` already guards the sign |
 
 ## Phase 3 — external research (primary sources)
 
@@ -64,7 +64,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | 11 | Round-trip verification | 🔄 | 0075/0077 showed it cannot catch wrong evidence |
 | 12 | Qwen3-VL preprocessing | ✅ | no change needed — verified correct |
 | 13 | Model output format | ✅ | **audited, no change** (0094). Short keys save 0 tokens/item — Qwen encodes JSON keys as single tokens; a line format saves 32%/item but costs the schema, unambiguous parsing and JSON priors for +2.2% of questions, and we are not sequence-constrained (p99 679 of 1,024) |
-| 14 | Training objective | ⬜ | |
+| 14 | Training objective | ✅ | measured what the loss spends itself on (0096): boxes 35.6%, `model_answer` **3.7%**, and 17.1% on labels/values no metric scores. Found the README claimed the executor replaces the answer when it only checks it; made the three answer policies scoreable from one generation set |
 | 15 | Supervision provenance / confidence | 🔄 | match IoU + margin recorded by 0077; not yet used for weighting |
 
 ## Cross-cutting requirements

@@ -4993,3 +4993,67 @@ now takes the default.
 under its constraint and is recorded as such. The sub-token measurement it produced is what
 made this change decidable a month later, which is the argument for measuring the option you
 reject.
+
+---
+
+## 0096 — The interpreter checks the answer; it does not replace it
+
+**Context.** `Prompt.md` Idea 14 asks whether the training objective is right. Measuring what
+the loss actually spends itself on, over 699 real targets and 97,495 supervised tokens:
+
+| part of the record | tokens | share | what it decides |
+|---|---:|---:|---|
+| boxes | 34,699 | **35.6%** | AP@0.5 and P@F1 — half the metric |
+| values + units | 9,964 | 10.2% | nothing scored directly |
+| plan | 8,571 | 8.8% | whether the executor can re-run it |
+| labels | 6,756 | 6.9% | nothing scored directly |
+| **`model_answer`** | 3,576 | **3.7%** | relaxed accuracy — **the other half** |
+
+The answer carries half the headline metric and 3.7% of the loss. That looked like an
+imbalance to fix, until the obvious question: **which answer is actually scored?**
+
+**The finding.** Every scoring path takes the model's own `model_answer` string.
+`eval/runner.py::score_item` receives `gen.answer`; `cli/evaluate.py` reads `r["prediction"]`
+from a predictions file; nothing anywhere substitutes the executor's output. The executor is
+consulted only for `roundtrip_agreement`, a diagnostic.
+
+So `README.md`'s claim was wrong:
+
+> *"a small deterministic CPU interpreter re-runs that program, so the arithmetic never
+> depends on the model doing mental maths."*
+
+The scored arithmetic **is** the model doing mental maths. 0059 states the accurate version —
+the executor makes the arithmetic *"checkable rather than asserted"* — and the code matches
+0059. The README has been corrected to say what the system does.
+
+**This is not obviously a defect, which is why it needs an experiment rather than a fix.**
+Substituting the executed value is not free: a plan that refuses to run would score nothing
+where the stated answer might have been right, and the executor computes on values the model
+*transcribed*, so errors move from arithmetic to transcription rather than disappearing.
+Zero-shot, 20% of plans did not execute at all and 40% disagreed with the stated answer
+(0059) — and **nothing measured which side was right when they disagreed.**
+
+**Decision.** Make it decidable, do not decide it. `plans.roundtrip.answer_under` scores a
+generated record under three policies:
+
+* **`stated`** — the model's own answer. What every path does today.
+* **`executed`** — the executor's output, empty when the plan does not run. The strict reading
+  of the project's claim: the model transcribes, the CPU computes.
+* **`executed_or_stated`** — executed where the plan runs, stated otherwise. Never worse than
+  today unless the executor is actively wrong.
+
+All three are computed from **one** set of generations at no extra cost, because the executed
+value is already produced for the round-trip. When Phase 5's zero-shot run happens, it reports
+three accuracies instead of one and the question answers itself.
+
+**Consequences.** The project's central mechanism becomes a measured claim rather than an
+asserted one, which is what the audit is for. If `executed_or_stated` wins, that is the
+headline result and it is exactly the thesis; if it loses, the plan is an auxiliary task that
+improves representations rather than a calculator, which is a different and still-publishable
+finding — but it must be *said*, not implied.
+
+The token-share table stands on its own too: **17.1% of the loss goes to labels and values
+that no metric scores.** They are not waste — the executor needs them, and a plan referencing
+a label the model never emitted cannot run — but if the answer policy turns out to be
+`stated`, then a sixth of the objective is spent on a scaffold for a calculator nobody reads.
+That is the sharpest argument for settling the policy before Phase 6 rather than after.
