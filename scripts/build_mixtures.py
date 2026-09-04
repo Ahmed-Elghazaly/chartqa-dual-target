@@ -47,7 +47,7 @@ from chartqa_dt.data.records import (
     make_record_id,
 )
 from chartqa_dt.env import get_env
-from chartqa_dt.plans.mining import mine_plan
+from chartqa_dt.plans.teacher import PROVENANCE_KEY
 from chartqa_dt.splits import sealed_image_hashes
 from chartqa_dt.train.targets import TargetError, build_target
 
@@ -133,7 +133,6 @@ def chartqa_records(reader: ArchiveReader, *, limit: int, seed: int) -> list[Cha
             if not elements:
                 continue      # no gold boxes -> nothing to ground on
 
-            plan = None
             table = None
             tbl_name = table_path("train", row["imgname"])
             if reader.exists(tbl_name):
@@ -141,11 +140,16 @@ def chartqa_records(reader: ArchiveReader, *, limit: int, seed: int) -> list[Cha
                     table = parse_table(reader.read_text(tbl_name))
                 except ValueError:
                     table = None
-            if table is not None:
-                mined = mine_plan([table["columns"], *table["rows"]], row.get("label"))
-                plan = mined.plan     # None unless the uniqueness rule admitted one
 
             question = str(row["query"])
+            # No plan is mined here. Records are built COMPLETE — boxes, labels, values,
+            # series, colour — and plans are attached afterwards from `chartqa_plans.jsonl`,
+            # which a language model produces by reading the finished records
+            # (`DECISIONS.md` 0088). The deterministic miner used to run at this point; it
+            # searched backwards from the gold answer and had to refuse whenever more than
+            # one operation reproduced it, which is 53.9% of rows and is what working
+            # backwards means rather than a defect to patch (0085).
+            plan = None
             out.append(ChartRecord(
                 record_id=make_record_id("chartqa", "train", digest, question),
                 source="chartqa", split="train", image_path=img_name,
@@ -167,6 +171,46 @@ def chartqa_records(reader: ArchiveReader, *, limit: int, seed: int) -> list[Cha
     if dropped:
         print(f"  chartqa: {dropped} rows dropped — a train image identical to a "
               f"held-out chart")
+    return attach_mined_plans(out, cache=chartqa_plans_path())
+
+
+def chartqa_plans_path() -> Path:
+    """Where the reader's verified plans are cached. Never in git — rule 7."""
+    return Path.home() / ".cache/chartqa_dt/data/chartqa_plans.jsonl"
+
+
+def attach_mined_plans(records: list[ChartRecord], *, cache: Path) -> list[ChartRecord]:
+    """Join verified plans onto finished records, by record id.
+
+    **The attachment must happen in the reader, not downstream.** A mixture stores record
+    ids and training rehydrates from these readers, so anything added after this point is
+    discarded before training ever sees it — which is how the dedup merge was silently lost
+    (`AUDIT.md` H2).
+
+    A record with no plan keeps `plan=None` and is refused later by `build_target` with a
+    reason, rather than being given an invented one.
+    """
+    if not cache.exists():
+        return records
+    by_id: dict[str, dict] = {}
+    for line in cache.read_text(encoding="utf-8").splitlines():
+        if line:
+            entry = json.loads(line)
+            if entry.get("plan"):
+                by_id[entry["record_id"]] = entry
+    if not by_id:
+        return records
+    out, attached = [], 0
+    for r in records:
+        entry = by_id.get(r.record_id)
+        if entry is None:
+            out.append(r)
+            continue
+        meta = {**r.meta, PROVENANCE_KEY: entry.get(PROVENANCE_KEY)
+                or entry.get("provenance") or {"method": "unrecorded"}}
+        out.append(replace(r, plan=entry["plan"], meta=meta))
+        attached += 1
+    print(f"  chartqa: {attached:,} of {len(records):,} records carry a mined plan")
     return out
 
 

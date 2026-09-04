@@ -4487,3 +4487,56 @@ matching the words in the questions, and that was a hypothesis until now.
 **The lesson, again.** 0085 found a costly assumption nobody had written down. This is the
 same shape: `annotation_boxes` has always dropped `colors` on the floor, silently, and no
 decision record ever said why — because nobody ever decided it.
+
+---
+
+## 0088 — Build the records first, mine the plans afterwards
+
+**Context.** Ahmed, unambiguously: *"we'll stick to the LLM mining for now for all examples
+and the python mining should be completely put aside now, after getting the final chart record
+examples we'll run the llm on them to get plans."*
+
+He had said this before and I kept building deterministic paths around it — a tie-breaker over
+the miner (0085), then forward construction, then a colour reader. Each was measured and each
+worked, but the instruction was clear and I did not follow it. That is the first thing this
+record exists to say.
+
+The ordering he describes is also **better architecture than what was there**, independently
+of who mines. Plans were being mined *inside* `chartqa_records`, at the moment each record was
+constructed, which fused two unrelated jobs:
+
+* **assembling a record** — image, boxes, labels, values, series, colour, table
+* **deciding what reasoning answers its question**
+
+Fusing them means a record cannot exist without a plan, so improving the miner requires
+rebuilding every record, and a record that fails mining is indistinguishable from a record
+that failed to load. It also meant the miner only ever saw what the record builder happened to
+hand it — never the colours, for instance, which were being dropped one function away (0087).
+
+**Decision.** Two stages, in this order.
+
+1. **`chartqa_records` builds complete records and mines nothing.** `plan` is `None`. Every
+   element carries its label, value, series, box and colour.
+2. **A reader mines plans from finished records**, and `attach_mined_plans` joins them back by
+   record id from `~/.cache/chartqa_dt/data/chartqa_plans.jsonl`.
+
+The attachment happens **in the reader**, not downstream, because a mixture stores record ids
+and training rehydrates from these readers — anything added after this point is discarded
+before training sees it, which is exactly how the dedup merge was silently lost (`AUDIT.md`
+H2). A record with no plan keeps `plan=None` and is refused later by `build_target` with a
+stated reason, rather than being handed an invented one.
+
+**Consequences.** `plans.mining` is no longer imported by the mixture builder and is off the
+supervision path entirely. It is not deleted: it stays as an independent cross-check in
+measurement, where its forced verdicts and 94% precision make it a useful second opinion, and
+deleting work is not this audit's job (`Prompt.md`, repository protection).
+
+Until a plans cache exists, `build_target` refuses ChartQA records for want of a plan. That is
+the intended state, not a regression: the pipeline now says *"no plan yet"* instead of quietly
+supplying a weak one, and the count is visible on every build.
+
+`plans.forward`, `plans.intent` and `plans.resolve` remain in the tree, tested and measured
+(0085, 0086), and are not wired into anything. They cost nothing where they sit and the
+measurements they produced — that pattern matching gets 53.5% of machine questions and 14.8%
+of human ones, and that the split skews supervision 92% machine — are the reason the reader is
+being pointed at human questions first.
