@@ -5166,3 +5166,55 @@ prepares for: chart type (fixed, by selection), operation distribution (13.8x ov
 demonstrate that the *format* can be learned — which it did, and which 0071's defects needed —
 rather than to resemble the target domain. That was the right first goal and it is no longer
 the binding one.
+
+---
+
+## 0099 — Constrained decoding would guarantee valid JSON, and would break two things we need
+
+**Context.** `Prompt.md` Phase 3.7 asks about constrained and structured generation. It is the
+obvious tool for a problem this project measured: schema validity was the binding constraint
+on the zero-shot probe — **35.5% schema-valid** against 94.4% of plans executing (0058, 0064).
+A decoder that masks invalid tokens makes that number 100% by construction.
+
+**What the literature says.** Constrained decoding modifies the token distribution at every
+step so only schema-conformant continuations are reachable. Two findings from the current work
+on it (JSONSchemaBench, arXiv 2501.10868, and the surrounding literature):
+
+1. **It costs accuracy.** On function calling, unconstrained generation with post-hoc parsing
+   reached **93.63%** and constrained decoding on the same model **91.37%**. The always-valid
+   JSON was *less accurate* than the sometimes-broken JSON. The mechanism is that forcing an
+   unusual token path produces a non-canonical tokenisation the model rarely saw in training.
+2. **It removes the model's ability to decline.** *"The schema requires a value; the model
+   provides one, whether or not the input supports it."*
+
+**The second is disqualifying for this project specifically**, in two places:
+
+* **`answerable` and `unanswerable` exist on purpose.** The output schema carries an
+  `answerable` boolean and the DSL has an `unanswerable` operation, because a model that
+  cannot say *"this chart does not contain the answer"* answers anyway. Constrained decoding
+  makes refusal unreachable.
+* **Boxes would be forced.** `evidence` is an array; a decoder held to the schema emits a box
+  whether or not the model has one to give. 0014 measured what a spurious box costs on this
+  metric: **one takes AP from 1.00 to 0.68**. Guaranteed-valid grounding would be guaranteed
+  to hallucinate.
+
+**And the problem it solves may not exist by the time it could be applied.** The 35.5% is a
+**zero-shot** figure, on a model that has never seen the format. 0060 already established the
+other half of this: the 980-token instruction prompt exists to elicit a format from a model
+that has not learned it, and after fine-tuning the format lives in the weights. Adopting
+constrained decoding now would trade measured accuracy for a guarantee against a failure we
+have not yet shown survives training.
+
+**Decision.** Do not use constrained decoding. Keep `parse_record`'s drop-unwrap-never-add
+repair (0064), which is post-hoc, cannot invent content, and counts every repair.
+
+**Revisit if and only if** post-training schema validity is measured and still low. In that
+case the right form is a narrow one — constrain the *structure* (braces, key names, array
+shape) and leave every *value* free — which keeps refusal expressible, since `answerable:
+false` and an empty `evidence` array are both schema-valid. That is a different intervention
+from schema-forcing and should not be conflated with it.
+
+**Consequences.** 3.7 closes with a specific, evidenced "no" rather than an untried idea, and
+with the exact condition under which to reopen it. It is also the second time this audit has
+found that a project rule — *never invent content* — rules out a technique that would
+otherwise look free: the first was repairing an LLM's plan instead of discarding it (0080).
