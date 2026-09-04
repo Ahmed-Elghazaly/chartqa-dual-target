@@ -5660,3 +5660,66 @@ without the qualifier.
 its headers. The check is a single paragraph in a 1,832-line document, under a heading I had
 marked done. Skimming a specification for its structure finds what it is *about*; only reading
 it finds what it *asks for*.
+
+---
+
+## 0107 — Element identity: why the qualified label, and not an opaque id
+
+**Context.** `Prompt.md` Idea 2 poses a design question the audit answered in code without
+ever stating the alternatives. It asks whether elements should carry a stable identity, and
+if so whether it should be *deterministic, chart-local, source-independent, semantic,
+geometry-derived, or some combination* — and notes pointedly that **internal element ids need
+not become model-output ids**. It sketches one shape: opaque `element_id`s, with `evidence`
+holding references into `elements`.
+
+0083 solved label collision by qualifying colliding labels as `"Democratic · 2019"`. That is a
+choice of identity, and it is not the one the brief sketched. It deserves its reasons on the
+record.
+
+**What was chosen.** A **semantic, chart-local, deterministic** identity, carried *in the
+model-facing label itself*:
+
+| property | qualified label | opaque id |
+|---|---|---|
+| deterministic | yes — same chart, same names | yes |
+| chart-local | yes | yes |
+| semantic | **yes** — `"Democratic · 2019"` says what the mark is | no |
+| source-independent | where the annotation carries a series, which is 100% of colliding charts | yes |
+| geometry-derived | no | optionally |
+| **needs a schema change** | **no** — labels were already free strings | **yes** — a new field, and `evidence` becomes references |
+| **model must emit it** | yes, and it is meaningful to emit | yes, and it is meaningless to emit |
+
+**Why the label, and not the id.**
+
+1. **The identity has to reach the model anyway.** A plan says `lookup("Democratic · 2019")`,
+   and the executor resolves that against the evidence the model emitted. An opaque id would
+   have to be emitted too — so the model would be asked to produce `e7` and mean *the
+   Democratic 2019 bar*, learning an arbitrary mapping per chart with no signal in it.
+2. **The qualified label is more informative than the bare one**, which is the opposite of
+   what an opaque id does. On a grouped chart `"2019"` under-specifies and `"Democratic ·
+   2019"` does not; the model is told which series it is pointing at, in words it already
+   understands.
+3. **No schema change.** `OUTPUT_SCHEMA` already allows a 128-character label. Measured over
+   800 colliding charts, **no existing label contains the separator**, so qualifying cannot
+   collide with a real label.
+4. **77.4% of charts are untouched.** Only colliding labels are qualified, so most charts keep
+   exactly the text they draw. An id scheme would rename every element on every chart to
+   solve a problem 22.6% of them have.
+
+**What the brief's shape would buy, and why it was not enough.** References into an `elements`
+list would let evidence be a set of ids rather than repeated objects, which is tidier and
+would let two evidence entries share one element. Neither is a problem we have: evidence
+averages one to two items per target, and the duplication costs nothing measurable. It would
+also allow a geometry-derived id, stable across sources — genuinely useful for the
+RefChartQA↔ChartQA join — but that join is already solved by matching boxes directly at 98.9%
+IoU ≥ 0.9 (0077), which is the same information without the indirection.
+
+**Decision.** Keep the qualified label. Record that `element_id` remains available if a later
+need appears — a chart where series does not disambiguate (5.6% of colliding charts, currently
+refused), or a third source whose labels cannot be reconciled at all.
+
+**Consequences.** Idea 2's design question is answered explicitly rather than settled by
+implementation. The 5.6% that series cannot separate are refused rather than resolved by
+position, and that refusal is the honest cost of not having a geometry-derived id — it is
+recorded here so that if it ever becomes the binding constraint, the alternative is already
+worked out.
