@@ -27,7 +27,8 @@ Nine markdown files at the root is a lot; each answers a different question.
 | if you want to know | read |
 |---|---|
 | **what this project is** and how to run it | this file, then `SETUP.md` |
-| **why any choice was made** — the permanent record, ~90 entries, newest last | `DECISIONS.md` |
+| **how the system works today**, end to end | `ARCHITECTURE.md` |
+| **why any choice was made** — the permanent record, ~100 entries, newest last | `DECISIONS.md` |
 | **what is currently wrong** and how bad, ranked | `AUDIT.md` |
 | **what the audit still has to do** and what is blocked | `AUDIT_PLAN.md` |
 | **where the project stands right now** — measured numbers only | `STATUS.md` |

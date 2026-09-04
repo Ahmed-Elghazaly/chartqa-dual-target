@@ -19,7 +19,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | 1.5 | Trace training serialization → model → parsing → executor | 🔄 | collate/loss path not yet audited |
 | 1.6 | Trace evaluation | 🔄 | metrics audited in walkthrough ch7; runner path not re-verified |
 | 1.7 | Trace synthetic generation end-to-end | ✅ | 0091 — generator, manifest, mixture composition and its fit to the real distribution |
-| 1.8 | Write the concise current-state architecture | ⬜ | |
+| 1.8 | Write the concise current-state architecture | ✅ | `ARCHITECTURE.md` — one pass from chart to scored number, with a closing section on what is not built and what is uncertain |
 
 ## Phase 2 — self-critique of prior decisions
 
