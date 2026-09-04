@@ -212,3 +212,31 @@ def test_empty_evidence_raises_rather_than_returning_zero():
     for op in ("sum", "mean", "median", "min", "max"):
         with pytest.raises(ExecutorError, match="empty set"):
             execute({"op": op, "args": []}, [])
+
+
+def test_the_schema_and_prompt_offer_only_what_the_executor_runs():
+    """`OPS` is the DSL's vocabulary; `EXECUTABLE_OPS` is what actually works.
+
+    They were the same set, so the prompt told the model `rank` was allowed, the schema
+    accepted it, and the executor refused it -- a schema-valid record that could not execute,
+    which the project measures as a model weakness and was its own doing (`DECISIONS.md`
+    0109).
+    """
+    from chartqa_dt.plans.executor import EXECUTABLE_OPS, NEEDS_TABLE, OPS
+    from chartqa_dt.plans.schema import OUTPUT_SCHEMA
+    from chartqa_dt.prompting.prompts import ALLOWED_OPS
+
+    assert EXECUTABLE_OPS == OPS - NEEDS_TABLE
+    assert not set(ALLOWED_OPS) & NEEDS_TABLE, "the prompt offers an operation that raises"
+    enum = set(OUTPUT_SCHEMA["$defs"]["node"]["properties"]["op"]["enum"])
+    assert not enum & NEEDS_TABLE, "the schema admits an operation that raises"
+    assert enum == EXECUTABLE_OPS
+
+
+def test_a_deferred_operation_still_raises_if_it_reaches_the_executor():
+    """Removing them from the schema is not a licence to forget they exist."""
+    from chartqa_dt.plans.executor import NEEDS_TABLE
+    for op in sorted(NEEDS_TABLE):
+        with pytest.raises(ExecutorError, match="requires table context"):
+            to_number(0)
+            execute({"op": op, "args": []}, [EvidenceItem("a", 1.0)])

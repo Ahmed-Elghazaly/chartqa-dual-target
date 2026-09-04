@@ -23,7 +23,7 @@ from __future__ import annotations
 import hashlib
 import json
 
-from chartqa_dt.plans.executor import OPS
+from chartqa_dt.plans.executor import EXECUTABLE_OPS
 from chartqa_dt.plans.schema import OUTPUT_SCHEMA
 
 #: Verbatim from the Qwen3-VL technical report's evaluation-prompt appendix, for
@@ -52,7 +52,7 @@ MAX_UNIT_CHARS = _EVIDENCE["items"]["properties"]["unit"]["maxLength"]
 #: added to the executor and the prompt silently kept offering the old nineteen — the same
 #: drift that `MAX_EVIDENCE` had (`DECISIONS.md` 0084). Sorted so the prompt text is stable
 #: across runs, which its fingerprint depends on.
-ALLOWED_OPS: tuple[str, ...] = tuple(sorted(OPS))
+ALLOWED_OPS: tuple[str, ...] = tuple(sorted(EXECUTABLE_OPS))
 
 # Iterated on validation data only (`PLAN.md` 5.1), from what the first probe measured:
 #

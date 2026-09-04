@@ -5780,3 +5780,45 @@ fixed and the derivation is the most heavily tested function in the repository.
 
 The enumeration is the deliverable. A representation change can now be checked against a list
 of nine consumers and their assumptions, rather than against memory.
+
+---
+
+## 0109 — The prompt offered three operations the executor refuses
+
+**Context.** `Prompt.md` Idea 10 lists, among the things to investigate, *"currently
+schema-valid but non-executable operators."* Reading that line rather than skimming the
+heading found it live in the repository.
+
+`OPS` names twenty operations. Three of them — `filter`, `rank`, `multiple_choice` — are
+declared and **raise** in the executor, marked by `NEEDS_TABLE` and deferred by `PLAN.md`
+Appendix B until they have regression tests. Three things then derived from `OPS`:
+
+| | derived from | consequence |
+|---|---|---|
+| `OUTPUT_SCHEMA`'s `op` enum | `sorted(OPS)` | a record using `rank` is **schema-valid** |
+| `prompting.ALLOWED_OPS` | `tuple(sorted(OPS))` | the prompt **tells the model** `rank` is allowed |
+| the executor | — | refuses it |
+
+So the system instructed the model to use an operation, accepted the result as well-formed,
+and then failed to run it. A generation using one landed in the *"schema-valid but does not
+execute"* bucket — a failure the project measures as a model weakness and was, in these three
+cases, its own doing. It also spends probability mass on operations that can never succeed.
+
+This is the fourth copied-or-derived constant defect (0084, 0089, 0090, 0095), and it has the
+opposite shape to the others: not a value restated in two places, but **one value serving two
+purposes that had diverged** — the DSL's *vocabulary* and the set of things that *work*.
+
+**Decision.** `EXECUTABLE_OPS = OPS - NEEDS_TABLE`. The schema enum and the prompt derive from
+that; `OPS` stays the full vocabulary, so `rank` is still a name the DSL knows and the teacher
+can still ask for it through `needs_operator`.
+
+**Consequences.** A generation using `rank` is now schema-**invalid**, which is caught earlier
+and counted honestly, rather than schema-valid-and-doomed. The three operations remain wanted
+— `rank` and `filter` are two of the seven a reader asked for on real questions (0090) — and
+implementing one now means removing it from `NEEDS_TABLE`, with the schema and prompt following
+automatically.
+
+**Not measured, and worth saying.** How often the zero-shot model actually emitted one of the
+three is unknown; the probe's failures were categorised by bucket, not by operation. If it was
+common, this fix moves real numbers; if it was rare, it removes a trap that would have fired
+eventually. Either way the system should not offer what it cannot run.

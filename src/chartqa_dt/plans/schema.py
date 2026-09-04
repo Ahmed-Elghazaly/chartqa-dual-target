@@ -22,7 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from chartqa_dt.plans.executor import MAX_DEPTH, OPS, plan_depth
+from chartqa_dt.plans.executor import EXECUTABLE_OPS, MAX_DEPTH, plan_depth
 from chartqa_dt.vision.coords import OFFICIAL_MAX_COORD
 
 #: How many evidence items one target may carry. Raised from 8 to 12 in `DECISIONS.md` 0084
@@ -71,7 +71,7 @@ OUTPUT_SCHEMA: dict[str, Any] = {
             "required": ["op"],
             "additionalProperties": False,
             "properties": {
-                "op": {"enum": sorted(OPS)},
+                "op": {"enum": sorted(EXECUTABLE_OPS)},
                 "args": {"type": "array", "maxItems": 4,
                          "items": {"oneOf": [{"$ref": "#/$defs/node"},
                                              {"type": ["string", "number", "boolean", "null"]}]}},

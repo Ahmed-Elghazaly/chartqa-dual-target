@@ -49,6 +49,17 @@ OPS: frozenset[str] = frozenset({
 # Operations Appendix B leaves unimplemented because they need table context.
 NEEDS_TABLE: frozenset[str] = frozenset({"filter", "rank", "multiple_choice"})
 
+#: What the schema admits and the prompt offers: operations that can actually run.
+#:
+#: `OPS` is the DSL's **vocabulary** — every operation the language names, including the three
+#: it declares and does not implement. Offering those to the model is a trap: the prompt said
+#: `rank` was allowed, `OUTPUT_SCHEMA` accepted it, and the executor refused it, so a model
+#: emitting one produced a **schema-valid record that could not execute** — spending
+#: probability mass on an operation that can never succeed and inflating the executor-failure
+#: bucket with our own doing. `Prompt.md` Idea 10 asks for exactly this case by name
+#: ("currently schema-valid but non-executable operators"); `DECISIONS.md` 0109.
+EXECUTABLE_OPS: frozenset[str] = OPS - NEEDS_TABLE
+
 
 class ExecutorError(Exception):
     """Any invalid plan. Never swallowed — every occurrence is counted."""
