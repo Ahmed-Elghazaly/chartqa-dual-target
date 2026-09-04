@@ -5318,3 +5318,55 @@ distributions — with a stated reason, a literature basis, and a measurement to
 against afterwards. The alternative reading, that stage 1 only teaches format, is recorded as
 rejected and why: a stage that teaches format on charts maximally unlike the target is the
 worst case the curriculum literature warns about.
+
+---
+
+## 0102 — Execution-guided decoding, and why our record's field order already is it
+
+**Context.** `Prompt.md` Phase 3.5 asks about program synthesis and execution-guided search or
+decoding. The technique interleaves generation with **partial** program execution: run the
+prefix, feed the intermediate state back, let it guide the rest. Variants re-weight candidates
+by the value of the partial state (SMC), or interpolate distributions from execution signals
+(EG-CFG).
+
+**Most of it does not apply here, for a structural reason.** Our programs are tiny — median
+depth 1 to 2, and 8.8% of a target's tokens (0096). There is almost no *partial* program to
+guide: by the time a prefix exists, the plan is nearly complete. The published gains come from
+long programs where an early wrong step can be caught before the rest is written, and the
+published cost — *"beam search exploration, execution of multiple candidate continuations, and
+dual-distribution interpolation collectively increase inference time"* — is paid per token
+regardless of program length.
+
+**But the coarse-grained form applies exactly, and we are already positioned for it.** The
+output record is ordered `answerable, evidence, plan, model_answer`. **The plan is written
+before the answer.** So at inference a decoder can stop after the plan, execute it against the
+evidence the model has just emitted, and let the executor supply the answer instead of the
+model continuing to write one from memory. That is execution-guided generation at the only
+granularity our programs have, and it needs no beam search, no re-weighting and no second
+model — the executor is deterministic and runs in microseconds.
+
+It is also, precisely, the **`executed` answer policy** from 0096. The literature arrived at
+the same place from the other direction, which is the strongest argument yet that the policy
+question is worth settling rather than assumed: `plans.roundtrip.answer_under` already scores
+it, at no extra generation cost.
+
+**A second, cheaper form: resample on self-disagreement.** At inference there is no gold
+answer, so a plan cannot be checked for *correctness* — only against the model's own stated
+answer, which is the round-trip. When those disagree the model has contradicted itself, and
+resampling is the standard response. It is cheap. Whether it *helps* depends on whether
+disagreement correlates with being wrong, which is unmeasured — and measurable from the same
+generations as 0096's answer-policy comparison, because both need the executed value and the
+stated answer side by side.
+
+**Decision.** Add nothing now. Record that the two applicable forms are (a) the `executed`
+answer policy, already implemented and awaiting Phase 5 data, and (b) resample-on-disagreement,
+which should be decided by the same experiment rather than a separate one. Fine-grained
+execution-guided decoding is recorded as **inapplicable at this program size**, with the
+reason, so it is not revisited without a reason to.
+
+**Consequences.** Phase 3.5 closes. Together with 3.4 (spurious-program filtering, 0097) and
+3.6 (verified self-consistency, 0100) it completes the program-synthesis half of the external
+research, and all three landed on the same conclusion from different directions: **the
+executor is the project's most under-used asset.** It currently checks targets at build time
+and diagnoses generations at eval time, and does not participate in either mining or
+inference, both of which the literature says it should.
