@@ -4599,3 +4599,61 @@ assumption nobody had written down; 0087 found a field nobody had decided to dro
 a fix that was applied to the two call sites that had broken rather than to the rule. **When a
 defect has a root cause, the fix is a test that ranges over every place the cause could
 recur** — not a patch at the place it was noticed.
+
+---
+
+## 0090 — `within`: the operation the questions kept asking for
+
+**Context.** Reading forty human-written ChartQA questions by hand and trying to write a plan
+for each (`scripts/mine_plans.py`, the LLM path working end to end) produced seven requests
+for operations the DSL does not have. One dominated: **six of the forty** needed a fold
+restricted to a single series.
+
+*"Which year has the highest number in hyperscale?"* is an `argmax` over the Hyperscale
+series. `argmax()` folds over the whole chart and returns whichever bar is largest anywhere,
+which on a grouped chart is usually a different series entirely. Same shape in *"the
+difference between the longest light blue bar and the longest dark blue bar"*, *"the highest
+value indicated by the navy blue bar"*, *"which year has the maximum share of respondents"*.
+
+Counted over the corpus: a series-restricted fold appears in **8.6% of human-written questions
+and 0.1% of machine-generated ones** — and human questions are half the test split and half
+the headline metric (0086).
+
+**Decision.** Add `within(series, operation)`.
+
+```json
+{"op": "within", "args": ["Hyperscale", {"op": "argmax", "args": []}]}
+```
+
+Three details carry the design:
+
+1. **The series prefix is stripped inside.** The subset is handed to the nested operation with
+   labels `"2019"`, `"2020"`, `"2021"` rather than `"Hyperscale · 2019"`. The gold answer to
+   *"which year was highest in hyperscale"* is `2021`, so a plan returning the qualified form
+   would fail its own round-trip on every question of this shape. Inside one series the
+   identifying part of a name **is** the bare label.
+2. **The first argument is not an evidence label** and `plan_labels` skips it. Otherwise every
+   `within` plan would be rejected for an operand that is not in the evidence — true, and
+   beside the point.
+3. **It counts as folding over the evidence.** It has to filter the whole list, so the target
+   must carry the whole list — the same rule that stops a bare `argmax()` being handed a
+   truncated chart (0082).
+
+An unknown series raises rather than quietly folding over everything, and so does a chart
+whose labels are not qualified, since `within` is meaningless where there is only one series.
+
+**A drift caught on the way in.** Adding the operation to `OPS` broke
+`test_every_operation_the_prompt_offers_is_one_the_executor_accepts`, because
+`prompting.prompts.ALLOWED_OPS` was a **hand-written copy** of the operator list and kept
+offering the old nineteen. That is the third copy of a constant this audit has found — after
+`MAX_EVIDENCE` (0084) and the two numeric parsers (0082, 0089) — and it is now derived from
+`OPS` like the others. The test that caught it existed already and was written for exactly
+this.
+
+**Consequences.** The mining run does not have to be repeated for this class of question,
+which is why it was worth doing before mining rather than after. Six of the seven requested
+operations remain unbuilt and each is now a measured number rather than an impression:
+a Yes/No comparison (8.0% of human questions), a threshold filter, a count of distinct
+series, a constancy check, `product`, and an argmax over a computed quantity. `filter` and
+`rank` are still declared in `OPS` and unimplemented, which is its own small dishonesty to
+resolve.

@@ -156,8 +156,9 @@ def read_jsonl(path: str) -> list[ChartRecord]:
 
 #: Separator between a series name and a label in a qualified element name. A middle dot
 #: with spaces: measured over 800 colliding ChartQA charts, **no** existing label contains
-#: it, so qualifying cannot collide with a real label.
-SERIES_SEPARATOR = " · "
+#: it, so qualifying cannot collide with a real label. Defined in `plans.executor`, which
+#: has to parse it back out for `within`, and imported here so the two cannot drift.
+from chartqa_dt.plans.executor import SERIES_SEPARATOR  # noqa: E402
 
 #: Cyrillic letters that ChartQA annotations use where Latin is meant. Real, and invisible:
 #: `'Оррose'` (Cyrillic О, р, р) and `'Oppose'` render identically and compare unequal.

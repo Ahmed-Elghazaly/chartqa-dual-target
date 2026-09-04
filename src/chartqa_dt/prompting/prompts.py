@@ -23,6 +23,7 @@ from __future__ import annotations
 import hashlib
 import json
 
+from chartqa_dt.plans.executor import OPS
 from chartqa_dt.plans.schema import OUTPUT_SCHEMA
 
 #: Verbatim from the Qwen3-VL technical report's evaluation-prompt appendix, for
@@ -47,12 +48,11 @@ MAX_UNIT_CHARS = _EVIDENCE["items"]["properties"]["unit"]["maxLength"]
 #: The operations the executor accepts. Listed in the prompt because a model that invents
 #: an operation produces a record the executor must reject, and a rejected record counts
 #: as a failure (non-negotiable rule 3) rather than being silently repaired.
-ALLOWED_OPS = (
-    "lookup", "count", "sum", "mean", "median", "min", "max",
-    "difference", "ratio", "percent_change", "argmax", "argmin",
-    "compare", "rank", "trend", "filter", "boolean", "multiple_choice",
-    "unanswerable",
-)
+#: Derived from `OPS`, not restated. This tuple was a hand-written copy until `within` was
+#: added to the executor and the prompt silently kept offering the old nineteen — the same
+#: drift that `MAX_EVIDENCE` had (`DECISIONS.md` 0084). Sorted so the prompt text is stable
+#: across runs, which its fingerprint depends on.
+ALLOWED_OPS: tuple[str, ...] = tuple(sorted(OPS))
 
 # Iterated on validation data only (`PLAN.md` 5.1), from what the first probe measured:
 #

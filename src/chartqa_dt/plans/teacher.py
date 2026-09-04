@@ -67,6 +67,10 @@ SIGNATURES: dict[str, str] = {
     "trend": "trend() -> 'increasing' | 'decreasing' | 'flat', first item to last",
     "boolean": "boolean(a) -> true if a is non-zero",
     "unanswerable": "unanswerable() -> the chart does not contain the answer",
+    "within": ('within(series, op) -> apply an operation to ONE series only, e.g. '
+               '{"op":"within","args":["Hyperscale",{"op":"argmax","args":[]}]} for '
+               '"which year was highest in hyperscale". Inside it, labels lose the '
+               '"series · " prefix, so argmax returns "2021" not "Hyperscale · 2021"'),
 }
 
 #: Offered to the teacher: implemented operations only. `filter`, `rank` and

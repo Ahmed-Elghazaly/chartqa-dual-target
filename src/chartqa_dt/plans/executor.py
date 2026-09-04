@@ -34,10 +34,16 @@ from typing import Any
 
 MAX_DEPTH = 4
 
+#: Between a series name and a label in a qualified element name — `"Democratic · 2019"`.
+#: Defined here rather than in `data.records`, which formats it, because `within` has to
+#: parse it back out and this module imports nothing from the project.
+SERIES_SEPARATOR = " · "
+
 OPS: frozenset[str] = frozenset({
     "lookup", "filter", "count", "sum", "mean", "median", "difference",
     "ratio", "percent_change", "min", "max", "argmin", "argmax", "rank",
     "compare", "trend", "boolean", "multiple_choice", "unanswerable",
+    "within",
 })
 
 # Operations Appendix B leaves unimplemented because they need table context.
@@ -104,11 +110,19 @@ def parse_numeric(x: Any) -> float | None:
 
 
 def plan_labels(plan: Any) -> list[str]:
-    """Every evidence label a plan refers to, in order, depth-first."""
+    """Every evidence label a plan refers to, in order, depth-first.
+
+    `within`'s first argument names a **series**, not an element, so it is skipped: treating
+    it as a label would have every `within` plan rejected for an operand that is not in the
+    evidence, which is true and beside the point.
+    """
     out: list[str] = []
     if not isinstance(plan, dict):
         return out
-    for arg in plan.get("args") or []:
+    args = list(plan.get("args") or [])
+    if plan.get("op") == "within" and args:
+        args = args[1:]
+    for arg in args:
         if isinstance(arg, str):
             out.append(arg)
         elif isinstance(arg, dict):
@@ -121,7 +135,7 @@ def plan_labels(plan: Any) -> list[str]:
 #: schema's `maxItems: 4`. Its consequence is that such a plan's meaning depends on what is
 #: in the evidence list, which is why evidence selection has to know about it.
 FOLD_OPS = frozenset({"sum", "mean", "median", "min", "max", "count",
-                      "argmin", "argmax", "trend"})
+                      "argmin", "argmax", "trend", "within"})
 
 
 def folds_over_evidence(plan: Any) -> bool:
@@ -255,6 +269,26 @@ def execute(node: Any, evidence: list[EvidenceItem], *, _depth_checked: bool = F
         if len(args) != 1:
             raise ExecutorError("boolean takes exactly 1 argument")
         return bool(resolve(args[0]))
+
+    if op == "within":
+        # *"Which year has the highest number in hyperscale?"* -- an argmax over ONE series,
+        # not over the chart. Measured on 40 human-written questions read by hand, this was
+        # the single most-requested missing operation (6 of 40), and 8.6% of human questions
+        # ask for a fold restricted to a series against 0.1% of machine ones
+        # (`DECISIONS.md` 0090).
+        if len(args) != 2 or not isinstance(args[0], str) or not isinstance(args[1], dict):
+            raise ExecutorError(
+                "within takes a series name and one nested operation, "
+                'as {"op":"within","args":["Hyperscale",{"op":"argmax","args":[]}]}')
+        prefix = f"{args[0]}{SERIES_SEPARATOR}"
+        # The series prefix is STRIPPED from the subset's labels. Inside one series the
+        # identifying part of a name is the bare label, so `argmax` returns "2021" and not
+        # "Hyperscale · 2021" -- which is what the gold answer says.
+        subset = [EvidenceItem(e.label[len(prefix):], e.value, e.unit)
+                  for e in evidence if e.label.startswith(prefix)]
+        if not subset:
+            raise ExecutorError(f"no evidence belongs to the series {args[0]!r}")
+        return execute(args[1], subset, _depth_checked=True)
 
     if op in NEEDS_TABLE:
         raise ExecutorError(
