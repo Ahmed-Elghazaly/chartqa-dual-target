@@ -424,9 +424,24 @@ def stage_chartqa(args) -> dict[str, Any]:
     a, b = report["arms"]["structured"], report["arms"]["plain"]
     report["structured_output_cost_points"] = 100 * (b["relaxed_accuracy"]
                                                      - a["relaxed_accuracy"])
+    # The headline number is not safe to read on its own. On the Phase 5 run, 26.0% of
+    # structured generations hit the token cap and **every one of them failed to parse**
+    # and scored zero (`DECISIONS.md` 0114). That is a decode failure sitting inside a
+    # number people read as the price of asking for structure. Carrying the bound with
+    # the number means nobody has to remember the caveat.
+    capped = a.get("hit_token_cap_fraction") or 0.0
+    report["truncated_fraction"] = capped
+    report["structured_output_cost_bound_points"] = 100 * (
+        b["relaxed_accuracy"] - (a["relaxed_accuracy"] + capped * b["relaxed_accuracy"]))
     (out_dir() / f"chartqa_zeroshot{run_tag(args)}.json").write_text(json.dumps(report, indent=2) + "\n")
     print(f"\nstructured costs {report['structured_output_cost_points']:+.2f} points "
           f"against the plain prompt (the elicitation behind the published figure)")
+    if capped:
+        print(f"  BUT {capped:.1%} of structured generations were truncated at the token "
+              f"cap and scored zero. Had they scored at the plain rate the cost would be "
+              f"{report['structured_output_cost_bound_points']:+.2f} points — the honest "
+              f"reading is a range, and it closes only by re-running with "
+              f"close_evidence=True (DECISIONS.md 0114).")
     print(f"plain arm {100 * b['relaxed_accuracy']:.2f}% on VALIDATION; the published "
           f"79.1 is TEST and is reproduced at Phase 7, not here (DECISIONS.md 0063)")
     return report

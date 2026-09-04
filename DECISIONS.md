@@ -6090,3 +6090,69 @@ results table depend on this and are now blocked on that re-run.
 **Not done here:** reordering the schema so `model_answer` precedes `evidence`, which would
 make truncation cost only grounding. It is the deeper fix and it changes the target format,
 which needs Ahmed's agreement before any target is regenerated.
+
+---
+
+## 0115 — The scaling ladder was not deferred. It was impossible.
+
+**Context.** 0112 found that `REFCHARTQA_CAP` said *"start at the 4,000 single-box cap"*
+and never moved, so the project trained on 7.2% of RefChartQA. That reading was incomplete,
+and the part it missed is the interesting part. Ahmed authorised the disk work — *"download
+what u need, disk space is not problem... also delete duplicate data"* — which made the
+whole thing testable.
+
+**Two caps, the same value, different jobs.** `PLAN.md` 3.4 sets a ladder at 4,000 /
+10,000 / 25,000 rows, measuring validation grounding at each and keeping where the curve
+flattens. Leaving the *mixture* cap at rung 1 is what the plan says to do. But
+`scripts/cache_refchartqa.py` had its own unrelated `--cap`, also 4,000, and the cache held
+**3,996 rows**. Rungs 2 and 3 had no data behind them.
+
+So a month of "the ladder is still to run" was never a scheduling problem. **The ladder
+could not have been run.** Anyone who had sat down to do it would have found rung 2 asking
+for 10,000 rows from a file with 3,996, and the two 4,000s look identical in a grep. This
+is the sharper version of 0112: not a number left at its starting value, but a *supply*
+cap silently enforcing a ceiling on a *demand* cap that was designed to rise.
+
+### What was done
+
+| | before | after |
+|---|---:|---:|
+| duplicate copy in the default HF cache | 2.7 GB | deleted |
+| cached RefChartQA rows | 3,996 | **55,486** (99.5% of 55,789) |
+| aligned records (`<data_root>/refchartqa_aligned.jsonl`) | 3,405 | **48,770** (87.9%) |
+| usable training targets | 2,265 | **31,348** |
+
+The duplicate was safe to remove because `data/download.py` always passes
+`cache_dir=<data_root>/hf`; the copy under `~/.cache/huggingface` was a leftover from a
+call that did not, and nothing reads it.
+
+**The alignment was the second-order casualty and nearly went unnoticed.** It is derived
+from the cache, so it was still sized to the old one — 3,405 records — and without it
+`targets._evidence_from` names boxes `item1, item2, …` with no value and the plan is
+degenerate. Re-running it took it to 48,770. A stale derived artifact is the failure mode
+a cache fill invites, and the only reason it surfaced was a progress line reading
+*"3,447 of 55,486 records enriched"*.
+
+**Yield is flat in scale**, which is what makes the fill worth it: 56.6% / 55.7% / 55.5% /
+56.5% at 4,000 / 10,000 / 25,000 / 55,486. Nothing degrades as the pool grows, so the
+13.8× more supervision is 13.8× more of the same quality. Also measured at full scale:
+**65.5%** of records are single-box, not the 52% measured on the capped sample.
+
+**Decision.** Cache the whole split by default (`--cap` 60,000) and re-run the alignment.
+Leave `REFCHARTQA_CAP` at 4,000: it is rung 1, and only the ladder — which needs GPU
+training runs — may move it. All three rungs now supply their full count, verified.
+
+**Consequences.** The ladder is unblocked and is the next GPU-bound experiment. Two
+invariants now guard the shape of this bug: `test_the_cache_can_supply_every_rung_of_the_ladder_it_is_feeding`
+asserts a supply cap serves the largest demand anyone may ask for — it fails with the exact
+historical message when the old 4,000 is restored — and
+`test_the_mixture_cap_is_a_rung_of_the_ladder_and_not_an_arbitrary_number` stops the demand
+cap drifting off the ladder. The 42 rows dropped as held-out ChartQA charts labelled
+`train` are the sealed-image guard working at scale, in line with the 4-in-4,000 seen
+before.
+
+**Still open, and now worth much more:** `build_grounding_only_target` is written and
+tested but not wired into `build_stage1`. The largest refusal bucket is *"no mined plan,
+and none derivable"* — **16,797 records** at full scale — and that is exactly what a
+grounding-only target rescues. Wiring it would roughly double RefChartQA supervision again.
+It was a small change when the pool was 4,000 rows; it is not any more.

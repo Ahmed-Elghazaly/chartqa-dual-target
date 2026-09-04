@@ -508,3 +508,54 @@ def test_a_constant_that_says_start_at_has_a_ladder_behind_it():
                 offenders.append(f"{path.relative_to(SRC)}:{i + 1}")
     assert not offenders, (
         "these say a value is a starting point without saying what ends it: " + str(offenders))
+
+
+def _ladder_rungs() -> list[int]:
+    """The RefChartQA scaling ladder as `PLAN.md` 3.4 states it."""
+    return [4_000, 10_000, 25_000]
+
+
+def test_the_cache_can_supply_every_rung_of_the_ladder_it_is_feeding():
+    """The bug this catches was invisible for a month, and it was not a deferred task.
+
+    `PLAN.md` 3.4 sets a ladder at 4,000 / 10,000 / 25,000 RefChartQA rows. The *mixture*
+    cap was left at rung 1, which is what the plan says to do. But the **cache** that
+    feeds the mixture had its own, unrelated `--cap`, also 4,000, and it held 3,996 rows.
+    So rungs 2 and 3 had no data behind them: the ladder could not have been run even if
+    someone had tried, and "we will run the ladder later" was never going to happen
+    (`DECISIONS.md` 0115).
+
+    Two caps with the same value and different jobs. The invariant that separates them:
+    **a supply cap must be able to serve the largest demand anyone is allowed to ask
+    for.** Rung caps may sit low; the cache underneath them may not.
+    """
+    import ast
+
+    src = (ROOT / "scripts" / "cache_refchartqa.py").read_text(encoding="utf-8")
+    tree = ast.parse(src)
+    default = None
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call)
+                and getattr(node.func, "attr", "") == "add_argument"
+                and node.args and getattr(node.args[0], "value", "") == "--cap"):
+            for kw in node.keywords:
+                if kw.arg == "default":
+                    default = ast.literal_eval(kw.value)
+    assert default is not None, "cache_refchartqa.py no longer has a --cap default to check"
+    top = max(_ladder_rungs())
+    assert default >= top, (
+        f"the RefChartQA cache defaults to {default:,} rows but the scaling ladder's top "
+        f"rung asks for {top:,}. The rungs above the cache size cannot be run at all — "
+        f"this is exactly the failure in DECISIONS.md 0115, where the cache held 3,996."
+    )
+
+
+def test_the_mixture_cap_is_a_rung_of_the_ladder_and_not_an_arbitrary_number():
+    """`REFCHARTQA_CAP` is allowed to sit at rung 1. It is not allowed to sit *between*
+    rungs, which would mean it was set by something other than the ladder."""
+    from chartqa_dt.data.mixture import REFCHARTQA_CAP
+
+    assert REFCHARTQA_CAP in _ladder_rungs(), (
+        f"REFCHARTQA_CAP = {REFCHARTQA_CAP:,} is not one of the ladder's rungs "
+        f"{_ladder_rungs()}. Either move it to a rung or amend the ladder in PLAN.md 3.4."
+    )

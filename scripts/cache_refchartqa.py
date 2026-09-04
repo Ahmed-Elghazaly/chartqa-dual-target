@@ -1,12 +1,19 @@
 """Stream RefChartQA training rows into a local record cache.
 
 The 3.4 audit passed at 100% (`DECISIONS.md` 0047), so RefChartQA training rows go into
-the mixtures, starting at the plan's 4,000 single-box cap. Streaming rather than
-downloading the full 2.88 GB: the images are written once, at a size the machine can
-hold, and the cache is a JSONL of `ChartRecord`s — ids and hashes, no dataset content
-in the repo (rule 7).
+the mixtures. Streaming rather than downloading the full 2.88 GB: the images are written
+once, at a size the machine can hold, and the cache is a JSONL of `ChartRecord`s — ids
+and hashes, no dataset content in the repo (rule 7).
 
-Resumable. A stream that dies at row 3,000 should not cost the first 3,000.
+**The default caches the whole split, and that is not a detail.** It used to be 4,000,
+matching `PLAN.md` 3.4's *starting* rung, and it silently became the ceiling: the cache
+held 3,996 of 55,789 rows, so the ladder's 10,000 and 25,000 rungs had no data to run on
+and the project trained on 7.2% of the dataset for a month (`DECISIONS.md` 0112, 0115).
+A cap that exists to be raised should not be the thing that stops you raising it.
+
+Resumable, and keyed on `refchartqa_id`, so raising the cap is strictly additive: a run
+that dies at row 3,000 costs nothing, and re-running with a larger cap keeps what is
+already there.
 """
 
 from __future__ import annotations
@@ -24,7 +31,9 @@ from chartqa_dt.splits import sealed_image_hashes
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--cap", type=int, default=4000)
+    #: The whole split is 55,789 rows; 60,000 caches all of it with headroom. See the
+    #: module docstring for why this is not 4,000 any more.
+    ap.add_argument("--cap", type=int, default=60_000)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", type=Path,
                     default=Path.home() / ".cache/chartqa_dt/data/refchartqa_train.jsonl")
