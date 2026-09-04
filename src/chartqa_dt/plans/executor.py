@@ -32,6 +32,10 @@ import statistics
 from dataclasses import dataclass
 from typing import Any
 
+#: How deep a plan may nest. Measured over real targets, the median depth is 1-2 and the
+#: deepest thing anyone has needed is `argmax(difference(a, b))` at 3 -- so 4 is one level of
+#: headroom rather than a guess. It also bounds the executor's recursion, which is why it is
+#: checked once at the top rather than trusted per node.
 MAX_DEPTH = 4
 
 #: Between a series name and a label in a qualified element name — `"Democratic · 2019"`.

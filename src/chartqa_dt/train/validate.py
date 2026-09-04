@@ -36,6 +36,10 @@ from typing import Any
 LOSS_SLICE = 256
 #: Generated examples for the monitoring metrics. Expensive, so it is small and infrequent.
 METRIC_SLICE = 200
+#: How often the generation-based metric runs. Loss is evaluated far more often and is what
+#: early stopping uses (0069); this exists to watch the metric we actually care about drift
+#: against the loss, not to decide anything. Every 1,000 steps is three times in a 3,000-step
+#: run, which is enough to see a divergence and cheap enough not to matter.
 METRIC_EVERY_STEPS = 1000
 
 

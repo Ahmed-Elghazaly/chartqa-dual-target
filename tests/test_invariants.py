@@ -418,3 +418,93 @@ def test_only_one_module_extracts_labels_from_a_plan():
     assert not offenders, (
         "these modules walk a plan's arguments collecting labels instead of calling "
         f"`executor.plan_labels`, which is how `within` became unminable: {offenders}")
+
+
+# ================================================ every number that bounds something says why
+
+
+#: Constants that need no comment: their name is the explanation, or they are fixtures.
+_SELF_EXPLAINING = {
+    "SOURCE_IMAGE_W", "SOURCE_IMAGE_H",   # a smoke-test fixture's image size
+    "DEV_ROWS",                            # the `--dev` subset size, a convenience
+    "HOLDOUT_SEED_START",                  # named by `is_holdout`, which explains it
+    "QWEN3VL_MERGE_SIZE",                  # a property of the model, not a choice
+    "MEMORY_GATE_GB",                      # named by the gate it guards
+}
+
+
+def _numeric_constants():
+    """Every module-level UPPER_CASE assignment to a bare number, with its line."""
+    out = []
+    for path in _modules():
+        text = path.read_text(encoding="utf-8")
+        lines = text.splitlines()
+        tree = ast.parse(text)
+        for node in tree.body:
+            if isinstance(node, ast.Assign) and len(node.targets) == 1 \
+                    and isinstance(node.targets[0], ast.Name):
+                name, value = node.targets[0].id, node.value
+            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                name, value = node.target.id, node.value
+            else:
+                continue
+            if not (name.isupper() and value is not None):
+                continue
+            try:
+                literal = ast.literal_eval(value)
+            except Exception:                       # noqa: BLE001 - not a literal
+                continue
+            if isinstance(literal, bool) or not isinstance(literal, (int, float)):
+                continue
+            above = lines[node.lineno - 2].strip() if node.lineno >= 2 else ""
+            same = lines[node.lineno - 1]
+            documented = above.startswith("#") or "#" in same.split("=", 1)[-1]
+            out.append((str(path.relative_to(SRC)), name, documented))
+    return out
+
+
+def test_every_numeric_limit_carries_its_reason():
+    """A number that bounds something and does not say why is a number nobody can revise.
+
+    Four of this audit's findings were exactly that: a value that was right when written,
+    under a premise that later changed, with nothing recorded to check the premise against.
+    The worst cost 92.8% of RefChartQA — `REFCHARTQA_CAP` said *"start at"* and nobody
+    finished (`DECISIONS.md` 0112).
+
+    A comment is cheap. Write what the number is for and what would change it.
+    """
+    undocumented = sorted(
+        f"{path}:{name}" for path, name, doc in _numeric_constants()
+        if not doc and name not in _SELF_EXPLAINING)
+    assert not undocumented, (
+        "these numeric limits carry no explanation, so nobody can tell whether they are "
+        "still right:\n  " + "\n  ".join(undocumented))
+
+
+def test_a_constant_that_says_start_at_has_a_ladder_behind_it():
+    """`REFCHARTQA_CAP` read *'start at the single-box cap'* for a month while the scaling
+    ladder it was starting toward went unrun, and the project trained on 7.2% of the dataset.
+
+    A constant describing itself as provisional must say what would finish it.
+    """
+    offenders = []
+    for path in _modules():
+        text = path.read_text(encoding="utf-8")
+        for i, line in enumerate(text.splitlines()):
+            if "start at" not in line.lower() or not line.strip().startswith("#"):
+                continue
+            # The constant's OWN comment block: contiguous `#` lines around this one, not a
+            # window. A window let this pass by finding a neighbouring constant's ladder.
+            block, j = [line], i - 1
+            while j >= 0 and text.splitlines()[j].strip().startswith("#"):
+                block.append(text.splitlines()[j])
+                j -= 1
+            j = i + 1
+            while j < len(text.splitlines()) and text.splitlines()[j].strip().startswith("#"):
+                block.append(text.splitlines()[j])
+                j += 1
+            joined = "\n".join(block).lower()
+            if not any(w in joined for w in ("ladder", "until", "ends it", "what finishes")):
+                offenders.append(f"{path.relative_to(SRC)}:{i + 1}")
+    assert not offenders, (
+        "these say a value is a starting point without saying what ends it: " + str(offenders))

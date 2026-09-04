@@ -45,7 +45,19 @@ from chartqa_dt.splits import assert_no_held_out_images
 #: raised, because more supervision is gated on mining and whether more data helps at all is
 #: what the deferred scaling ladder exists to answer (0092).
 STAGE1_CAP = 12_000
+#: The same number as stage 1, and for the same reason: two stages of 12,000 at effective
+#: batch 8 is 3,000 optimizer steps, which is the compute budget (see `STAGE1_CAP`). It is
+#: not independently motivated -- if the ladder raises one, it should raise both, or the two
+#: stages stop being comparable on compute.
 STAGE2_CAP = 12_000
+#: How much synthetic data is replayed into stage 2, to stop the model forgetting the output
+#: format while it learns the task. 2,000 of a 12,000 mixture is one sixth.
+#:
+#: **This ratio is not measured.** It is the one number in this file with no evidence behind
+#: it -- a plausible replay fraction taken from common practice rather than from an
+#: experiment on this model. If format validity collapses in stage 2 it is too low; if
+#: stage-2 accuracy lags the control it may be too high. Both are visible in the Phase 6
+#: numbers, and neither has been looked at yet.
 SYNTHETIC_REPLAY = 2_000
 TRAIN_ONLY = "train"
 
@@ -56,7 +68,19 @@ TRAIN_ONLY = "train"
 #: drift — loudly, but on the GPU, an hour into a run. `DECISIONS.md` 0072 raised the
 #: ChartQA draw to the whole split because only 10.5% of it yields a training target.
 CHARTQA_DRAW = 30_000        # per question kind; the split has 7,398 human + 20,901 machine
-REFCHARTQA_CAP = 4_000       # `PLAN.md` 3.4: start at the single-box cap
+#: How many RefChartQA rows a mixture may draw. **This is a starting point and `PLAN.md` 3.4
+#: says what ends it**: a scaling ladder at 4,000 / 10,000 / 25,000 rows, measuring validation
+#: grounding at each and keeping the point where the curve flattens.
+#:
+#: It stayed at the start for a month while the ladder went unrun, and meanwhile the *cache*
+#: — a separate `--cap` on `scripts/cache_refchartqa.py`, also 4,000 — held 3,996 of the
+#: split's 55,789 rows, so the project trained on **7.2%** of the dataset (`DECISIONS.md`
+#: 0112). The cache is being filled; this number moves only when the ladder says where to.
+#:
+#: 4,000 was also chosen when only *single-box* records were usable, which was 52% of
+#: RefChartQA. `build_grounding_only_target` raised that to 98.5% (0104), so the same number
+#: now discards a much larger share of a much larger pool.
+REFCHARTQA_CAP = 4_000
 
 #: Chart families the generator draws that **ChartQA does not contain**. Measured over 3,000
 #: real train charts: bar 83.6%, line 12.8%, pie 3.6%, and area and scatter exactly 0.0%

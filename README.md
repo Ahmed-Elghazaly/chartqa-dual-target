@@ -6,6 +6,10 @@ Fine-tune one small vision-language model so that, given a chart image and a que
 small deterministic CPU interpreter re-runs that program against the model's own evidence, so
 the arithmetic is **checkable rather than asserted**.
 
+> **`answerable` is `true` in every training target** — ChartQA questions always have
+> an answer, so the field is a constant there and the capability is carried for schema
+> stability rather than trained (`DECISIONS.md` 0113).
+>
 > The interpreter currently *checks* the answer; it does not replace it. Every evaluation
 > path scores the model's stated answer, and disagreement between the two is reported as a
 > headline number (`DECISIONS.md` 0059). Whether scoring the executed value instead would do

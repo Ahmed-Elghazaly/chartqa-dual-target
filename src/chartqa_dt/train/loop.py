@@ -37,6 +37,9 @@ STAGE_LR = {"stage1": 1e-4, "stage2": 5e-5}
 #: The Phase 6 fallback: "if Stage 2 destabilises, reduce learning rate to 2e-5 before
 #: touching anything else."
 STAGE2_FALLBACK_LR = 2e-5
+#: Gradient-norm clipping. 1.0 is the standard value for transformer fine-tuning and is not a
+#: tuned choice; the measured gradient-norm medians on this model were 13.3 and 14.1 with zero
+#: dead or non-finite steps, so clipping is active and the run is stable under it.
 GRAD_CLIP = 1.0
 
 

@@ -42,6 +42,11 @@ from chartqa_dt.eval.metrics import (
 )
 
 DEFAULT_SEEDS: tuple[int, ...] = (0, 1, 2)
+#: Bootstrap resamples for the AP interval. Far fewer than the 10,000 `bootstrap_ci` uses for
+#: per-item metrics, and deliberately: AP cannot be bootstrapped from per-item scores because
+#: it depends on the ranking across the whole set, so each resample recomputes AP over every
+#: prediction. 400 keeps a full evaluation to seconds at the cost of a slightly coarser
+#: interval, which is the right trade for a number reported to two decimals.
 AP_RESAMPLES = 400
 
 

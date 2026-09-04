@@ -44,6 +44,10 @@ DECODING = {"do_sample": False, "temperature": None, "top_p": None, "top_k": Non
 #: The prompt now discourages that, and the extra headroom costs nothing for a typical
 #: record because generation stops at the closing brace.
 MAX_NEW_TOKENS_STRUCTURED = 900
+#: The plain baseline answers with a word or a number and nothing else. **Measured** over all
+#: 30,799 ChartQA gold answers with the real tokenizer: p50 is 4 tokens, p99 is 9, and the
+#: longest is **31**. Nothing is truncated at 32, which matters because a truncated baseline
+#: would inflate every improvement we report against it.
 MAX_NEW_TOKENS_PLAIN = 32
 #: A fine-tuned model emits the compact record the target uses — 141 tokens for the
 #: worked example, 399 for one at the schema maximum (`verification/measured_facts.json`,

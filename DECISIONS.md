@@ -5962,3 +5962,64 @@ default argument. It is also the fourth time an audit finding has been *"a value
 when written, under a premise that later changed"* — after 0091's synthetic purpose, 0092's
 compute cap and 0095's resolution. A constant with a comment saying **"start at"** is a
 constant nobody has finished with.
+
+---
+
+## 0113 — Two ideas tested against the data: one wrong, one revealing a claim we cannot make
+
+**Context.** Ahmed asked for creative alternatives, not only for audits of what exists. Two
+were worth measuring. One is wrong, which is the more useful outcome of the two.
+
+### Coordinate precision — the idea, and why it fails
+
+**The idea.** Boxes are 35.6% of the training loss (0096), emitted as three-digit numbers in
+0–999. But at 512px with a factor of 32 there are only ~16 visual tokens across an image, so
+we appear to demand 0.1% precision from a representation that cannot carry it. Emitting two
+digits instead would cut box tokens by a quarter and rebalance the objective toward the plan
+and the answer.
+
+**Measured** on 20,010 real annotation boxes, quantising each coordinate and scoring the
+result against the original:
+
+| bins | digits | median IoU | p1 IoU | boxes falling below IoU 0.5 |
+|---:|---:|---:|---:|---:|
+| 1000 *(current)* | 3 | 0.983 | 0.815 | **28** |
+| 250 | 3 | 0.935 | 0.435 | 247 |
+| **100** | **2** | 0.846 | **0.000** | **843 (4.2%)** |
+| 50 | 2 | 0.719 | 0.000 | 3,247 |
+
+**The idea is wrong, and the direction of the error is the finding.** Quantising to 100 bins
+destroys 4.2% of boxes outright — and even at the *current* precision, 28 boxes lose IoU 0.5 to
+rounding alone. ChartQA elements are thin bars: 1% of image width is wider than the mark.
+
+It also explains something the audit had measured but not connected. 41.3% of targets are
+smaller than one visual token even at native resolution (0095), and this is the same fact from
+the other side — **the boxes we must predict are small enough that a tenth of a percent
+matters.** Coordinate precision is not excess; it is the minimum, and it is an argument for
+native resolution rather than against it.
+
+### `answerable` is `true` in every target
+
+**Measured** over 1,998 built targets: `answerable` is `true` **100%** of the time. The model
+will learn it as a constant and always emit it.
+
+`README.md` lists as the system's first feature that it *"says whether the question is
+answerable"*. It is not trained to. `unanswerable` is also unminable — it executes to `None`
+and every ChartQA question has a gold answer (0110) — so the capability is absent from both
+halves of the record.
+
+**And adding it would probably cost accuracy.** ChartQA's gold answers always exist, so a model
+that ever answers `false` is wrong on the benchmark by construction. Synthesising unanswerable
+examples — which the generator could do easily, by asking about a category the chart does not
+contain — would teach a refusal the test set punishes.
+
+**Decision.** Do not add unanswerable supervision. State the limitation instead: the field is
+carried for schema stability and for a future benchmark that contains unanswerable questions
+(`ChartQAPro` does, 0103), and on ChartQA it is a constant. `README.md` should not claim a
+capability the training set has no examples of.
+
+**Consequences.** Two ideas, both settled cheaply against real data, and neither adopted —
+which is the point of measuring before building. Also recorded from the same run: evidence
+averages **3.04 items** per target and never exceeds 7 on synthetic data, so raising
+`MAX_EVIDENCE` to 12 (0084) buys nothing there and matters only for folds over real ChartQA
+charts, whose median is 10.

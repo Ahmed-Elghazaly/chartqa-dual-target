@@ -30,6 +30,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
+#: PyTorch's own sentinel for "do not compute a loss at this position" -- the default
+#: `ignore_index` of `nn.CrossEntropyLoss`. Not a choice, and changing it would silently
+#: supervise the prompt.
 IGNORE_INDEX = -100
 #: Masked out of the loss: they are inputs, not things to predict.
 NON_TARGET_TOKENS = ("<|image_pad|>", "<|vision_start|>", "<|vision_end|>")
