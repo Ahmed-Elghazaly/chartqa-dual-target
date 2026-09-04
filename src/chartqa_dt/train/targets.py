@@ -53,6 +53,22 @@ class TargetError(ValueError):
     """A record could not be turned into a valid training target."""
 
 
+class NoPlanAvailable(TargetError):
+    """The record has gold boxes and a gold answer, and no plan — nothing is *wrong*.
+
+    Separated from the other refusals because it is the only one that says "this record
+    is incomplete" rather than "this record is inconsistent". A plan that fails to
+    reproduce its answer, or points at a label with no box, is evidence that something is
+    wrong and the record should go. A missing plan is evidence of nothing.
+
+    Stage 1 is grounding only (`PLAN.md` 6.1), so it can still use such a record —
+    `build_grounding_only_target` emits the boxes and the answer and omits the plan. The
+    distinction has to be in the *type* rather than the message, or the feed would be
+    matching on prose that any later edit could change.
+    """
+
+
+
 def _table_values(record: ChartRecord) -> dict[Any, Any]:
     """Label to value, from the gold table — the source the mined plan was verified on.
 
@@ -196,6 +212,18 @@ def _evidence_from(record: ChartRecord) -> list[dict[str, Any]]:
     table_values = _table_values(record)
 
     def entry(label: Any, value: Any, unit: Any, box: Any) -> dict[str, Any]:
+        # Every box in a plan target passes through here, which is why the check lives
+        # here. `ChartRecord.from_dict` does not validate `boxes` — it takes whatever the
+        # cache holds — so a malformed one used to reach `tuple(box)` and raise
+        # `TypeError`. The feed catches `TargetError`, not `TypeError`, so that killed the
+        # run rather than costing one record. `build_grounding_only_target` already
+        # refused these; now both paths refuse them the same way (`DECISIONS.md` 0116).
+        if not (isinstance(box, (list, tuple)) and len(box) == 4
+                and all(isinstance(v, (int, float)) and not isinstance(v, bool)
+                        for v in box)):
+            raise TargetError(
+                f"{record.record_id}: evidence {str(label)!r} has no usable box "
+                f"({box!r}). Four numbers are required; a target cannot point at this.")
         return {"label": str(label), "value": value, "unit": unit,
                 "bbox": clamp_for_official_evaluator(tuple(box))}
 
@@ -295,7 +323,7 @@ def build_record(record: ChartRecord) -> dict[str, Any]:
                 evidence[0]["value"] = answer_value
             plan = {"op": "lookup", "args": [evidence[0]["label"]]}
         else:
-            raise TargetError(
+            raise NoPlanAvailable(
                 f"{record.record_id}: no mined plan, and one cannot be derived — "
                 f"{len(evidence)} evidence item(s), answer {record.answer!r}. Supplying "
                 f"one would train a plan that does not execute.")
@@ -405,6 +433,6 @@ def build_grounding_only_target(record: ChartRecord, *, verify: bool = True) -> 
     return text
 
 
-__all__ = ["COMPACT", "TargetError", "build_answer_only_target",
+__all__ = ["COMPACT", "NoPlanAvailable", "TargetError", "build_answer_only_target",
            "build_grounding_only_target", "build_record",
            "build_target"]

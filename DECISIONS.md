@@ -6156,3 +6156,63 @@ tested but not wired into `build_stage1`. The largest refusal bucket is *"no min
 and none derivable"* — **16,797 records** at full scale — and that is exactly what a
 grounding-only target rescues. Wiring it would roughly double RefChartQA supervision again.
 It was a small change when the pool was 4,000 rows; it is not any more.
+
+---
+
+## 0116 — Stage 1 keeps the records it was refusing for a plan it does not use
+
+**Context.** 0115 left the largest refusal bucket open: *"no mined plan, and none
+derivable"*, **16,796 records** at full scale. `build_grounding_only_target` was written,
+documented and tested for exactly this and was never wired into the feed, because when the
+pool was 4,000 rows it was worth a few hundred examples. After the cache fill it is worth
+more than the entire stage-1 cap.
+
+**The argument for taking them.** `PLAN.md` 6.1 makes stage 1 **grounding only** — it
+teaches the model where to point before it teaches it to reason. Refusing a record that has
+gold boxes and a gold answer, for want of a plan that the stage does not yet use, throws
+away precisely the supervision the stage exists for.
+
+**The argument against, and how it is answered.** A fallback that catches *every* refusal
+would turn "this plan is wrong" into "train on it anyway with the plan removed", which is
+repair wearing a different hat and is what non-negotiable rule 6 forbids. The distinction
+that makes this safe is **incomplete vs inconsistent**:
+
+* a plan that does not reproduce its answer, or points at a label with no box, is evidence
+  that something is *wrong* — the record goes, as before;
+* a *missing* plan is evidence of nothing.
+
+So only the second is recoverable, and it is now its own exception type,
+`NoPlanAvailable(TargetError)`. A type rather than a message, because a feed matching on
+prose is a feed that silently stops matching the next time someone edits the wording.
+
+### Measured over all 55,486 cached RefChartQA records
+
+| | records | share |
+|---|---:|---:|
+| plan target builds | 31,339 | 56.5% |
+| no plan available → grounding-only target builds | **16,789** | **30.3%** |
+| no plan available, boxes unusable → still dropped | 7 | 0.0% |
+| refused for some other reason → still dropped | 7,351 | 13.2% |
+
+**Stage-1 usable supervision goes from 56.5% to 86.7% — 31,339 to 48,128 records, +53.6%
+relative.** Stage 2 and the control are untouched: stage 2 trains the plan, so a target
+with the plan removed would be supervision with the answer taken out, and the control must
+train on the same records as the arm it controls for.
+
+**Decision.** Enable it for stage 1 only, as `grounding_only_fallback=(stage == "stage1")`,
+and count recoveries separately in `FeedStats` — a stage-1 run that is mostly box-only is a
+different run from one that is mostly plans, and that has to be visible without
+re-deriving it.
+
+**Consequences.** A found bug, on the way. `ChartRecord.from_dict` does not validate
+`boxes`; it takes whatever the cache holds. A malformed box reached `tuple(box)` and raised
+**`TypeError`** — and the feed catches `TargetError`, not `TypeError`, so a single bad row
+in a cache file would kill a training run rather than cost one record. It was invisible
+because `build_grounding_only_target` already validated its boxes and `build_target` did
+not. Both now refuse the same way. This is the inverse of the four defects in `feed.py`'s
+own docstring: not a failure quietly caught and counted, but one loudly uncaught in the
+worst possible place.
+
+`STAGE1_CAP = 12_000` now binds much harder — 48,128 eligible records for 12,000 places —
+so which records fill stage 1 is a real question where it used to be nearly moot. That is
+a mixture-composition decision and is **not** made here.

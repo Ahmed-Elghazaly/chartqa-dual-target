@@ -19,7 +19,13 @@ from typing import Any
 
 from chartqa_dt.data.records import ChartRecord
 from chartqa_dt.train.collate import Example
-from chartqa_dt.train.targets import TargetError, build_answer_only_target, build_target
+from chartqa_dt.train.targets import (
+    NoPlanAvailable,
+    TargetError,
+    build_answer_only_target,
+    build_grounding_only_target,
+    build_target,
+)
 
 
 @dataclass
@@ -28,6 +34,11 @@ class FeedStats:
 
     offered: int = 0
     usable: int = 0
+    #: Records that had no plan and were kept as grounding-only targets. Counted rather
+    #: than folded into `usable` alone, because a stage-1 run whose supervision is mostly
+    #: box-only is a different run from one whose supervision is mostly plans, and the
+    #: difference should be visible without re-deriving it.
+    recovered_grounding_only: int = 0
     refused: dict[str, int] = field(default_factory=dict)
 
     def note_refusal(self, error: Exception) -> None:
@@ -65,12 +76,18 @@ class MixtureFeed:
     """An ordered, resumable stream of training examples over a list of records."""
 
     def __init__(self, records: Sequence[ChartRecord], *, shuffle: bool, seed: int = 0,
-                 answer_only: bool = False, image_root: Path | None = None,
+                 answer_only: bool = False, grounding_only_fallback: bool = False,
+                 image_root: Path | None = None,
                  archive: Any = None) -> None:
         self.records = list(records)
         self.shuffle = shuffle
         self.seed = seed
         self.answer_only = answer_only
+        #: Keep a record that has gold boxes and no plan, as a grounding-only target.
+        #: Stage 1 only: `PLAN.md` 6.1 makes that stage grounding-only, so a record with
+        #: boxes is exactly what it wants and the missing plan is not yet used. Stage 2
+        #: trains the plan, so there it would be supervision with the answer removed.
+        self.grounding_only_fallback = grounding_only_fallback
         self.image_root = Path(image_root) if image_root else None
         #: An `ArchiveReader`, for the ChartQA images that live inside the zip rather than
         #: on disk. Without it every ChartQA record is refused with `No such file or
@@ -129,9 +146,24 @@ class MixtureFeed:
             f"{'' if self.archive is not None else ' (no archive was supplied)'}")
 
     def _example(self, record: ChartRecord) -> Example | None:
+        recovered = False
         try:
             target = (build_answer_only_target(record) if self.answer_only
                       else build_target(record))
+        except NoPlanAvailable as exc:
+            # The one refusal that means "incomplete" rather than "inconsistent". Only
+            # stage 1 may take it, and only through the narrow door: if the boxes
+            # themselves are unusable, `build_grounding_only_target` refuses in turn and
+            # the record is dropped exactly as before.
+            if not self.grounding_only_fallback or self.answer_only:
+                self.stats.note_refusal(exc)
+                return None
+            try:
+                target = build_grounding_only_target(record)
+            except TargetError as inner:
+                self.stats.note_refusal(inner)
+                return None
+            recovered = True
         except TargetError as exc:
             self.stats.note_refusal(exc)
             return None
@@ -141,6 +173,7 @@ class MixtureFeed:
             self.stats.note_refusal(exc)
             return None
         self.stats.usable += 1
+        self.stats.recovered_grounding_only += recovered
         return Example(image=image, question=record.question, target=target)
 
     def check_refusal_rate(self) -> None:

@@ -83,6 +83,9 @@ def _run_stage(ctx) -> None:
     # ordering — only the target differs.
     feed = MixtureFeed(records, shuffle=(stage != "stage1"), seed=ctx.cfg.seed,
                        answer_only=(stage == "control"),
+                       # 6.1 again: stage 1 is grounding only, so a record with gold boxes
+                       # and no plan is usable there and nowhere else (`DECISIONS.md` 0116).
+                       grounding_only_fallback=(stage == "stage1"),
                        image_root=Path(ctx.env.data_root),
                        archive=_chartqa_archive())
 
