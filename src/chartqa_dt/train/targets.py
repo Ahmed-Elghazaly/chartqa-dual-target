@@ -349,5 +349,62 @@ def build_answer_only_target(record: ChartRecord) -> str:
     return str(record.answer)
 
 
-__all__ = ["COMPACT", "TargetError", "build_answer_only_target", "build_record",
+def build_grounding_only_target(record: ChartRecord, *, verify: bool = True) -> str:
+    """Boxes and the answer, for a record whose plan we do not have.
+
+    **What this recovers.** `build_record` requires a plan and refuses without one, so a
+    record with gold grounding and no derivable plan is dropped from every mixture. Measured
+    over the RefChartQA cache: **31.2% of records have boxes and no plan**, projecting to
+    about **17,381** across the full train split — more than the entire stage-1 cap.
+
+    That is a strange thing to discard, because `PLAN.md` 6.1 makes **stage 1 grounding
+    only**: it teaches the model where to point *before* teaching it to reason. Refusing a
+    record with gold boxes for want of a plan that stage does not yet use throws away exactly
+    the supervision that stage exists for.
+
+    **What is emitted, and what is not.** These records carry gold boxes *and* a gold answer;
+    only the plan is missing. So both are supervised and the plan is **omitted** — not filled
+    with `unanswerable`, which would be false, and not derived, which `PLAN.md` 3.6 forbids.
+    The result is a strict subset of the full record's fields, so stage 1 teaches a prefix
+    that stage 2 completes rather than a different format it must unlearn.
+
+    It is deliberately **not** schema-valid: `OUTPUT_SCHEMA` requires a plan, and it should,
+    because a *generation* without one is incomplete. This is a training target for one stage,
+    the same exception `build_answer_only_target` already takes for the control arm.
+    """
+    if record.answer is None:
+        raise TargetError(f"{record.record_id} has no answer; nothing to supervise")
+    evidence = _evidence_from(record)
+    if not evidence:
+        raise TargetError(f"{record.record_id} has no evidence boxes")
+
+    text = json.dumps({"answerable": True, "evidence": evidence,
+                       "model_answer": str(record.answer)},
+                      separators=COMPACT, ensure_ascii=False)
+    if verify:
+        # NOT `parse_record`: it requires a `plan`, correctly, because a *generation*
+        # without one is incomplete. This is a stage-1 training target, so the checks are
+        # the ones that still apply — it is valid JSON, and every box it claims is usable.
+        try:
+            back = json.loads(text)
+        except json.JSONDecodeError as exc:                       # pragma: no cover
+            raise TargetError(f"{record.record_id}: own target is not JSON — {exc}") from exc
+        items = back.get("evidence") or []
+        if not items:
+            raise TargetError(f"{record.record_id}: emitted no evidence")
+        for entry in items:
+            box = entry.get("bbox")
+            if not (isinstance(box, list) and len(box) == 4
+                    and all(isinstance(v, (int, float)) for v in box)
+                    and box[2] > box[0] and box[3] > box[1]):
+                raise TargetError(
+                    f"{record.record_id}: evidence entry {entry.get('label')!r} has no "
+                    f"usable box ({box!r}). A grounding-only target is nothing BUT its "
+                    f"boxes, so an unusable one makes the record worthless rather than "
+                    f"merely incomplete.")
+    return text
+
+
+__all__ = ["COMPACT", "TargetError", "build_answer_only_target",
+           "build_grounding_only_target", "build_record",
            "build_target"]

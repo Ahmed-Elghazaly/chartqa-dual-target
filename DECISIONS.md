@@ -5420,3 +5420,56 @@ requiring simple data extraction or basic arithmetic"* from *"a few online sourc
 not our target — the project is committed to ChartQA and RefChartQA, and the published numbers
 we can compare against are on those — but it is the honest answer to *"is this benchmark
 still current"*, and a limitation to state rather than discover in review.
+
+---
+
+## 0104 — Recovering the grounding supervision that was refused for want of a plan
+
+**Context.** `Prompt.md` Idea 6 asks whether the target builder is right. `build_record`
+requires a plan and refuses without one, so a record with **gold boxes and no derivable plan**
+is dropped from every mixture. `audit/measure_grounding_only_supply.py` measured what that
+costs: **31.2% of RefChartQA records** have boxes and no plan, projecting to roughly 17,000
+across the train split.
+
+**It is a strange thing to discard, because `PLAN.md` 6.1 makes stage 1 grounding only.** That
+stage teaches the model *where to point*, before teaching it to reason. Refusing a record with
+gold boxes for want of a plan the stage does not yet use throws away exactly the supervision
+the stage exists for.
+
+**Decision.** `build_grounding_only_target` — the boxes and the answer, and no plan.
+
+These records carry gold boxes **and** a gold answer; only the plan is missing. So both are
+supervised, and the plan is **omitted**: not filled with `unanswerable`, which would be false,
+and not derived, which `PLAN.md` 3.6 forbids. What is emitted is a strict subset of the full
+record's fields, so stage 1 teaches a **prefix that stage 2 completes** rather than a format it
+must later unlearn.
+
+It is deliberately **not** schema-valid. `OUTPUT_SCHEMA` requires a plan and should, because a
+*generation* without one is incomplete — the tests assert that it fails `parse_record`. This is
+a training target for one stage, the same exception `build_answer_only_target` already takes
+for the control arm.
+
+**Evidence**, over the 3,996-record RefChartQA cache:
+
+| | before | after |
+|---|---:|---:|
+| full target — boxes, plan and answer | 2,263 (56.6%) | 2,263 |
+| **grounding-only, recovered** | — | **1,673 (41.9%)** |
+| neither | 1,733 | **60 (1.5%)** |
+| **supervisable** | **56.6%** | **98.5%** |
+
+Projected across the full 55,789-row train split: **+23,357 records of real grounding
+supervision** — nearly double the entire stage-1 cap of 12,000.
+
+**Consequences.** Stage 1 can be built from real charts rather than synthetic ones, which
+matters more than the count alone: synthetic charts never exceed 7 marks against a real median
+of 10 (0098), so the substitution fixes a distribution gap at the same time as it fills the
+budget. That does not make 0101's regeneration unnecessary — stage 1 still needs synthetic for
+the operations real data cannot supervise — but it changes the mix from *mostly synthetic* to
+*mostly real*.
+
+Two things are deliberately left: the builder exists and is tested, and **no mixture uses it
+yet**. Wiring it into `build_stage1` changes what stage 1 trains on, which is a decision to
+take with the operation-mix and density work (0091, 0101) rather than three separate edits.
+A guard against the obvious failure is already in: a degenerate box is refused rather than
+emitted, because a grounding-only target is nothing *but* its boxes.

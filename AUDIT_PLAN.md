@@ -56,7 +56,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | 3 | Connect RefChartQA grounding to ChartQA elements | ✅ implemented | 0077 — 98.9% at IoU≥0.9; 85.2% aligned |
 | 4 | Reconsider ChartQA ↔ RefChartQA merging | 🔄 | H2 found fusion is discarded; dedup vs fusion now separated in practice |
 | 5 | Evidence should have one clear meaning | ✅ | **it does not** (0098): `meta[elements]` holds *the operands* on synthetic records and *the whole chart* on ChartQA ones (median 1–4 vs 11), and `record.table` has two shapes. Targets agree only because `_evidence_from` prunes |
-| 6 | Target builder | 🔄 | 0075 added the value/box gate; grounding-only targets still open |
+| 6 | Target builder | ✅ | 0075 value/box gate, 0082/0083/0089 fixes, and **grounding-only targets** (0104): RefChartQA goes from 56.6% to **98.5% supervisable**, +23,357 real grounding records projected. Builder written and tested; not yet wired into a mixture |
 | 7 | Plan mining — deterministic vs LLM-assisted | ✅ | **settled: LLM only** (0085, 0086, 0088). Backwards search must refuse 53.9%; pattern matching gets 53.5% of machine questions and 14.8% of human ones, which would skew supervision 92% machine against a 50/50 test split |
 | 8 | Improve deterministic mining | ✅ | *not pursued, deliberately* — deterministic mining is off the supervision path (0088). `plans/mining.py` stays as an independent cross-check only |
 | 9 | Synthetic data | ✅ | **designed for a job it no longer has** (0091). 25% of the corpus is chart types ChartQA does not contain; `difference` is 13.8x over-weighted and `lookup` 2.6x under. Fix by reweighting at mixture time, not regenerating |
@@ -71,9 +71,9 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 
 | item | status |
 |---|---|
-| Manual semantic audit set | 🔄 partly superseded — RefChartQA grounding gives 3,405 records with gold operand identity (0078) |
+| Manual semantic audit set | ✅ superseded — RefChartQA grounding gives 3,405 records with gold operand identity (0078), and 100 records were hand-judged across two seeded samples (0081, 0086) |
 | Data quality > quantity | ✅ applied — every change so far reduced yield and raised correctness |
-| Prioritised findings with the 15-point record | 🔄 `AUDIT.md` |
+| Prioritised findings with the 15-point record | ✅ `AUDIT.md` — 24 findings (C1–C5, H1–H10, M1–M4, G1–G5) plus the seven recurring patterns under them |
 | Empirical validation of each change | ✅ before/after measured for 0075–0079 |
 | Tests for each change | ✅ 1,006 → passing |
 | Documentation matches reality | 🔄 |
@@ -86,7 +86,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | Q2 | Is the operation set expressive enough? | ✅ | **for machine questions yes, for human questions no.** 93.3% of a random corpus sample is expressible (0081), but that sample is dominated by templated questions; reading 40 human ones by hand produced 7 operator requests (0090) |
 | Q3 | Is the deterministic miner complete? | ✅ | wrong question. It is 94% precise and its recall is bounded by *direction*, not by search: several operations reproduce any given answer and it cannot choose (0085) |
 | Q4 | Can we ever be sure a plan is unambiguous? | ✅ | **the question dissolves.** Fidelity to the question is the property we want, not uniqueness — a plan can be right even when another operation reaches the same number (0085) |
-| Q5 | Are ChartQA and RefChartQA the same questions? | 🔄 measuring |
+| Q5 | Are ChartQA and RefChartQA the same questions? | ✅ | **86.9% share an image, 42.1% share a question.** Related, not duplicates — which is why dedup and fusion are separate concerns (H2) |
 | Q6 | Would a strong LLM find a correct plan for ~all examples? | ✅ | **no.** Measured twice by acting as the teacher: 21/21 accepted on RefChartQA-aligned records but only 52% proposed; on 40 human ChartQA questions, 9 verified plans, 22 refusals, 7 operator requests. The limit is the DSL and the data, not the reader |
 
 ## Blocked

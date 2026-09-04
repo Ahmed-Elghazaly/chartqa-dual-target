@@ -311,3 +311,83 @@ def test_an_ungrouped_chart_keeps_its_labels_exactly():
                       image_sha256="d", question="q?", answer="154.3", question_kind="human",
                       plan={"op": "lookup", "args": ["Nigeria"]}, meta={ELEMENTS_KEY: els})
     assert [e["label"] for e in _evidence_from(rec)] == ["Nigeria"]
+
+
+# ------------------------------------------- grounding-only targets (DECISIONS.md 0104)
+
+
+def _grounded(**kw):
+    from chartqa_dt.data.records import ELEMENTS_KEY, ChartRecord
+    els = [{"label": "2019", "value": 245, "unit": None, "bbox": [412, 180, 486, 742]},
+           {"label": "2018", "value": 198, "unit": None, "bbox": [330, 240, 404, 742]}]
+    d = {"record_id": "g", "source": "refchartqa", "split": "train",
+         "image_path": "i.png", "image_sha256": "d", "question": "q?", "answer": "47",
+         "question_kind": "human", "boxes": [e["bbox"] for e in els],
+         "meta": {ELEMENTS_KEY: els}}
+    d.update(kw)
+    return ChartRecord(**d)
+
+
+def test_it_supervises_the_boxes_and_the_answer_we_actually_have():
+    """31.2% of RefChartQA records carry gold boxes and no derivable plan, and stage 1 is
+    grounding-only by design -- refusing them discards exactly what that stage is for."""
+    import json
+
+    from chartqa_dt.train.targets import build_grounding_only_target
+    got = json.loads(build_grounding_only_target(_grounded()))
+    assert got["answerable"] is True
+    assert [e["label"] for e in got["evidence"]] == ["2019", "2018"]
+    assert got["model_answer"] == "47"
+
+
+def test_the_plan_is_omitted_not_invented():
+    """Filling it with `unanswerable` would be false and deriving one is forbidden."""
+    import json
+
+    from chartqa_dt.train.targets import build_grounding_only_target
+    got = json.loads(build_grounding_only_target(_grounded()))
+    assert "plan" not in got
+
+
+def test_it_is_a_strict_subset_of_the_full_record():
+    """So stage 1 teaches a prefix stage 2 completes, rather than a format to unlearn."""
+    import json
+
+    from chartqa_dt.train.targets import build_grounding_only_target
+    got = json.loads(build_grounding_only_target(_grounded()))
+    full = {"answerable", "evidence", "plan", "model_answer"}
+    assert set(got) < full
+
+
+def test_it_refuses_a_record_with_no_answer():
+    from chartqa_dt.train.targets import TargetError, build_grounding_only_target
+    with pytest.raises(TargetError, match="no answer"):
+        build_grounding_only_target(_grounded(answer=None))
+
+
+def test_it_refuses_a_record_with_no_boxes():
+    from chartqa_dt.train.targets import TargetError, build_grounding_only_target
+    with pytest.raises(TargetError, match="no evidence boxes"):
+        build_grounding_only_target(_grounded(meta={}, boxes=None))
+
+
+def test_an_unusable_box_is_refused_rather_than_emitted():
+    """A grounding-only target is nothing BUT its boxes, so a degenerate one makes the
+    record worthless rather than merely incomplete."""
+    from chartqa_dt.data.records import ELEMENTS_KEY
+    from chartqa_dt.train.targets import TargetError, build_grounding_only_target
+    flat = [{"label": "a", "value": 1, "unit": None, "bbox": [10, 10, 10, 50]}]
+    with pytest.raises(TargetError, match="no usable box"):
+        build_grounding_only_target(_grounded(meta={ELEMENTS_KEY: flat},
+                                              boxes=[flat[0]["bbox"]]))
+
+
+def test_it_is_deliberately_not_schema_valid():
+    """`OUTPUT_SCHEMA` requires a plan and should: a GENERATION without one is incomplete.
+    This is a training target for one stage, the exception `build_answer_only_target`
+    already takes."""
+    from chartqa_dt.prompting.parsing import parse_record
+    from chartqa_dt.train.targets import build_grounding_only_target
+    parsed = parse_record(build_grounding_only_target(_grounded()))
+    assert not parsed.ok
+    assert "plan" in parsed.reason
