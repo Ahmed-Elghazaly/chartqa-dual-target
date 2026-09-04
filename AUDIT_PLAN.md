@@ -63,7 +63,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | 10 | DSL + executor | 🔄 | `within` added on measured demand (0090). Six requested operations remain, each now a number: Yes/No comparison 8.0% of human questions, threshold filter, count-of-series, constancy, `product`, argmax-over-computed |
 | 11 | Round-trip verification | 🔄 | 0075/0077 showed it cannot catch wrong evidence |
 | 12 | Qwen3-VL preprocessing | ✅ | no change needed — verified correct |
-| 13 | Model output format | ⬜ | |
+| 13 | Model output format | ✅ | **audited, no change** (0094). Short keys save 0 tokens/item — Qwen encodes JSON keys as single tokens; a line format saves 32%/item but costs the schema, unambiguous parsing and JSON priors for +2.2% of questions, and we are not sequence-constrained (p99 679 of 1,024) |
 | 14 | Training objective | ⬜ | |
 | 15 | Supervision provenance / confidence | 🔄 | match IoU + margin recorded by 0077; not yet used for weighting |
 

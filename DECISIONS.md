@@ -4858,3 +4858,68 @@ size-matched baseline named.
 0052 asked *"does 32.83 reproduce?"*, got no, and stopped. It did not ask *"then what is this
 file?"* — and the answer was two exact matches away. **A failed check is a measurement; the
 number it produced still means something.**
+
+---
+
+## 0094 — The output format, audited and kept
+
+**Context.** Ahmed left this open explicitly at the start of the audit: *"Format is open —
+audit it properly."* The model emits a JSON record — `answerable`, `evidence` with label,
+value, unit and box, `plan`, `model_answer` — and nothing had ever compared it to an
+alternative. `Prompt.md` Idea 13.
+
+**A real alternative exists.** RefChartQA's own baselines use a different template
+(arXiv 2503.23131):
+
+    (<box> x_min;y_min;x_max;y_max </box>)n | <grounding-sep> | answer
+
+**It cannot express a plan**, which is the project's entire claim, so it is not a candidate —
+but it is the right thing to price against, because it is what the published numbers were
+produced with.
+
+**Measured** with the real Qwen3-VL tokenizer, two evidence items and a `difference` plan:
+
+| format | tokens | carries |
+|---|---:|---|
+| ours — JSON record | **108** | answerable, boxes, values, units, **plan**, answer |
+| ours with single-letter keys | 105 | same |
+| line-based, same content | **67** | same |
+| RefChartQA baseline template | 56 | boxes + answer only — **no plan, no values** |
+
+And per evidence item, which is what actually scales:
+
+| | per item | items fitting the 641-token target budget |
+|---|---:|---:|
+| JSON | **47** | 13 |
+| line-based | **32** | 19 |
+
+**Three findings decide it.**
+
+1. **Short keys are worthless here — 0 tokens per item.** Abbreviating `"label"` to `"l"`
+   saved 3 tokens across a whole 12-item record. Qwen's tokenizer already encodes common JSON
+   key strings as single tokens, so the verbose names are **free** and the compact form would
+   trade readability for nothing. This was worth measuring precisely because it is the obvious
+   first idea and it is wrong.
+2. **Omitting a null `unit` saves a mean of 2.0 tokens per real target.** Measured over 599
+   built targets: 16.6% of evidence items carry `unit: null`, and removing the key entirely
+   changes almost nothing. Not worth a schema change.
+3. **The line format's 32% is real and is not needed.** It would raise the practical evidence
+   cap from 13 items to 19, worth roughly **+2.2% of all questions** by 0084's table. Against
+   that: the JSON Schema stops being a validation tool, parsing stops being unambiguous, the
+   model's pretrained JSON priors stop applying, and every test touching the format changes.
+   The project validates *every* target and *every* generation against that schema, and
+   `parse_record`'s repair logic is built on it.
+
+**Decision.** Keep the JSON record unchanged.
+
+The deciding fact is that **we are not sequence-constrained**: p99 of real built targets is
+679 tokens against a 1,024 limit, with 345 to spare (0084). A format saving buys nothing while
+that holds. If `max_seq_len` were ever the binding constraint — a much larger evidence cap, or
+a longer prompt — the line format is the change to make, and this record is the measurement to
+revisit rather than repeat.
+
+**Consequences.** Idea 13 closes as *audited, no change*, on the same footing as G1
+(preprocessing). One thing carries forward: because the baseline template cannot express a
+plan, our grounding numbers are comparable to Table 2's but our *plan* has no published
+counterpart on this benchmark. That is a claim about novelty and it should be stated as such
+in the write-up, not implied.
