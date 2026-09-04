@@ -27,7 +27,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 |---|---|---|---|
 | 2.1 | Re-examine 0001–0079 against what we now know | 🔄 | 0067 amended by 0075; 0045 challenged by 0079 |
 | 2.2 | 0014 "emit few boxes" | ✅ | confirmed useful in a place it was not designed for: 90.3% of questions never touch `MAX_EVIDENCE` because evidence is selected by what the plan names (0084) | |
-| 2.3 | 0037 resolution choice (512 vs 448) | ⬜ | |
+| 2.3 | 0037/0060 resolution choice | ✅ | **superseded: native** (0095). 0060 rejected native only because 17.72 h broke a 10 h session; that gate is gone. Buys 11.9 points of sub-token targets (53.2% → 41.3%), and the sequence still fits at p99 864 of 1,024 |
 | 2.4 | 0041 empty-args fold convention | 🔄 | interacted badly with 0067 → 0071 |
 | 2.5 | 0045 mining tolerance | 🔄 | see 0079 — tolerance is not the binding constraint, ambiguity is |
 | 2.6 | 0062 small-probe lesson | ✅ | reconfirmed by 5.3 (round-trip 69% → 58.8% at n=1,920) |

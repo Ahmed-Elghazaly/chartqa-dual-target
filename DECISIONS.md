@@ -4923,3 +4923,73 @@ revisit rather than repeat.
 plan, our grounding numbers are comparable to Table 2's but our *plan* has no published
 counterpart on this benchmark. That is a claim about novelty and it should be stated as such
 in the write-up, not implied.
+
+---
+
+## 0095 — Native resolution, now that the gate that blocked it is gone
+
+**Context.** 0037 measured 448 against 512 and chose 512. 0060 measured 512 against native
+and kept 512, for one reason, stated plainly:
+
+> *"The sub-token benefit native offers (53.2% → 41.3% of targets unresolvable) is real and is
+> exactly what `IDEA.md` §5.2 predicts, but it cannot be bought within the compute budget."*
+
+| | visual tokens | 3,000 steps | peak GB | targets under one visual token |
+|---|---:|---:|---:|---:|
+| 448 px | 176 | 7.56 h | 5.29 | 65.0% |
+| 512 px | 247 | **9.92 h** | 5.57 | 53.2% |
+| native | 425 | **17.72 h** | 6.72 | **41.3%** |
+
+Native was 77% over a 10-hour Kaggle session. Nothing about the model, the data or the metric
+argued against it.
+
+**The constraint is gone.** Ahmed: *"we have like 90hr per week on kaggle bec we have 3
+accounts"*, and `train/checkpoint.py` resumes across sessions with `assert_resume_matched`
+verifying a resumed run against an uninterrupted one (0026, 0092). He also said which way to
+trade: *"I mostly care for model performance and accuracy not compute hrs."*
+
+**What it buys, and why it is not a marginal gain.** A target smaller than one visual token is
+one the model **physically cannot localise** — the information is averaged into a 32×32 patch
+before attention ever sees it. That is a hard bound on grounding AP, which is half the
+headline metric. Going native moves **11.9 points** of targets out of that bucket.
+
+**Supporting evidence from the primary source** (0093, Table 2 of arXiv 2503.23131), where
+resolution is a reported column:
+
+| model | params | resolution | RefChartQA-H AP@0.5 |
+|---|---|---|---:|
+| ChartGemma | 2B | 448 | 19.95 |
+| Qwen-VL-Chat | 9.6B | 448 | 27.51 |
+| **TinyChart** | **3B** | **768** | **27.81** |
+
+A 3B model at 768 matches a 9.6B model at 448. Six points across six different architectures
+is suggestive rather than conclusive, and it points the same way as our own measurement.
+
+**Verified before changing anything: the sequence still fits.** Measured over 799 real built
+targets — p50 114 tokens, p99 301, max 312 — with a p99 prompt of 108:
+
+| resolution | visual + prompt + target p99 + template | vs `max_seq_len` 1024 |
+|---|---:|---:|
+| 512 px | 686 | +338 |
+| **native** | **864** | **+160** |
+| native, worst-case target | 875 | +149 |
+
+No `max_seq_len` increase follows, so the cost is the step time and nothing else. Those
+targets are synthetic; ChartQA labels are longer, and 160 tokens of headroom is comfortable
+but is re-checked once real ChartQA plans are mined.
+
+**Decision.** `image_max_pixels = None` — native. Cost: 17.72 h against 9.92 h for 3,000
+steps, affordable in a 90-hour week and resumable across sessions. One config value, trivially
+reverted if a run shows a problem.
+
+**A copied constant found while making the change.** `cli/train.py` said
+`ModelConfig(image_max_pixels=512 * 512)`, restating the default at the call site — so
+changing `config.py` alone would have left training silently at the old resolution and the
+run would have looked fine. That is the **fourth** copied constant this audit has found, after
+`MAX_EVIDENCE` (0084), the two numeric parsers (0082, 0089) and `ALLOWED_OPS` (0090). The CLI
+now takes the default.
+
+**Consequences.** 0060's resolution decision is superseded, not overturned: it was correct
+under its constraint and is recorded as such. The sub-token measurement it produced is what
+made this change decidable a month later, which is the argument for measuring the option you
+reject.

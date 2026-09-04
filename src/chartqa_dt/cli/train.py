@@ -98,7 +98,11 @@ def _run_stage(ctx) -> None:
           f"= {cfg.batch_size * cfg.grad_accum}  max_len {cfg.max_len}  "
           f"steps {cfg.steps}")
 
-    model_cfg = ModelConfig(image_max_pixels=512 * 512)
+    # Take the budget from ModelConfig rather than restating it. This line said
+    # `image_max_pixels=512 * 512`, so changing the default in one place would have left
+    # training silently at the old resolution — the fourth copied constant this audit has
+    # found, after MAX_EVIDENCE, the numeric parsers and ALLOWED_OPS.
+    model_cfg = ModelConfig()
     loaded = get_backend(args.backend[0] if args.backend else "hf_peft").load(model_cfg)
     print(loaded.describe())
 

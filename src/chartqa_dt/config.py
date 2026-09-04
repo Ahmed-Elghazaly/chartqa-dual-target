@@ -52,10 +52,20 @@ class ModelConfig:
 
     max_seq_len: int = 1024
     # Image budget. `image_max_pixels` maps to the processor's
-    # size.longest_edge; None means "leave the model's own default alone".
+    # size.longest_edge; None means "leave the model's own default alone" —
+    # i.e. the model's NATIVE resolution.
     # NOTE (decision 0008): the visual-token factor is derived from the loaded
     # processor (patch_size * merge_size), never hard-coded.
-    image_max_pixels: int | None = 512 * 512
+    #
+    # **Native, not 512** since `DECISIONS.md` 0095. 0060 rejected native purely because
+    # 17.72 h for 3,000 steps was 77% over a 10 h Kaggle session; that gate is gone — three
+    # accounts give ~90 h a week and `train/checkpoint.py` resumes across sessions with the
+    # resume verified against an uninterrupted run (0026, 0092). What it buys was already
+    # measured and is large: targets too small for a single visual token fall from **53.2%
+    # to 41.3%**, and a target the model cannot resolve is a bound on grounding AP, which is
+    # half the metric. Real targets still fit — p99 864 tokens of `max_seq_len` 1,024 at 425
+    # visual tokens, worst case 875 — so no sequence increase follows.
+    image_max_pixels: int | None = None
     image_min_pixels: int | None = None
     gradient_checkpointing: bool = True
 
