@@ -168,3 +168,151 @@ Honest list, because a current-state document that reads as finished is a lie.
   settles it from data it will produce anyway (0096).
 * **`meta[elements]` still means two things**: the operands on a synthetic record, the whole
   chart on a ChartQA one (0098).
+
+---
+
+## 7. Subsystem by subsystem
+
+`Prompt.md`'s SOURCE OF TRUTH section asks each major subsystem to be stated as *original
+intention → current implementation → observed behaviour → limitations → new evidence →
+revised conclusion*. Ten subsystems, in the order data moves through them.
+
+### Data adapters — ChartQA, RefChartQA, synthetic
+
+* **Intention** — three sources behind one `ChartRecord`, so everything downstream is
+  source-agnostic.
+* **Implementation** — `chartqa_records`, `refchartqa_records`, `synthetic_records` in
+  `scripts/build_mixtures.py`.
+* **Observed** — the abstraction leaks. `record.boxes` meant three different things by source
+  (C2), and `meta[elements]` still means the *operands* on a synthetic record and the *whole
+  chart* on a ChartQA one (M3). `record.table` has two shapes.
+* **Limitations** — a consumer reading these fields generically gets different semantics per
+  source, silently.
+* **New evidence** — targets agree only because `_evidence_from` prunes ChartQA's elements to
+  the plan's labels, which hid the divergence for months.
+* **Revised** — `boxes` fixed at the point of use (0076); the `elements` divergence is
+  measured and recorded, not yet unified. Unifying it changes synthetic records and belongs
+  with the L3–L4 regeneration.
+
+### Deduplication and cross-source fusion
+
+* **Intention** — one function to find and merge duplicates across sources.
+* **Implementation** — `data/dedup.py`, called before the stage cap.
+* **Observed** — the merge produced fused records that **nothing downstream ever read**,
+  because a mixture stores ids and training rehydrates from the readers (H2).
+* **Limitations** — dedup and fusion were the same function, so a silent loss in one looked
+  like normal behaviour in the other.
+* **New evidence** — the two datasets share 86.9% of images but only 42.1% of questions, so a
+  question-keyed merge recovers less than half of what matching on boxes does.
+* **Revised** — separated. Dedup stops double-counting; fusion happens geometrically in
+  `align_refchartqa.py` at 98.9% IoU ≥ 0.9, attached **in the reader** (0077, 0105).
+
+### Element and evidence representation
+
+* **Intention** — a chart element is a label, a value, a unit and a box.
+* **Implementation** — `annotation_boxes` and `meta[ELEMENTS_KEY]`.
+* **Observed** — labels are not unique on 22.6% of charts, and the target builder and the
+  executor resolved collisions differently — first match against last (H3). Colour was
+  produced by the annotation and dropped (H7).
+* **Limitations** — identity was a label alone, which is not an identity.
+* **New evidence** — every colliding chart carries a series name, and (series, label) is
+  unique on 94.4% of them.
+* **Revised** — colliding labels qualified as `"Democratic · 2019"`; colour carried on 96.9%
+  of elements; a label that still collides is refused, not resolved by position (0083, 0087).
+
+### Plan mining
+
+* **Intention** — recover the reasoning behind a gold answer, exactly, or not at all.
+* **Implementation** — was `plans/mining.py`, searching backwards from the answer; now a
+  language model reading finished records through five gates.
+* **Observed** — the backwards miner is 94% precise and 15–25% recall, and its dominant
+  failure is not a bug: several operations reproduce any given answer and it cannot choose
+  (H4, H5).
+* **Limitations** — the gates are arithmetic, so they cannot catch a plan that is right by
+  luck, and they run on one input.
+* **New evidence** — weakly supervised semantic parsing names this the *spurious program*
+  problem and filters it by executing under perturbed inputs.
+* **Revised** — LLM-only on the supply path (0085, 0088); `plans/distinguish.py` detects the
+  undecidable cases (0097); `consensus` samples K times only where the evidence is silent
+  (0100). The backwards miner survives as an independent cross-check.
+
+### DSL and executor
+
+* **Intention** — a small typed language whose programs a CPU can re-run exactly.
+* **Implementation** — `plans/executor.py`, 20 operations, depth ≤ 4, arity ≤ 4.
+* **Observed** — 93.3% of a random corpus sample is expressible, but that sample is dominated
+  by templated questions; 40 human questions produced seven requests for missing operations.
+* **Limitations** — `filter`, `rank` and `multiple_choice` are declared in `OPS` and raise.
+* **New evidence** — a series-restricted fold is 8.6% of human questions and 0.1% of machine
+  ones — the single most-requested gap.
+* **Revised** — `within` added on measured demand (0090). Six requested operations remain,
+  each with a number attached rather than an impression.
+
+### Target construction
+
+* **Intention** — a target the model can be taught, that its own executor accepts.
+* **Implementation** — `train/targets.py`; refuses rather than repairs, and every refusal
+  names its cause.
+* **Observed** — four separate join defects reached it (0067, 0071, 0075, 0082), and a bare
+  aggregate was silently truncated to eight items while the round-trip blamed the plan (C4).
+* **Limitations** — it required a plan, discarding 31.2% of RefChartQA records that carry gold
+  boxes, for a stage that is grounding-only by design.
+* **New evidence** — those records supply +23,357 real grounding examples, nearly double the
+  stage-1 cap.
+* **Revised** — `build_grounding_only_target` emits boxes and answer and omits the plan
+  (0104). Built and tested; **not yet wired into a mixture**.
+
+### Synthetic generation
+
+* **Intention** — exact boxes, exact answers and exact plans, by construction.
+* **Implementation** — `synth/generator.py`, 24,000 examples, 8 chart types × 4 levels.
+* **Observed** — it does what it claims: the geometry is proven against rendered pixels for
+  every chart type. But 25% was chart families ChartQA does not contain, `difference` is 13.8×
+  over-weighted, and no chart exceeds 7 marks against a real median of 10.
+* **Limitations** — it was built to prove the *format* can be learned, which it did, and it
+  does not resemble the target domain.
+* **New evidence** — the curriculum literature: bridge a synthetic-to-real gap progressively;
+  a stage that teaches format on charts maximally unlike the target is the worst case.
+* **Revised** — absent chart types dropped by selection (0091). L1–L2 stay uniform for format;
+  L3–L4 should match ChartQA's density and operation mix and **need regenerating** (0101).
+
+### Image preprocessing
+
+* **Intention** — let the processor own resizing; port coordinates to match it exactly.
+* **Implementation** — `vision/coords.py`, factor 32 derived from the loaded processor.
+* **Observed** — correct. No double resize; the coordinate port matches `smart_resize`.
+* **Limitations** — the pixel budget is applied inside a silent `except: pass` (M1, open).
+* **New evidence** — resolution is a reported column in RefChartQA's Table 2, and a 3B model
+  at 768px matches a 9.6B model at 448px on grounding.
+* **Revised** — verified unchanged (G1); resolution moved 512px → native once the session gate
+  lifted (0095).
+
+### Training
+
+* **Intention** — two stages, a curriculum, and a control that isolates what structure buys.
+* **Implementation** — `train/loop.py`, `collate.py`, QLoRA, effective batch 8, 12,000 per
+  stage.
+* **Observed** — the collate contract is careful and its subtleties are handled — the prompt
+  boundary is measured with the image, the end-of-turn token is supervised, truncation is
+  refused rather than accepted.
+* **Limitations** — the loss spends 35.6% on boxes and **3.7% on the answer**, which carry
+  half the metric each; 17.1% goes to labels and values no metric scores.
+* **New evidence** — that imbalance only matters once the answer policy is known, because
+  which answer is *scored* decides what the objective should weight (0096).
+* **Revised** — nothing changed. The imbalance is recorded and the policy experiment is the
+  prerequisite for touching it.
+
+### Evaluation
+
+* **Intention** — the official metrics, per subset, with the trained model and the baseline
+  down the same path.
+* **Implementation** — `eval/runner.py`, `eval/metrics.py` byte-faithful to upstream.
+* **Observed** — correct, and better than believed: our metrics match RefChartQA's official
+  evaluator to **0.068 points** across 11,690 predictions, which was being printed and never
+  read as the cross-check it is.
+* **Limitations** — it scores the model's stated answer, so the executor's verdict does not
+  affect any number (H8).
+* **New evidence** — 32.83 is not in the RefChartQA paper; the vendored file is TinyChart's
+  output, and its M and PoT numbers reproduce exactly.
+* **Revised** — report against Table 2's six models (0093); make all three answer policies
+  scoreable from one generation set and decide on data (0096).

@@ -73,7 +73,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 |---|---|
 | Manual semantic audit set | ✅ superseded — RefChartQA grounding gives 3,405 records with gold operand identity (0078), and 100 records were hand-judged across two seeded samples (0081, 0086) |
 | Data quality > quantity | ✅ applied — every change so far reduced yield and raised correctness |
-| Prioritised findings with the 15-point record | ✅ `AUDIT.md` — 24 findings (C1–C5, H1–H10, M1–M4, G1–G5) plus the seven recurring patterns under them |
+| Prioritised findings with the 15-point record | ✅ `FINDINGS.md` — the structured record the brief specifies. **This was ticked prematurely once**: `AUDIT.md` carried the narrative and the priorities but not the fifteen fields, and re-reading `Prompt.md` in full rather than by its headers caught it |
 | Empirical validation of each change | ✅ before/after measured for 0075–0079 |
 | Tests for each change | ✅ 1,006 → passing |
 | Documentation matches reality | ✅ | README's central claim corrected (0096), `ARCHITECTURE.md` written with a section on what is NOT built, `AUDIT.md` current at 24 findings, `STATUS.md` updated for 0093 |
