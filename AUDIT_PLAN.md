@@ -16,8 +16,8 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | 1.2 | Trace dedup / merging | ✅ | H2 — merge never reaches training |
 | 1.3 | Trace mining / enrichment | ✅ | 0078, 0079 |
 | 1.4 | Trace target construction | ✅ | 0075, 0077 |
-| 1.5 | Trace training serialization → model → parsing → executor | 🔄 | collate/loss path not yet audited |
-| 1.6 | Trace evaluation | 🔄 | metrics audited in walkthrough ch7; runner path not re-verified |
+| 1.5 | Trace training serialization → model → parsing → executor | ✅ | collate contract read, the loss composition measured (0096), the sequence budget verified at native resolution (0095) |
+| 1.6 | Trace evaluation | ✅ | runner traced to `score_item(gen.answer)` — which found H8 — and our metrics validated against the official evaluator to 0.068 pts on 11,690 predictions (0093) |
 | 1.7 | Trace synthetic generation end-to-end | ✅ | 0091 — generator, manifest, mixture composition and its fit to the real distribution |
 | 1.8 | Write the concise current-state architecture | ✅ | `ARCHITECTURE.md` — one pass from chart to scored number, with a closing section on what is not built and what is uncertain |
 
@@ -28,8 +28,8 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | 2.1 | Re-examine 0001–0079 against what we now know | 🔄 | 0067 amended by 0075; 0045 challenged by 0079 |
 | 2.2 | 0014 "emit few boxes" | ✅ | confirmed useful in a place it was not designed for: 90.3% of questions never touch `MAX_EVIDENCE` because evidence is selected by what the plan names (0084) | |
 | 2.3 | 0037/0060 resolution choice | ✅ | **superseded: native** (0095). 0060 rejected native only because 17.72 h broke a 10 h session; that gate is gone. Buys 11.9 points of sub-token targets (53.2% → 41.3%), and the sequence still fits at p99 864 of 1,024 |
-| 2.4 | 0041 empty-args fold convention | 🔄 | interacted badly with 0067 → 0071 |
-| 2.5 | 0045 mining tolerance | 🔄 | see 0079 — tolerance is not the binding constraint, ambiguity is |
+| 2.4 | 0041 empty-args fold convention | ✅ | the *pure* fold slipped past the guard and was silently truncated to 8 items; fixed in 0082 (`AUDIT.md` C4) |
+| 2.5 | 0045 mining tolerance | ✅ | not the binding constraint and never was: the constraint is the mining *direction* (0085). The tolerance itself is confirmed correct — 5% of the year 2014 is a century |
 | 2.6 | 0062 small-probe lesson | ✅ | reconfirmed by 5.3 (round-trip 69% → 58.8% at n=1,920) |
 | 2.7 | 0069 early stopping on loss | ✅ | *confirmed correct.* AP cannot resolve a stopping signal at affordable slice sizes (±8.7 to ±12.2 pts), the evaluator returns **negative** loss so the maximising stopper is right, and `test_validate.py` already guards the sign |
 
@@ -39,7 +39,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 |---|---|---|
 | 3.1 | Qwen3-VL preprocessing — official implementation | ✅ inspected the installed processor directly; no double resize; factor 32 verified |
 | 3.2 | ChartQA paper / repo — annotation semantics | ✅ | four of our own measurements independently confirmed (chart mix, `'unk'` colours, T5-generated machine questions only partly validated, unanswerable questions). One new: **values are printed on the elements**, so the sub-token bound applies to grounding, not to reading numbers (0103) |
-| 3.3 | RefChartQA paper / repo — grounding provenance | 🔄 measured: its boxes ARE ChartQA elements (0077) |
+| 3.3 | RefChartQA paper / repo — grounding provenance | ✅ its boxes ARE ChartQA elements (0077), and the paper read as a primary source gave Table 2, the vendored file's identity, and the absence of 32.83 (0093) |
 | 3.4 | Semantic parsing from denotations · weak supervision | ✅ | our blind spot has a name (**spurious programs**) and an established fix (Lee/Kim/Jung EMNLP 2023, execution-based filtering). Implemented as `plans/distinguish.py` (0097) |
 | 3.5 | Program synthesis · execution-guided search/decoding | ✅ | fine-grained partial-program guidance is **inapplicable at our program size** (median depth 1–2, 8.8% of tokens). The coarse form is exactly 0096's `executed` answer policy — the record already writes the plan before the answer — plus resample-on-self-disagreement, to be settled by the same Phase 5 experiment (0102) |
 | 3.6 | LLM program generation · teacher distillation · self-consistency | ✅ | implemented as **verified** self-consistency (0100): the vote runs only among plans that already passed every gate, and the denominator is all samples so one lucky sample cannot carry a record. Paired with 0097 — sample K times only where the evidence cannot decide |
@@ -52,7 +52,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | # | idea | status | outcome |
 |---|---|---|---|
 | 1 | Reconsider `ChartRecord` | ✅ measured | `boxes` genuinely means 3 different things; C2 fixed the immediate harm, structural fix open |
-| 2 | Distinguish ELEMENTS from EVIDENCE | 🔄 | 74.2% of charts have non-unique labels; series discarded at the boundary (H3) |
+| 2 | Distinguish ELEMENTS from EVIDENCE | ✅ | series now carried into element identity (0083), and the two meanings of `meta[elements]` measured and recorded (0098) |
 | 3 | Connect RefChartQA grounding to ChartQA elements | ✅ implemented | 0077 — 98.9% at IoU≥0.9; 85.2% aligned |
 | 4 | Reconsider ChartQA ↔ RefChartQA merging | 🔄 | H2 found fusion is discarded; dedup vs fusion now separated in practice |
 | 5 | Evidence should have one clear meaning | ✅ | **it does not** (0098): `meta[elements]` holds *the operands* on synthetic records and *the whole chart* on ChartQA ones (median 1–4 vs 11), and `record.table` has two shapes. Targets agree only because `_evidence_from` prunes |
@@ -60,7 +60,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | 7 | Plan mining — deterministic vs LLM-assisted | ✅ | **settled: LLM only** (0085, 0086, 0088). Backwards search must refuse 53.9%; pattern matching gets 53.5% of machine questions and 14.8% of human ones, which would skew supervision 92% machine against a 50/50 test split |
 | 8 | Improve deterministic mining | ✅ | *not pursued, deliberately* — deterministic mining is off the supervision path (0088). `plans/mining.py` stays as an independent cross-check only |
 | 9 | Synthetic data | ✅ | **designed for a job it no longer has** (0091). 25% of the corpus is chart types ChartQA does not contain; `difference` is 13.8x over-weighted and `lookup` 2.6x under. Fix by reweighting at mixture time, not regenerating |
-| 10 | DSL + executor | 🔄 | `within` added on measured demand (0090). Six requested operations remain, each now a number: Yes/No comparison 8.0% of human questions, threshold filter, count-of-series, constancy, `product`, argmax-over-computed |
+| 10 | DSL + executor | ✅ | audited against real questions: 93.3% of a random corpus sample is expressible, but human questions need more. `within` added on measured demand (0090); six remaining operations each carry a number |
 | 11 | Round-trip verification | ✅ | 0075/0077 showed it cannot catch wrong evidence; 0097 adds what it cannot catch on one input either — a plan the evidence cannot distinguish from another reading |
 | 12 | Qwen3-VL preprocessing | ✅ | no change needed — verified correct |
 | 13 | Model output format | ✅ | **audited, no change** (0094). Short keys save 0 tokens/item — Qwen encodes JSON keys as single tokens; a line format saves 32%/item but costs the schema, unambiguous parsing and JSON priors for +2.2% of questions, and we are not sequence-constrained (p99 679 of 1,024) |

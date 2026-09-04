@@ -32,9 +32,23 @@ because ChartQA has no per-question grounding to score against.
 | H2 | The dedup **merge is discarded** before training sees it | **HIGH** | high, by construction |
 | H3 | Labels are non-unique on **22.6%** of charts (not 74.2% — that sample was biased); target builder and executor resolved duplicates *differently* | **HIGH** | ✅ **FIXED** (0083) |
 | M1 | The processor pixel budget is applied inside a silent `except: pass` | MEDIUM | high |
+| **H10** | **`argmax`, `argmin` and the folds are indistinguishable on one element**, so an arithmetic gate cannot catch a plan that is right by luck | **HIGH** | ✅ **DETECTED** (0097) |
 | **H4** | **The miner's dominant refusal is a `lookup` vs `max`/`min` tie — 26.6% of all rows.** The table cannot say which the question asked for; one word of the question can | **HIGH** | high, measured (n=4,000) |
 | **C3** | **`mining` and `executor` parsed every percentage 100x apart**, and spaced thousands raised — invisible to the old pipeline, halves the new one | **CRITICAL** | ✅ **FIXED** (0082) |
 | **C4** | **A bare aggregate lost its evidence silently** — `argmax()` on a chart with >8 elements kept the first 8 and the round-trip blamed the plan | **CRITICAL** | ✅ **FIXED** (0082) |
+| **C5** | **The answer parser was used on chart values in three more places** than 0082 fixed — a correct plan executed to 0.821 against a gold answer of 82.1 | **CRITICAL** | ✅ **FIXED** (0089) |
+| **H5** | **The mining direction, not the miner, was the constraint.** Searching backwards from the answer must refuse whenever several operations reproduce it — 53.9% of rows | **HIGH** | ✅ **RESOLVED** (0085, 0088) |
+| **H6** | **Pattern matching recognises templates, not language** — 53.5% of machine questions against 14.8% of human ones — so pattern-mined supervision is ~92% machine against a **50/50** test split | **HIGH** | high, measured |
+| **H7** | **21.8% of human questions mention a colour**, and every annotation carried the colour while nothing read it | **HIGH** | ✅ **FIXED** (0087) |
+| **H8** | **The interpreter never replaced the answer.** Every path scores `model_answer`; the README claimed otherwise | **HIGH** | ✅ measurable (0096) |
+| **H9** | **Synthetic charts never exceed 7 marks**; 63.9% of real charts have more than 8 (median 10, max 77). Cannot be fixed by reweighting | **HIGH** | high, measured |
+| **M2** | The synthetic corpus is 13.8x over-weighted on `difference` and 2.6x under on `lookup`; 25% was chart types ChartQA does not contain | MEDIUM | ✅ partly fixed (0091) |
+| **M3** | `meta[elements]` means *the operands* on synthetic records and *the whole chart* on ChartQA ones; `record.table` has two shapes | MEDIUM | high, measured |
+| **M4** | **Four constants were copied rather than derived** — `MAX_EVIDENCE`, the numeric parsers, `ALLOWED_OPS`, the pixel budget. Each would have drifted silently | MEDIUM | ✅ **FIXED** (0084, 0089, 0090, 0095) |
+| **G2** | **32.83 is not in the RefChartQA paper.** Results are reported against its Table 2 instead; our evaluator agrees with the official one to **0.068 points** | *reframes the claim* | ✅ verified (0093) |
+| **G3** | **Early stopping is correct** — AP cannot resolve a stopping signal, the evaluator returns negative loss, and the sign is tested | *no change* | high, verified |
+| **G4** | **The output format is right** — short JSON keys save 0 tokens/item on this tokenizer, and we are not sequence-constrained | *no change* | ✅ verified (0094) |
+| **G5** | **Constrained decoding is disqualified**, not merely unused: it would remove refusal and force a box, and one spurious box takes AP 1.00 → 0.68 | *no change* | ✅ evidenced (0099) |
 | G1 | **No double resize** — the processor owns resizing and our coordinate port matches it exactly | *no change* | high, verified |
 
 ---
@@ -371,3 +385,71 @@ inputs the next one will.
 
 **Evidence.** `audit/measure_evidence_defects.py`, `audit/measure_target_yield.py`,
 `audit/teacher_proposals_chartqa.py`, `tests/test_executor.py`.
+
+---
+
+## What this audit found about how the defects got there
+
+Twenty-four findings is a list. The patterns under them are the transferable part, and every
+one recurred at least twice.
+
+### 1. The expensive gaps were never decisions
+
+The three costliest findings were not wrong choices. They were things nobody had chosen.
+
+* **Searching backwards from the answer** cost 53.9% of rows (H5). No decision record proposed
+  it, weighed it, or named it — it was simply how the first miner was written, so it was never
+  re-examined. Every fix before the audit improved a component pointed the wrong way.
+* **`annotation_boxes` dropped the colour field** on every element from the first line it was
+  written (H7). Nothing said why. It was worth 21.8% of human questions.
+* **The 12,000 cap** is the compute budget backwards — 12,000 ÷ batch 8 × 2 stages × 11.903 s =
+  9.92 h against a 10 h session — and that derivation lived across four constants in three
+  files with nothing connecting them (0092).
+
+A decision record protects the choices someone argued about. It cannot protect the ones nobody
+noticed making, and those were the expensive ones.
+
+### 2. A justification can be true when written and expire quietly
+
+`synth/generator.py` still says it is *"the primary source of plan supervision, given that the
+uniqueness rule admits only ~5.7% of real ChartQA questions."* That was true. The uniqueness
+rule is now off the supervision path, so the sentence explaining the design outlived the design
+(M2, H9). Nothing re-reads a docstring to ask whether its premise still holds.
+
+### 3. Fixing an instance is not fixing a rule
+
+0082 found the answer parser used on chart values twice and fixed both call sites. It did not
+ask where else the same confusion lived. It lived in three more places, and one of them silently
+made every percentage chart's evidence a hundredth of its real value (C5). The fix that ended it
+was a test that walks the AST of every module and fails on any unjustified use — the rule, not
+the instances.
+
+The same shape produced **four copied constants** (M4). Each was a value restated at a call
+site, and each would have drifted silently the moment the original changed.
+
+### 4. A failed check is still a measurement
+
+0052 ran the reproduction gate, found 32.83 did not reproduce, correctly concluded the file was
+*"a different model's output"*, and stopped. The next question — *then whose?* — was two
+comparisons away, and the answer upgraded the project from *"no published number can be
+verified"* to *"two reproduce exactly and our evaluator agrees with the official one to 0.068
+points"* (G2). The number a failed check produced still meant something.
+
+### 5. Measure who your method works for before measuring how well
+
+Forward construction looked like a 3× improvement in supervision yield. Split by question
+origin it was 53.5% on machine-generated questions and 14.8% on human ones (H6) — and ChartQA's
+test split is 50/50 with the metric averaging the halves. A method measured only in aggregate
+looked like a win and would have skewed the training set 92% machine.
+
+### 6. Iterating a source in its natural order is a sampling bias, twice
+
+Once by taking the first 4,000 rows, which are human-only and the harder half (0081). Once by
+taking `sorted(names)[:3000]`, which is 40.5% `multi_col` against 15.6% in the split, and
+inflated a finding threefold (H3, 0083). Both were in audit scripts written to *check* for bias.
+
+### 7. Building the thing finds what reading it does not
+
+Four critical defects were invisible until the new mining path ran end to end and accepted **0
+of 25 correct proposals** (C3, C4). Each component was correct under every input the *old*
+pipeline gave it. Reading the code found none of them; running it found all four in one pass.
