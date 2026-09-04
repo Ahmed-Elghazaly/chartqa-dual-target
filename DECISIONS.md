@@ -4790,3 +4790,71 @@ compute is now clear and each step is cheap: fix stage 1's composition first (fr
 different selection from records that already exist), then run the scaling ladder to learn
 whether volume helps, then raise the cap if it does. Raising it first would spend hours to
 learn nothing.
+
+---
+
+## 0093 — 32.83 is not in the paper; what the vendored file actually is; and a published number that *does* reproduce
+
+**Context.** 0052 ran `PLAN.md` 4.4's reproduction gate and failed it: the official evaluator
+scored the vendored `filtered_results.jsonl` at 28.33 / 71.25 / 59.66 against a published
+32.83 / 59.28 / 39.32. It concluded the file "is a different model's output", recorded 32.83
+as an unverified **Level C** anchor, and re-anchored the project's claim on an internal
+before/after comparison. That conclusion was right as far as it went. It did not ask *whose*
+output, and it did not check the paper's own baseline table.
+
+**Reading the primary source (arXiv 2503.23131) settles both, and the answers are large.**
+
+**1. The number 32.83 does not appear in the RefChartQA paper.** Not in any table, for any
+model, on any split. The paper's single results table (Table 2, "Comparison of several MLLMs
+on the RefChartQA benchmark") reports six models and the best RefChartQA-H AP@0.5 in it is
+**27.81**. No Qwen2-VL or Qwen2.5-VL row exists anywhere in the paper; the only Qwen is
+Qwen-VL-Chat. Where 32.83 came from is now an open question — `IDEA.md` states it without a
+citation, and the project has been anchored on it since 0002.
+
+**2. The vendored file is TinyChart's predictions.** Comparing our own run against the
+paper's per-split numbers:
+
+| split | official evaluator on the vendored file | **TinyChart 3B, Table 2** | |
+|---|---:|---:|---|
+| RefChartQA-M | **71.25** | **71.25** | exact |
+| RefChartQA-PoT | **59.66** | **59.66** | exact |
+| RefChartQA-H | 28.33 | 27.81 | −0.52 |
+
+Two of three match to the digit. RefChartQA's README calls the file a *format example*, and it
+is — but the example is real TinyChart output, not synthetic filler. The human split differs
+slightly, most likely because the file carries 500 human rows rather than the full split; that
+is worth confirming but does not change the identification, since two exact matches on
+four-significant-figure numbers do not happen by chance.
+
+**3. Therefore a published number *does* reproduce, and 4.4's gate is satisfiable.** The gate
+asked for *"a published number"*, and 0052 read it as *"32.83 specifically"*, which was
+unsatisfiable because no artefacts for it exist. TinyChart's M and PoT reproduce **exactly**
+with the official evaluator on the released file. The premise that could not be met was the
+choice of target, not the possibility of reproduction.
+
+**4. Our own metric implementation is validated against the official one on real predictions.**
+The same run scores all three splits with our code: 28.33 / 71.18 / 59.62 against the
+official 28.33 / 71.25 / 59.66 — a maximum absolute difference of **0.068 points**. That is
+`PLAN.md` 4.2's shared-prediction-set cross-check, passing, on 11,690 real predictions. It was
+already being computed and printed and nothing had recognised what it established.
+
+**Decision.**
+
+* **Report against Table 2, not against 32.83.** Six models, three splits, four metrics,
+  from the primary source. ChartGemma (2B, 448×448) is the closest comparison to our own
+  Qwen3-VL-2B at 512×512: **AP@0.5 19.95 (H) / 60.62 (M) / 43.44 (PoT)**.
+* **Downgrade 32.83 further, from "unverified" to "not located in the primary source."**
+  Keep it only as a note about `IDEA.md`'s provenance, never as a target.
+* **Record the reproduction as passing**, on TinyChart, with the identification and the
+  −0.52 human discrepancy stated. 4.4's gate no longer blocks.
+
+**Consequences.** The project moves from *"no published number can be verified"* to *"two
+published numbers reproduce exactly and our evaluator agrees with the official one to 0.07
+points."* That is a materially stronger position for the write-up: results can be placed
+beside six published models on the same benchmark under the same metrics, with the closest
+size-matched baseline named.
+
+**The pattern, a fifth time.** The evidence was already on disk and already being printed.
+0052 asked *"does 32.83 reproduce?"*, got no, and stopped. It did not ask *"then what is this
+file?"* — and the answer was two exact matches away. **A failed check is a measurement; the
+number it produced still means something.**

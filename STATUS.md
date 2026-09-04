@@ -120,8 +120,17 @@ images: median 610, p90 683, p99 973, and **1 of 200 over the 1,024 limit**.
   at a real-record supply of 4,483, and the confound is recorded rather than papered over
   (0072). They do get identical step counts, so the comparison is at least matched on
   compute.
-- **32.83 stays a Level C anchor** — cited, not reproducible by anyone (0052). The ChartQA
-  reproduction of 79.1 is reachable but only at Phase 7, on the test split (0063).
+- **32.83 is not in the RefChartQA paper** (0093). Reading the primary source found the
+  number nowhere in it — the best RefChartQA-H AP@0.5 in Table 2 is 27.81 — and no Qwen2/2.5-VL
+  row exists at all. It is no longer a target; results are reported against Table 2's six
+  models, of which **ChartGemma (2B, 448×448) is the size-matched comparison at AP@0.5
+  19.95 (H) / 60.62 (M) / 43.44 (PoT)**.
+- **A published number does reproduce, and our evaluator is validated** (0093). The vendored
+  `filtered_results.jsonl` is **TinyChart's** output — its M (71.25) and PoT (59.66) reproduce
+  the paper **exactly** with the official evaluator — and our own metrics agree with the
+  official ones to **0.068 points** across 11,690 predictions. `PLAN.md` 4.4's gate is met and
+  4.2's shared-prediction cross-check has passed.
+- The ChartQA reproduction of 79.1 is reachable but only at Phase 7, on the test split (0063).
 
 ## Next
 
