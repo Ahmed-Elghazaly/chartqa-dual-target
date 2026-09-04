@@ -26,7 +26,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | # | item | status | verdict |
 |---|---|---|---|
 | 2.1 | Re-examine 0001–0079 against what we now know | 🔄 | 0067 amended by 0075; 0045 challenged by 0079 |
-| 2.2 | 0014 "emit few boxes" | ⬜ | |
+| 2.2 | 0014 "emit few boxes" | ✅ | confirmed useful in a place it was not designed for: 90.3% of questions never touch `MAX_EVIDENCE` because evidence is selected by what the plan names (0084) | |
 | 2.3 | 0037 resolution choice (512 vs 448) | ⬜ | |
 | 2.4 | 0041 empty-args fold convention | 🔄 | interacted badly with 0067 → 0071 |
 | 2.5 | 0045 mining tolerance | 🔄 | see 0079 — tolerance is not the binding constraint, ambiguity is |
@@ -57,10 +57,10 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | 4 | Reconsider ChartQA ↔ RefChartQA merging | 🔄 | H2 found fusion is discarded; dedup vs fusion now separated in practice |
 | 5 | Evidence should have one clear meaning | ⬜ | depends on idea 2 |
 | 6 | Target builder | 🔄 | 0075 added the value/box gate; grounding-only targets still open |
-| 7 | Plan mining — deterministic vs LLM-assisted | 🔄 | 0078/0079 measured the deterministic ceiling; LLM design pending |
-| 8 | Improve deterministic mining | 🔄 | 0079 done; label-answer gap open |
+| 7 | Plan mining — deterministic vs LLM-assisted | ✅ | **settled: LLM only** (0085, 0086, 0088). Backwards search must refuse 53.9%; pattern matching gets 53.5% of machine questions and 14.8% of human ones, which would skew supervision 92% machine against a 50/50 test split |
+| 8 | Improve deterministic mining | ✅ | *not pursued, deliberately* — deterministic mining is off the supervision path (0088). `plans/mining.py` stays as an independent cross-check only |
 | 9 | Synthetic data | ⬜ | |
-| 10 | DSL + executor | ⬜ | operator completeness not yet audited |
+| 10 | DSL + executor | 🔄 | `within` added on measured demand (0090). Six requested operations remain, each now a number: Yes/No comparison 8.0% of human questions, threshold filter, count-of-series, constancy, `product`, argmax-over-computed |
 | 11 | Round-trip verification | 🔄 | 0075/0077 showed it cannot catch wrong evidence |
 | 12 | Qwen3-VL preprocessing | ✅ | no change needed — verified correct |
 | 13 | Model output format | ⬜ | |
@@ -83,11 +83,11 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 | # | question | status |
 |---|---|---|
 | Q1 | Why cap training examples per stage at 12,000? | 🔄 measuring |
-| Q2 | Is the operation set expressive enough? | ⬜ idea 10 |
-| Q3 | Is the deterministic miner complete — does it try all combinations? | 🔄 measuring the label-answer gap |
-| Q4 | Can we ever be sure a plan is unambiguous? | 🔄 — no, and this is a real limit |
+| Q2 | Is the operation set expressive enough? | ✅ | **for machine questions yes, for human questions no.** 93.3% of a random corpus sample is expressible (0081), but that sample is dominated by templated questions; reading 40 human ones by hand produced 7 operator requests (0090) |
+| Q3 | Is the deterministic miner complete? | ✅ | wrong question. It is 94% precise and its recall is bounded by *direction*, not by search: several operations reproduce any given answer and it cannot choose (0085) |
+| Q4 | Can we ever be sure a plan is unambiguous? | ✅ | **the question dissolves.** Fidelity to the question is the property we want, not uniqueness — a plan can be right even when another operation reaches the same number (0085) |
 | Q5 | Are ChartQA and RefChartQA the same questions? | 🔄 measuring |
-| Q6 | Would a strong LLM find a correct plan for ~all examples? | 🔄 needs the calibration experiment |
+| Q6 | Would a strong LLM find a correct plan for ~all examples? | ✅ | **no.** Measured twice by acting as the teacher: 21/21 accepted on RefChartQA-aligned records but only 52% proposed; on 40 human ChartQA questions, 9 verified plans, 22 refusals, 7 operator requests. The limit is the DSL and the data, not the reader |
 
 ## Blocked
 
