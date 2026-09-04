@@ -5528,3 +5528,68 @@ They were conflated in one function, which is how H2's silent loss happened.
 
 **Consequences.** Both ideas close without new code. The recurring shape is the one `AUDIT.md`
 names first: the capability existed and no decision had ever connected it to the need.
+
+---
+
+## Appendix — external sources, and external-model usage
+
+`Prompt.md`'s execution discipline asks for two things to be recorded explicitly: *"record
+important external-model usage"* and *"record external research sources behind consequential
+changes"*. Both are below, in one place, because a citation scattered through a hundred
+records is not a bibliography.
+
+### Research sources
+
+Every consequential change made during the audit that rests on outside work, with the decision
+that used it. Primary sources only — papers and official implementations, per TASK 2.
+
+| source | used by | for |
+|---|---|---|
+| **RefChartQA: Grounding Visual Answer on Chart Images through Instruction Tuning** — arXiv [2503.23131](https://arxiv.org/abs/2503.23131) | **0093** | Table 2's six baselines, three splits, four metrics; the absence of 32.83; identification of the vendored prediction file as TinyChart's |
+| the same | **0095** | resolution as a reported column — TinyChart 3B at 768px matching Qwen-VL-Chat 9.6B at 448px |
+| **Lee, Kim & Jung — Weakly Supervised Semantic Parsing with Execution-based Spurious Program Filtering**, EMNLP 2023, arXiv [2311.01161](https://arxiv.org/abs/2311.01161) | **0097** | the name and method for our blind spot: execute under varied inputs, compare semantics |
+| **JSONSchemaBench** — arXiv [2501.10868](https://arxiv.org/abs/2501.10868), and the surrounding constrained-decoding literature | **0099** | the accuracy cost of constrained decoding (93.63% → 91.37%) and that it removes the ability to decline |
+| self-consistency literature, including *Universal Self-Consistency* (arXiv [2311.17311](https://arxiv.org/abs/2311.17311)) and *When Self-Consistency Backfires* | **0100** | majority-vote over sampled reasoning paths, and the published caution about it |
+| synthetic-to-real curriculum literature, including *Diffusion Curriculum* (arXiv [2410.13674](https://arxiv.org/abs/2410.13674)) | **0101** | that a synthetic-to-real gap should be **bridged progressively**, which settled what stage 1 is for |
+| execution-guided synthesis literature, including *EG-CFG* (arXiv [2506.10948](https://arxiv.org/abs/2506.10948)) and *Write, Execute, Assess* (arXiv [1906.04604](https://arxiv.org/abs/1906.04604)) | **0102** | partial-program guidance, its cost, and why our program size makes the fine-grained form inapplicable |
+| **ChartQA** (ACL Findings 2022) and **ChartQAPro** (arXiv [2504.05506](https://arxiv.org/abs/2504.05506)) | **0103** | the dataset's own stated limitations, four of which independently confirm measurements made here |
+
+Two decisions rest on **no** external source and say so: C1/0075 and C4/0082 are correctness
+bugs, not design questions, and reading a paper would not have changed either.
+
+### External-model usage
+
+**Claude (Opus 5, this session) acted as the teacher** in every mining experiment reported
+here. That is external-model usage in the sense the brief means, and it is recorded so no
+number is mistaken for something a pipeline produced unattended:
+
+| experiment | records | result | decision |
+|---|---:|---|---|
+| calibration on RefChartQA-aligned records the deterministic miner could not settle | 40 | 21 proposed, 21 verified, 19 refused | 0080 |
+| unbiased ChartQA expressibility judgement | 60 | 56 expressible (93.3%) | 0081 |
+| end-to-end mining on unbiased ChartQA | 40 | 25 verified plans (62.5%) | 0082, 0083 |
+| human-question mining | 40 | 9 verified, 22 refused, 7 operator requests | 0086, 0090 |
+| hand audit of forward-mined records | 27 | 25 correct, 1 imprecise, 1 wrong | 0085 |
+
+Every sample is **seeded and named**, so each is reproducible against the same records:
+`--seed 0` and `--seed 1` on `scripts/mine_plans.py` and the audit scripts that survive.
+
+At volume, `teacher.provenance()` writes the model id, the prompt version and the prompt's
+SHA-256 into every accepted plan, so a target in the training set can be traced to the exact
+request that produced it. No plan in the cache is anonymous.
+
+### Blocked, and how to finish it
+
+The one experiment that cannot run in this environment, stated as the brief requires:
+
+* **What** — mining plans for ChartQA at volume (~20,000 records).
+* **Why blocked** — it needs a reader working through prompt batches. A Claude or ChatGPT
+  subscription cannot drive a pipeline; a console API key can, and there is none.
+* **What is done** — the whole pipeline except the model call: prompt construction, caching
+  keyed by record + model + prompt hash, provenance, the five gates, batch submission, and
+  scoring of proposals produced anywhere.
+* **Exactly how to finish it** —
+  `python scripts/mine_plans.py --limit 20000 --write-batches`, answer each
+  `audit/plans/batch_NNN.txt`, save the replies as `{"0": {"0": <plan>, …}, …}`, then
+  `python scripts/mine_plans.py --limit 20000 --score <that file>`. With a console key,
+  `--api` does the same through the Message Batches API at half price.
