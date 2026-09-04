@@ -132,6 +132,33 @@ images: median 610, p90 683, p99 973, and **1 of 200 over the 1,024 limit**.
   4.2's shared-prediction cross-check has passed.
 - The ChartQA reproduction of 79.1 is reachable but only at Phase 7, on the test split (0063).
 
+## The audit (`Prompt.md`) — complete
+
+All 51 items in `AUDIT_PLAN.md` are closed. `AUDIT.md` carries 24 findings and the seven
+recurring patterns under them; `DECISIONS.md` runs to 0105; `ARCHITECTURE.md` describes the
+system as it now stands, including what is not built.
+
+**Changed by the audit, in rough order of consequence:**
+
+| | |
+|---|---|
+| mining direction | backwards search retired; a reader mines plans from finished records, five gates, discard never repair (0085, 0088) |
+| resolution | 512px → **native**, buying 11.9 points of targets too small for one visual token (0095) |
+| grounding supply | RefChartQA 56.6% → **98.5%** supervisable via grounding-only targets (0104) |
+| element identity | series carried into labels; colour read for the first time (0083, 0087) |
+| parsers | one shared value parser, guarded by an AST test after four separate defects (0082, 0089) |
+| comparability | 32.83 is **not in the RefChartQA paper**; results go against its Table 2, and our evaluator matches the official one to 0.068 points (0093) |
+| stage 1 | 25% was chart types ChartQA does not contain, now dropped (0091) |
+
+**The three biggest things still open**, each with a measured size:
+
+1. **Mining has not been run at volume.** The pipeline is built, tested and verified end to
+   end; the plan cache holds two records.
+2. **Stage 1 needs regenerating** against ChartQA's operation mix and chart density — no
+   synthetic chart exceeds 7 marks against a real median of 10 (0098, 0101).
+3. **The answer policy is undecided** — `stated`, `executed` or `executed_or_stated` — and
+   Phase 5 settles it from data it produces anyway (0096).
+
 ## Next
 
 5.3 and 5.4 finish → their numbers fill section 12 of `PREREGISTRATION.md`, which records
