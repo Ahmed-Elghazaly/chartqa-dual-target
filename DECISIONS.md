@@ -4274,3 +4274,82 @@ nothing above 14 is possible at the current `max_seq_len` no matter how the trad
 The interesting number is 90.3% — the cap never applies to nine questions in ten, because
 evidence is selected by what the plan names. That is `DECISIONS.md` 0014's "emit few boxes"
 paying off in a place it was not designed for.
+
+---
+
+## 0085 — Mining the other way round, which dissolves the ambiguity instead of patching it
+
+**Context.** Ahmed: *"can't we forget about deterministic mining pls because it is filled to
+the brim with problems and issues and bugs"*. The frustration is earned, and the diagnosis
+was better than mine. I had been fixing defects *around* `plans.mining` — the parser split
+(0082), the evidence cap, series identity (0083) — while leaving its shape untouched. The
+shape is the problem.
+
+**The miner works backwards.** It asks *which operations reproduce this gold answer?* and
+refuses when more than one does. On a sorted bar chart the top row's value is simultaneously
+`lookup(<its label>)` and `max` of its column, so an answer-first search **must** find both
+and **cannot** choose. That refusal is 53.9% of ChartQA training rows (`AUDIT.md` H4). It is
+not a bug; it is what working backwards means.
+
+Two responses were considered before this one:
+
+*A tie-breaker over the miner.* `plans.intent` reading the question to pick among the
+candidates. Measured against the miner's own `unique` verdicts — free ground truth, since
+where exactly one operation reproduces the answer that operation is known — it reached only
+**86.1%**, then 89.0% after fixes, against the miner's 94%. It would have *degraded*
+supervision quality to buy recall.
+
+*A language model per record.* Verified and ready (0080–0084), but it needs a console API
+key, and Ahmed has a subscription rather than an API budget. Worse, it is not obviously
+better than something testable: an LLM call cannot be unit-tested, and its errors cannot be
+reproduced.
+
+**Decision.** *Build the plan the question asks for, then check it against the answer.*
+
+    read the question  ->  build the plan it asks for  ->  does it reproduce the answer?
+
+`plans.forward`. The ambiguity does not arise. If the question names Nigeria and
+`lookup("Nigeria")` yields the gold answer, that plan is a faithful reading — **it is
+irrelevant that `max()` also yields it**. Uniqueness was never the property we wanted;
+fidelity to the question was, and the arithmetic check keeps it honest. Two independent
+conditions, neither substituting for the other: `plans.intent` reads the operation from the
+wording and **never sees the answer**; the executor then has to reproduce the answer at the
+answer's own precision.
+
+**Evidence.** Same 4,000 random ChartQA records, both methods:
+
+| | records with a plan |
+|---|---:|
+| backwards (`plans.mining`) | 596 (14.9%) |
+| **forwards (`plans.forward`)** | **1,794 (44.9%)** |
+| both | 330 |
+| only forwards — recovered | **1,464** |
+| only backwards — lost | 266 |
+
+On the 330 where both commit, they choose the **same operation 330 times out of 330**
+(100%, 95% CI 98.8–100%). Not one disagreement.
+
+A 27-record hand audit of the *forward-only* records — the ones with no cross-check — found
+**25 clearly correct, 1 imprecise, 1 wrong**. The wrong one is the failure mode worth naming:
+*"How many people were in Norway's largest age group between 45 and 69 years old in 2021?"*
+built a global `max()`, which returned the right number **by accident**. The question
+restricts to a series and a year; a fold over the whole chart answers a different question.
+`intent.restricts_to_a_subset` now drops folds when the question names a year that the labels
+contain but no label matched — it cost **one** record of the 1,795 and removed that class.
+
+**Consequences.** `plans.forward` becomes the primary mining path and `plans.mining` is no
+longer on it. The backwards miner is kept for what it is now good for — an independent
+cross-check in measurement, where its 94% precision and forced verdicts make it a useful
+second opinion rather than a supply of supervision. The 266 records it finds and forwards
+misses are unexamined and worth an hour.
+
+This also removes the API dependency from the critical path. LLM mining (0080–0084) stays
+built and verified, and is now the right tool for the *residual* rather than for the bulk —
+hundreds of hard records instead of twenty thousand ordinary ones, which is a size a
+subscription can actually cover.
+
+**The general lesson, which is the one worth keeping.** Every previous fix improved a
+component that was pointed the wrong way. The audit brief asks that each decision be treated
+as a hypothesis rather than a settled fact; "search backwards from the answer" had never been
+stated as a decision at all, so it was never re-examined. **The costly assumptions are the
+ones nobody wrote down.**
