@@ -15,6 +15,8 @@ import hashlib
 import json
 import re
 import unicodedata
+from collections import Counter
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
@@ -149,4 +151,55 @@ def read_jsonl(path: str) -> list[ChartRecord]:
             line = line.strip()
             if line:
                 out.append(ChartRecord.from_dict(json.loads(line)))
+    return out
+
+
+#: Separator between a series name and a label in a qualified element name. A middle dot
+#: with spaces: measured over 800 colliding ChartQA charts, **no** existing label contains
+#: it, so qualifying cannot collide with a real label.
+SERIES_SEPARATOR = " · "
+
+#: Cyrillic letters that ChartQA annotations use where Latin is meant. Real, and invisible:
+#: `'Оррose'` (Cyrillic О, р, р) and `'Oppose'` render identically and compare unequal.
+#: Only used to match a series name to a table column, never to rewrite a label.
+_CONFUSABLES = str.maketrans({"А": "A", "В": "B", "Е": "E", "К": "K", "М": "M", "Н": "H",
+                              "О": "O", "Р": "P", "С": "C", "Т": "T", "Х": "X",
+                              "а": "a", "е": "e", "о": "o", "р": "p", "с": "c", "х": "x"})
+
+
+def fold_for_matching(text: Any) -> str:
+    """A form in which two spellings of the same series name compare equal.
+
+    Only for joining an annotation's series to a table's column. 14.4% of colliding charts
+    spell them differently — Cyrillic homoglyphs, a stray leading letter, scrambled word
+    order — and none of that is worth failing a join over.
+    """
+    return " ".join(str(text).translate(_CONFUSABLES).lower().split())
+
+
+def qualified_labels(elements: Sequence[Mapping[str, Any]]) -> list[str]:
+    """One name per element, unique within the chart wherever the annotation allows it.
+
+    On a grouped chart `"2019"` names one bar per series, and the two sides of our own
+    contract disagreed about which one it meant: `train.targets` kept the FIRST element with
+    a label and `plans.executor` kept the LAST. A plan saying `lookup("2019")` therefore
+    pointed at one bar and stated another's number.
+
+    The annotation already carries the discriminator — `chartqa.py::_series_elements` writes
+    `"series"` on every element — and nothing downstream read it. Measured over 3,000 charts
+    sampled at random: a label collides on **22.6%**, every one of those has a series name,
+    and **(series, label) is unique on 94.4%** of them (`AUDIT.md` H3).
+
+    Only colliding labels are qualified, so 77.4% of charts are untouched and their labels
+    stay exactly the chart's own text. The remaining 5.6% cannot be separated even with the
+    series; this returns the duplicates as they are and the caller refuses, rather than
+    silently picking one.
+    """
+    labels = [str(e.get("label")) for e in elements]
+    collides = {label for label, n in Counter(labels).items() if n > 1}
+    out = []
+    for element, label in zip(elements, labels):
+        series = element.get("series")
+        out.append(f"{series}{SERIES_SEPARATOR}{label}"
+                   if label in collides and series else label)
     return out

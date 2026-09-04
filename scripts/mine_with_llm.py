@@ -34,7 +34,7 @@ _ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_ROOT / "src"))
 sys.path.insert(0, str(_ROOT))
 
-from chartqa_dt.data.records import ELEMENTS_KEY  # noqa: E402
+from chartqa_dt.data.records import ELEMENTS_KEY, qualified_labels  # noqa: E402
 from chartqa_dt.plans import llm_mining, teacher  # noqa: E402
 
 CACHE = Path.home() / ".cache/chartqa_dt/llm_mining"
@@ -92,8 +92,11 @@ def load_requests(source: str, *, limit: int, seed: int) -> list[teacher.Teacher
                 # element carries passes every gate here and then builds no target at all,
                 # because `build_target` joins against `meta[ELEMENTS_KEY]`. The table is
                 # still shown, as context the teacher can read the question against.
-                evidence = [{"label": str(e["label"]), "value": e.get("value"),
-                             "unit": e.get("unit")} for e in elements]
+                # The same names `train.targets` will use. A grouped chart draws "2019"
+                # once per series; showing the teacher three identical labels asks it to
+                # choose between marks it cannot tell apart (`AUDIT.md` H3).
+                evidence = [{"label": n, "value": e.get("value"), "unit": e.get("unit")}
+                            for n, e in zip(qualified_labels(elements), elements)]
                 out.append(teacher.TeacherRequest(
                     record_id=stable_id("chartqa", row["imgname"], str(row["query"])),
                     prompt=teacher.build_prompt(

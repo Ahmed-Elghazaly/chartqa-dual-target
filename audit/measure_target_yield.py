@@ -57,7 +57,13 @@ def run(records: list[ChartRecord], *, label: str) -> collections.Counter:
             out["built"] += 1
         except TargetError as exc:
             msg = str(exc)
-            if "not numeric" in msg:
+            if "still names more than one mark" in msg:
+                out["label repeats within one series"] += 1
+            elif "no element box" in msg:
+                out["plan names a label with no box"] += 1
+            elif "the two sources disagree" in msg or "annotated element" in msg:
+                out["table and annotation disagree on the value"] += 1
+            elif "not numeric" in msg:
                 out["value could not be parsed"] += 1
             elif "does not reproduce" in msg:
                 out["plan disagrees with the answer"] += 1

@@ -2,24 +2,24 @@
 {"record_id": "chartqa:1155324eef97c504fe8997ac", "plan": {"op": "lookup", "args": ["2018"]}, "index": 1}
 {"record_id": "chartqa:3e1cbd192218b5a2299b56c6", "refused": "answer is a LIST of two numbers; one plan yields one value", "index": 2}
 {"record_id": "chartqa:0ac49cf985b89180b322f33a", "plan": {"op": "lookup", "args": ["2019"]}, "index": 3}
-{"record_id": "chartqa:c9752801b4513cef66b8602e", "refused": "'Black' appears 3 times (3 series); no way to say which", "index": 4}
+{"record_id": "chartqa:c9752801b4513cef66b8602e", "plan": {"op": "lookup", "args": ["Very important · Black"]}, "index": 4}
 {"record_id": "chartqa:3e57da3b4533a7625478fe83", "plan": {"op": "median", "args": []}, "index": 5}
 {"record_id": "chartqa:f77f37c8d573dbf6e809534e", "plan": {"op": "lookup", "args": ["2017"]}, "index": 6}
 {"record_id": "chartqa:1b6f0e1c02dea307e3905d4e", "refused": "'first reported' is a position, not an extremum; argmin would be right by accident", "index": 7}
 {"record_id": "chartqa:c52db2c752e7e74f69ed9056", "refused": "answer 'New England Patriots' (27) is not the maximum (34); not in the data", "index": 8}
 {"record_id": "chartqa:15b6f4c3b0030369647f676a", "plan": {"op": "lookup", "args": ["2020"]}, "index": 9}
 {"record_id": "chartqa:2cf92e7caddd387ee89eb707", "plan": {"op": "lookup", "args": ["Obese"]}, "index": 10}
-{"record_id": "chartqa:e6d22511cf7aadaae80c511e", "refused": "years repeat across two series; lookup('2020') is ambiguous", "index": 11}
+{"record_id": "chartqa:e6d22511cf7aadaae80c511e", "plan": {"op": "lookup", "args": ["Menswear · 2020"]}, "index": 11}
 {"record_id": "chartqa:39d84b9be9cf06756cccbed5", "plan": {"op": "lookup", "args": ["Mexico"]}, "index": 12}
 {"record_id": "chartqa:aa3787e5b5a4f2c7f62e98f7", "plan": {"op": "lookup", "args": ["2017"]}, "index": 13}
 {"record_id": "chartqa:c354ce1e9bf10dbd27132b20", "plan": {"op": "lookup", "args": ["2013"]}, "index": 14}
 {"record_id": "chartqa:114f6663b9d21aec1d6e0c01", "plan": {"op": "lookup", "args": ["League of Legends 2019 World"]}, "index": 15}
-{"record_id": "chartqa:3529fb4cec3ca8a52e8c8cc5", "refused": "years repeat across two series and the question names no year", "index": 16}
+{"record_id": "chartqa:3529fb4cec3ca8a52e8c8cc5", "refused": "the question names no year; the series is now nameable but the YEAR is not", "index": 16}
 {"record_id": "chartqa:b3e6d1b59fa837044291da25", "plan": {"op": "lookup", "args": ["2017"]}, "index": 17}
 {"record_id": "chartqa:f4f24d2c83ae3e103934b771", "plan": {"op": "lookup", "args": ["2015/2016"]}, "index": 18}
 {"record_id": "chartqa:1c2c16848e5b72261f97526a", "refused": "cannot reconstruct 0.5527… from these values under any reading", "index": 19}
 {"record_id": "chartqa:6120e7eb36cda702d1b9768e", "plan": {"op": "lookup", "args": ["2019"]}, "index": 20}
-{"record_id": "chartqa:50b817fb337385604259c960", "refused": "60 items, years repeated across many series", "index": 21}
+{"record_id": "chartqa:50b817fb337385604259c960", "plan": {"op": "lookup", "args": ["Induced contribution to GDP · 2028**"]}, "index": 21}
 {"record_id": "chartqa:9bcd9db92b03ed220ab8bc29", "refused": "argmax over all items gives 'Coronavirus SARS-' (45 213), not the gold answer", "index": 22}
 {"record_id": "chartqa:71afb17717f735f0b3df37d0", "refused": "gold says 2019/20 (12.1) but 2010/11 (12.3) is higher; gold contradicts the data", "index": 23}
 {"record_id": "chartqa:474761439152afd49022c4b7", "plan": {"op": "lookup", "args": ["2017*"]}, "index": 24}
@@ -33,8 +33,8 @@
 {"record_id": "chartqa:484236e5134b89ce0006ab5d", "plan": {"op": "lookup", "args": ["Libtayo"]}, "index": 32}
 {"record_id": "chartqa:6b4d49836b96b4b3b1941543", "refused": "every year increases; the question does not pick one out", "index": 33}
 {"record_id": "chartqa:a903abcbe82acd0c92d32e3d", "refused": "'is the sum of the smallest two greater than the largest' -> Yes; no such operator", "index": 34}
-{"record_id": "chartqa:10fe16bc8158f2d8d3ca55fd", "refused": "asks for 6 categories but the evidence holds 12 items (two series); count() = 12", "index": 35}
+{"record_id": "chartqa:10fe16bc8158f2d8d3ca55fd", "refused": "asks for 6 age categories; count() counts the 12 marks, not the 6 categories", "index": 35}
 {"record_id": "chartqa:7930f06405d45c657695218d", "refused": "a release date is not computable from the values", "index": 36}
 {"record_id": "chartqa:b71c5089527c7d654218b0e9", "plan": {"op": "lookup", "args": ["2018"]}, "index": 37}
-{"record_id": "chartqa:d274450bcfcc931e21073299", "plan": {"op": "lookup", "args": ["2020"]}, "index": 38}
-{"record_id": "chartqa:c7cc469f6bf37642d3cfbe6e", "refused": "grades 1-6 repeat across two series, and 'lowest pass grade' is not argmin of value", "index": 39}
+{"record_id": "chartqa:d274450bcfcc931e21073299", "refused": "the annotation carries no 2020 element -- see the note below", "index": 38}
+{"record_id": "chartqa:c7cc469f6bf37642d3cfbe6e", "refused": "'lowest pass grade' is about the grade scale, not the smallest percentage", "index": 39}

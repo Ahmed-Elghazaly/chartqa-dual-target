@@ -4141,3 +4141,80 @@ input the current system gives it and wrong under the inputs the next system wil
 End to end on 40 unbiased ChartQA records, the teacher now yields **22 verified plans (55%)**
 against the deterministic miner's 15–25%. Of the 15 refusals, **6 are duplicate labels across
 series** — `AUDIT.md` H3, still open, and now the largest single blocker.
+
+---
+
+## 0083 — Carrying the series name, which was there all along
+
+**Context.** `AUDIT.md` H3: on a grouped chart `"2019"` names one bar per series, and the two
+sides of our own contract resolved it differently — `train.targets` kept the **first** element
+with a label (`by_label.setdefault`) and `plans.executor` kept the **last**
+(`{e.label: e for e in evidence}`). A plan saying `lookup("2019")` pointed at one bar and
+stated another's number. Running the LLM teacher over 40 unbiased ChartQA records made this
+the largest single cause of refusal: **6 of 15**.
+
+**First, a correction.** H3 reported that a label collides on **74.2%** of charts. That came
+from `audit/measure_label_ambiguity.py` reading `sorted(names)[:3000]` — the first annotation
+files in *filename* order. ChartQA filenames encode the chart family, so that prefix is
+**40.5% `multi_col`** against **15.6%** in the real split, and multi-column charts have
+duplicate labels by construction. Measured over 3,000 charts sampled at random and
+deduplicated by image:
+
+| | |
+|---|---:|
+| a label names more than one element | **678 (22.6%)** |
+| of those, every element carries a `series` | **678 (100%)** |
+| **(series, label) unique** where the label alone is not | **640 (94.4%)** |
+| collides even with the series | 38 (5.6%) |
+
+This is the second time in this audit that iterating a source in its natural order produced a
+badly skewed sample; the first measured human-only questions (0081). Audit scripts sample
+randomly now, and the old figure is left visible in `AUDIT.md` rather than deleted.
+
+**The information was never missing.** `chartqa.py::_series_elements` has always written
+`"series": model.get("name")` on every element, and nothing downstream read it — no schema
+field, no use in the target builder, invisible to the executor.
+
+**Decision.** `data/records.py::qualified_labels` gives each element one name that is unique
+within its chart: `"Democratic · 2019"` where the bare label collides, and the bare label
+otherwise. **Only colliding labels are qualified**, so 77.4% of charts keep their labels
+exactly as the chart draws them. No schema change — labels were already free strings, and
+measured over 800 colliding charts **no existing label contains the separator**.
+
+Three consequences follow it through:
+
+* `_evidence_from` resolves by that name on every branch, so the first-wins/last-wins
+  disagreement cannot arise. Where a label repeats *within* one series (5.6%) the record is
+  **refused explicitly** rather than resolved to whichever element came first.
+* `_table_values` gains `(folded_column, label)` keys. The bare key took the row's **first**
+  numeric cell, so an element in the second series was handed the first series' number. The
+  column is matched through `fold_for_matching`, because 14.4% of charts spell the series
+  differently from the column heading — Cyrillic homoglyphs (`'Оррose'` vs `'Oppose'`, which
+  render identically), a stray leading letter (`'TAlways'`), scrambled word order.
+* The teacher prompt shows the same names, so a proposal names a mark that exists.
+
+**Evidence.**
+
+| | before | after |
+|---|---:|---:|
+| LLM path, plans accepted | 22/25 (88.0%) | **25/27 (92.6%)** |
+| LLM path, yield over 40 records | 22 (55%) | **25 (62.5%)** |
+| deterministic targets built (n=1,500) | 158 | 157 |
+| records refused as "label repeats within one series" | 0 | **22** |
+
+**Consequences.** The cost is one built target in 1,500. The gain is 22 records that would
+have pointed at a mark nobody chose now refusing with a reason, and three of the teacher's six
+ambiguity refusals becoming answerable — *"the percentage of Black who has a 'Very important'
+opinion"* is `lookup("Very important · Black")`, which was simply not expressible before.
+
+The remaining teacher refusals are no longer about identity. Of 13: five are questions whose
+gold answer is not derivable from the chart's own data, three are questions that do not pick
+out a unique mark, two need operators we do not have, and two are semantic mismatches where
+the answer counts categories rather than marks. The last is a chart whose annotation stops
+before the year the question asks about.
+
+**Still open.** Two proposals were rejected for needing more evidence than `MAX_EVIDENCE = 8`,
+both bare aggregates over charts with 17 and 25 elements. The median ChartQA chart has 10
+elements, so this now bounds every fold-shaped plan. That cap was set by a measured token
+budget (0060) and re-opening it means re-pricing sequence length against step time; it is the
+next thing to measure, not to assume.

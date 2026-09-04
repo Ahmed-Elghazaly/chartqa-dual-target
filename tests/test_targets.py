@@ -239,3 +239,75 @@ class TestValueBoxAgreement:
             meta={ELEMENTS_KEY: [{"label": "Finland", "value": 9.9, "unit": None,
                                   "bbox": [10, 10, 20, 90]}]})
         assert json.loads(build_target(record))["model_answer"] == "9.9"
+
+
+# ------------------------------------------------- series identity (AUDIT.md H3)
+
+
+def _grouped_record(plan, *, n_years=3):
+    """A grouped chart: every year label names one bar per series."""
+    from chartqa_dt.data.records import ELEMENTS_KEY, ChartRecord
+    elements, boxes = [], []
+    for si, series in enumerate(("Democratic", "Republican")):
+        for i in range(n_years):
+            box = [i * 20 + si * 8, 0, i * 20 + si * 8 + 6, 100]
+            elements.append({"label": f"{2000 + i}", "series": series,
+                             "value": float(10 + i + si * 50), "unit": None, "bbox": box})
+            boxes.append(box)
+    table = {"columns": ["Year", "Democratic", "Republican"],
+             "rows": [[f"{2000 + i}", str(10.0 + i), str(60.0 + i)] for i in range(n_years)]}
+    return ChartRecord(record_id="grouped", source="chartqa", split="train",
+                       image_path="i.png", image_sha256="d", question="q?", answer="60.0",
+                       question_kind="human", table=table, plan=plan, boxes=boxes,
+                       meta={ELEMENTS_KEY: elements})
+
+
+def test_a_grouped_chart_gets_one_name_per_mark():
+    """Both sides of this contract resolved a repeated label differently -- this module kept
+    the first match, the executor kept the last -- so a plan pointed at one bar and stated
+    another's number."""
+    from chartqa_dt.train.targets import _evidence_from
+    rec = _grouped_record({"op": "lookup", "args": ["Republican · 2000"]})
+    names = [e["label"] for e in _evidence_from(rec)]
+    assert names == ["Republican · 2000"]
+    all_names = [e["label"] for e in _evidence_from(_grouped_record({"op": "max", "args": []}))]
+    assert len(set(all_names)) == len(all_names), f"names still collide: {all_names}"
+
+
+def test_the_value_comes_from_the_right_series_column():
+    """A bare label took the row's FIRST numeric cell, so an element in the second series
+    was handed the first series' number."""
+    from chartqa_dt.train.targets import _evidence_from
+    got = _evidence_from(_grouped_record({"op": "lookup", "args": ["Republican · 2000"]}))
+    assert got[0]["value"] == pytest.approx(60.0), "took the Democratic column's value"
+    dem = _evidence_from(_grouped_record({"op": "lookup", "args": ["Democratic · 2000"]}))
+    assert dem[0]["value"] == pytest.approx(10.0)
+
+
+def test_a_label_that_series_cannot_separate_is_refused():
+    """5.6% of colliding charts repeat a label WITHIN one series. Picking one would point at
+    a mark nobody chose, so the record is refused instead."""
+    from chartqa_dt.data.records import ELEMENTS_KEY, ChartRecord
+    from chartqa_dt.train.targets import TargetError, _evidence_from
+    els = [{"label": "A", "series": "S", "value": 1.0, "unit": None, "bbox": [0, 0, 5, 5]},
+           {"label": "A", "series": "S", "value": 2.0, "unit": None, "bbox": [6, 0, 9, 5]}]
+    rec = ChartRecord(record_id="dup", source="chartqa", split="train", image_path="i.png",
+                      image_sha256="d", question="q?", answer="1", question_kind="human",
+                      plan={"op": "lookup", "args": ["A"]}, meta={ELEMENTS_KEY: els})
+    with pytest.raises(TargetError, match="still names more than one mark"):
+        _evidence_from(rec)
+
+
+def test_an_ungrouped_chart_keeps_its_labels_exactly():
+    """77.4% of charts have no collision and must be left alone -- a qualified label is not
+    the text the chart draws."""
+    from chartqa_dt.data.records import ELEMENTS_KEY, ChartRecord
+    from chartqa_dt.train.targets import _evidence_from
+    els = [{"label": "Nigeria", "series": "Users", "value": 154.3, "unit": None,
+            "bbox": [0, 0, 5, 5]},
+           {"label": "Egypt", "series": "Users", "value": 54.7, "unit": None,
+            "bbox": [6, 0, 9, 5]}]
+    rec = ChartRecord(record_id="flat", source="chartqa", split="train", image_path="i.png",
+                      image_sha256="d", question="q?", answer="154.3", question_kind="human",
+                      plan={"op": "lookup", "args": ["Nigeria"]}, meta={ELEMENTS_KEY: els})
+    assert [e["label"] for e in _evidence_from(rec)] == ["Nigeria"]

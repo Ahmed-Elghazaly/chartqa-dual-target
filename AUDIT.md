@@ -30,7 +30,7 @@ because ChartQA has no per-question grounding to score against.
 | C2 | `record.boxes` means different things per source, and validation AP uses it as ground truth | **CRITICAL** | ✅ **FIXED** (0076) |
 | H1 | RefChartQA grounding aligns to ChartQA elements at **99.2% exact** — 1,896 records could gain real labels, values and plans | **HIGH** | high, measured |
 | H2 | The dedup **merge is discarded** before training sees it | **HIGH** | high, by construction |
-| H3 | Labels are non-unique on **74.2%** of charts; target builder and executor resolve duplicates *differently* | **HIGH** | high, measured |
+| H3 | Labels are non-unique on **22.6%** of charts (not 74.2% — that sample was biased); target builder and executor resolved duplicates *differently* | **HIGH** | ✅ **FIXED** (0083) |
 | M1 | The processor pixel budget is applied inside a silent `except: pass` | MEDIUM | high |
 | **H4** | **The miner's dominant refusal is a `lookup` vs `max`/`min` tie — 26.6% of all rows.** The table cannot say which the question asked for; one word of the question can | **HIGH** | high, measured (n=4,000) |
 | **C3** | **`mining` and `executor` parsed every percentage 100x apart**, and spaced thousands raised — invisible to the old pipeline, halves the new one | **CRITICAL** | ✅ **FIXED** (0082) |
@@ -222,14 +222,28 @@ otherwise it cannot participate in training at all.
 
 ## H3 — Labels are not unique, and the two sides disagree about which mark a label means
 
-**Evidence.** `audit/measure_label_ambiguity.py` over 2,070 ChartQA train annotations:
+**Evidence.** ⚠️ **The first number here was wrong, and the correction matters.**
+`audit/measure_label_ambiguity.py` read `sorted(names)[:3000]` — the first annotation files
+in *filename* order. ChartQA filenames encode the chart family, so that prefix is **40.5%
+`multi_col`** against **15.6%** in the real train split, and multi-column charts have
+duplicate labels by construction. It reported 74.2%; the true rate is about a third of that.
+
+`audit/measure_series_identity.py`, over 3,000 charts sampled at **random** and deduplicated
+by image:
 
 | | |
 |---|---:|
-| charts where some label names **more than one** element | **1,536 (74.2%)** |
-| v_bar | 87.6% |
-| h_bar | 64.1% |
-| charts with a single series | 537 (25.9%) |
+| charts where some label names **more than one** element | **678 (22.6%)** |
+| of those, every element carries a `series` name | **678 (100%)** |
+| **(series, label) is unique** where the label alone is not | **640 (94.4%)** |
+| still collides even with the series | 38 (5.6%) |
+
+The worst label repeats twice on 53.4% of colliding charts, three times on 25.4%, and up to
+seven times.
+
+The old, biased figure is left visible rather than deleted: it is the second time in this
+audit that iterating a source in its natural order produced a badly skewed sample (the first
+measured human-only questions, `DECISIONS.md` 0081). Audit scripts sample randomly now.
 
 ```
 'Senegal'   names 3 marks  series ['About the same','Less','More']  values 89, 23, 3
@@ -247,9 +261,15 @@ label today, because mining rejects most multi-series questions. So the *current
 small — but it is the mechanism that would make H1's alignment unsafe at scale, since
 RefChartQA questions are heavily multi-series.
 
-**Recommended action.** Decide the contract explicitly and enforce it on both sides. The
-element identity should carry `series` (or an equivalent discriminator) internally; whether
-the *model-facing* label needs it is a separate question the brief rightly separates.
+**Why it is now the top blocker.** Running the LLM teacher over 40 unbiased ChartQA records
+made this the largest single cause of refusal: **6 of its 15 refusals** were "this label
+appears N times and nothing says which". That is 15% of all records — larger than every
+remaining DSL gap combined.
+
+**Recommended action.** The disambiguating information already exists and is thrown away:
+`chartqa.py::_series_elements` writes `"series": model.get("name")` on every element and
+nothing downstream reads it. Carry it into the element's identity so both sides resolve the
+same mark. See `DECISIONS.md` 0083 for the design and its measured cost.
 
 **Priority HIGH. Confidence high.**
 

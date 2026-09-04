@@ -39,27 +39,38 @@ PLANS: dict[int, dict] = {
     26: {"op": "max", "args": []},             # "the peak of ... between 2000 and 2016"
     27: {"op": "argmax", "args": []},          # "which country registered the largest"
     28: L("2013 to 2015"), 29: L("2020"), 30: L("2019"), 31: L("2018"),
-    32: L("Libtayo"), 37: L("2018"), 38: L("2020"),
+    32: L("Libtayo"), 37: L("2018"),
+    # --- answerable only once labels carry their series (AUDIT.md H3, decision 0083).
+    #     Before qualification these three read as "'2020' appears twice, nothing says
+    #     which", and were refused.
+    4:  L("Very important · Black"),
+    11: L("Menswear · 2020"),
+    21: L("Induced contribution to GDP · 2028**"),
 }
 
 #: index -> why the teacher would not answer
 REFUSALS: dict[int, str] = {
     2:  "answer is a LIST of two numbers; one plan yields one value",
-    4:  "'Black' appears 3 times (3 series); no way to say which",
     7:  "'first reported' is a position, not an extremum; argmin would be right by accident",
     8:  "answer 'New England Patriots' (27) is not the maximum (34); not in the data",
-    11: "years repeat across two series; lookup('2020') is ambiguous",
-    16: "years repeat across two series and the question names no year",
+    16: "the question names no year; the series is now nameable but the YEAR is not",
     19: "cannot reconstruct 0.5527… from these values under any reading",
-    21: "60 items, years repeated across many series",
     22: "argmax over all items gives 'Coronavirus SARS-' (45 213), not the gold answer",
     23: "gold says 2019/20 (12.1) but 2010/11 (12.3) is higher; gold contradicts the data",
     33: "every year increases; the question does not pick one out",
     34: "'is the sum of the smallest two greater than the largest' -> Yes; no such operator",
-    35: "asks for 6 categories but the evidence holds 12 items (two series); count() = 12",
+    35: "asks for 6 age categories; count() counts the 12 marks, not the 6 categories",
     36: "a release date is not computable from the values",
-    39: "grades 1-6 repeat across two series, and 'lowest pass grade' is not argmin of value",
+    39: "'lowest pass grade' is about the grade scale, not the smallest percentage",
+    38: "the annotation carries no 2020 element -- see the note below",
 }
+
+
+# Record 38 was originally PROPOSED as `lookup("2020")` and the verifier rejected it with
+# `operand_not_in_evidence`: the chart's annotation stops before 2020. The guess came from
+# reading a truncated dump rather than the prompt, which lists every item — a real teacher
+# reading the prompt would have seen the gap and refused. It is recorded as a refusal, and
+# the original error is left documented here rather than quietly deleted.
 
 
 def main() -> int:

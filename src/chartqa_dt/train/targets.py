@@ -28,7 +28,12 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from chartqa_dt.data.records import ELEMENTS_KEY, ChartRecord
+from chartqa_dt.data.records import (
+    ELEMENTS_KEY,
+    ChartRecord,
+    fold_for_matching,
+    qualified_labels,
+)
 from chartqa_dt.eval.metrics import to_float
 from chartqa_dt.plans.executor import (
     folds_over_evidence,
@@ -47,21 +52,39 @@ class TargetError(ValueError):
     """A record could not be turned into a valid training target."""
 
 
-def _table_values(record: ChartRecord) -> dict[str, Any]:
-    """Label to value, from the gold table — the source the mined plan was verified on."""
+def _table_values(record: ChartRecord) -> dict[Any, Any]:
+    """Label to value, from the gold table — the source the mined plan was verified on.
+
+    Two kinds of key, because a bare label is not enough on a grouped chart:
+
+    * `"2019"` — the row's first numeric cell. Correct on a two-column table, which is
+      74.7% of ChartQA, and what every existing caller expects.
+    * `(folded_column, "2019")` — that specific column's cell. On a three-column table the
+      bare key silently returned the FIRST series' number, so an element belonging to the
+      second series was given another series' value. The column is folded through
+      `fold_for_matching` because 14.4% of charts spell the annotation's series name
+      differently from the table's column heading — Cyrillic homoglyphs, a stray letter,
+      scrambled word order — and none of that should fail the join.
+    """
     table = record.table
     if not isinstance(table, dict):
         return {}
-    out: dict[str, Any] = {}
+    columns = [fold_for_matching(c) for c in (table.get("columns") or [])]
+    out: dict[Any, Any] = {}
     for row in table.get("rows") or []:
         if not row:
             continue
         label = str(row[0]).strip()
-        for cell in row[1:]:
+        first = True
+        for i, cell in enumerate(row[1:], start=1):
             number = to_float(cell)
-            if number is not None:
+            if number is None:
+                continue
+            if i < len(columns):
+                out.setdefault((columns[i], label), number)
+            if first:
                 out.setdefault(label, number)
-                break
+                first = False
     return out
 
 
@@ -121,6 +144,28 @@ def _evidence_from(record: ChartRecord) -> list[dict[str, Any]]:
     """
     elements = [e for e in (record.meta.get(ELEMENTS_KEY) or [])
                 if isinstance(e, dict)]
+    # One name per element, unique within the chart. On a grouped chart "2019" names one bar
+    # per series, and the two sides of this contract resolved it differently -- this module
+    # kept the FIRST match and `plans.executor` kept the LAST -- so a plan pointed at one bar
+    # and stated another's number (`AUDIT.md` H3). Only colliding labels are qualified, so
+    # 77.4% of charts keep their labels exactly as the chart draws them.
+    names = qualified_labels(elements)
+    if len(set(names)) != len(names) and elements:
+        repeated = next(n for n in names if names.count(n) > 1)
+        raise TargetError(
+            f"{record.record_id}: {repeated!r} still names more than one mark after "
+            f"qualifying by series, so no plan can say which one it means. Picking one "
+            f"would point at a mark we did not choose.")
+    by_name = dict(zip(names, elements))
+    series_of = {n: e.get("series") for n, e in zip(names, elements)}
+    bare_of = {n: str(e.get("label")) for n, e in zip(names, elements)}
+
+    def value_for(name: str, element: dict[str, Any]) -> Any:
+        """The gold table's value for this element, by series where the table has one."""
+        keyed = table_values.get((fold_for_matching(series_of.get(name)), bare_of[name]))
+        if keyed is not None:
+            return keyed
+        return table_values.get(bare_of[name], element.get("value"))
     boxes = record.boxes or []
     wanted = plan_labels(record.plan)
     # The plan was mined and verified against the gold TABLE, so the table is the
@@ -151,36 +196,31 @@ def _evidence_from(record: ChartRecord) -> list[dict[str, Any]]:
                 f"{record.record_id}: the plan folds over all {len(elements)} elements, "
                 f"more than the schema's {MAX_EVIDENCE}. Truncating would change the "
                 f"aggregate and the target would no longer reproduce its answer.")
-        have = {str(e.get("label")) for e in elements if e.get("bbox") is not None}
+        have = {n for n, e in by_name.items() if e.get("bbox") is not None}
         missing = [label for label in wanted if label not in have]
         if missing:
             raise TargetError(
                 f"{record.record_id}: the plan references {missing[0]!r}, which has no "
                 f"element box.")
         folded = []
-        for e in elements:
+        for name, e in by_name.items():
             if e.get("bbox") is None:
                 continue
-            label = str(e.get("label"))
-            value = table_values.get(label, e.get("value"))
-            _refuse_on_value_disagreement(record, label, value, e)
-            folded.append(entry(label, value, e.get("unit"), e["bbox"]))
+            value = value_for(name, e)
+            _refuse_on_value_disagreement(record, name, value, e)
+            folded.append(entry(name, value, e.get("unit"), e["bbox"]))
         return folded
 
     if elements and wanted:
-        by_label: dict[str, dict[str, Any]] = {}
-        for element in elements:
-            key = str(element.get("label"))
-            by_label.setdefault(key, element)
         picked: list[dict[str, Any]] = []
         for label in dict.fromkeys(wanted):          # de-duplicated, order preserved
-            element = by_label.get(label)
+            element = by_name.get(label)
             if element is None or element.get("bbox") is None:
                 raise TargetError(
                     f"{record.record_id}: the plan references {label!r}, which has no "
                     f"element box. Emitting the record without it would train a plan "
                     f"that cannot execute.")
-            value = table_values.get(label, element.get("value"))
+            value = value_for(label, element)
             _refuse_on_value_disagreement(record, label, value, element)
             picked.append(entry(label, value, element.get("unit"), element["bbox"]))
         if len(picked) > MAX_EVIDENCE:
@@ -190,8 +230,9 @@ def _evidence_from(record: ChartRecord) -> list[dict[str, Any]]:
 
     if elements:
         # An aggregate over everything, or no plan yet: keep the leading elements.
-        return [entry(e.get("label"), e.get("value"), e.get("unit"), e["bbox"])
-                for e in elements[:MAX_EVIDENCE] if e.get("bbox") is not None]
+        return [entry(n, value_for(n, e), e.get("unit"), e["bbox"])
+                for n, e in list(by_name.items())[:MAX_EVIDENCE]
+                if e.get("bbox") is not None]
 
     # Boxes with no element metadata — RefChartQA. Labels are placeholders; whether such a
     # record can be supervised at all is decided in `build_record`.
