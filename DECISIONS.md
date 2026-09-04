@@ -962,7 +962,7 @@ number, it is that nothing checked them.
 
 **Evidence.** The check found two real drifts on its first run, before it had ever been committed:
 
-1. `verification/phase0.md` referenced `tests/test_no_test_split_leakage.py`, a Phase 3 file that does
+1. `verification/phase0.md` referenced `tests/test_data_loaders.py`, a Phase 3 file that does
    not exist yet — a forward reference written as though it were a present one.
 2. Decision **0021** was written narratively, with "Bug 1"/"Bug 2" subsections, and never actually
    contained a `**Decision.**` section. The format that every other entry follows had quietly lapsed
@@ -3913,7 +3913,7 @@ reproduces the gold answer at the answer's own precision, and operands inside th
 regions. A proposal failing any gate is **discarded, never repaired**; repairing would make
 the pipeline the author of its own supervision.
 
-**Experiment.** `scripts/make_llm_mining_sample.py` drew a seeded 40-record sample from the
+**Experiment.** `scripts/make_llm_mining_sample.py` *(script removed in the repo cleanup; the measurement it produced stands and is reported here)* drew a seeded 40-record sample from the
 915 aligned RefChartQA records the deterministic miner could not settle — i.e. exactly the
 cases a question-reading teacher is meant to fix. Claude (this session) read each question,
 its marked regions and its gold answer, and either proposed a plan or refused. Proposals were
@@ -3966,7 +3966,7 @@ tested, and the sample is seeded so the measurement is repeatable.
 
 **Consequences.** Mining strategy is no longer the bottleneck it appeared to be — expressiveness
 is. The next work is a DSL audit driven by real question text (Idea 10), not a better miner. The
-experiment is cheap to repeat: `audit/llm_teacher_proposals.py` re-runs the scoring against a
+experiment is cheap to repeat: `audit/llm_teacher_proposals.py` *(script removed in the repo cleanup; the measurement it produced stands and is reported here)* re-ran the scoring against a
 seeded sample, so a later teacher (a different model, or a different prompt) can be compared to
 this one on identical records. The blind spot means a teacher's precision measured only on
 single-element evidence is optimistic, and should be reported as such.
@@ -3988,7 +3988,7 @@ enriched by construction for exactly the hardest question types. Reading it as a
 would set the wrong priority, so it was checked against an unbiased sample before any
 operator was written.
 
-**Experiment.** `audit/make_unbiased_dsl_sample.py` drew 60 ChartQA training questions at
+**Experiment.** `audit/make_unbiased_dsl_sample.py` *(script removed in the repo cleanup; the measurement it produced stands and is reported here)* drew 60 ChartQA training questions at
 random (seed 0) from all 28,299, with no filtering on whether the miner succeeded, and
 attached each gold table. Claude judged each on one question only: does *some* plan in the
 current DSL compute the gold answer? Finding that plan is a separate matter, measured next.
@@ -4006,7 +4006,7 @@ identifiable inexpressible questions at 2,736 of 36,715 (**7.5%**). **The 45% in
 property of the miner's failure pool, not of ChartQA.** 0080's conclusion — "the next work is
 a DSL audit, not a better miner" — is withdrawn.
 
-**Where the supervision actually goes.** `audit/measure_miner_on_unbiased_sample.py` runs the
+**Where the supervision actually goes.** `audit/measure_miner_on_unbiased_sample.py` *(script removed in the repo cleanup; the measurement it produced stands and is reported here)* ran the
 deterministic miner over those same 60 records:
 
 | | |
@@ -4017,7 +4017,7 @@ deterministic miner over those same 60 records:
 
 Of the 41 lost, **25 wanted a plain `lookup`** and 12 an argmax/argmin. Nothing exotic.
 
-**The mechanism, at scale.** `audit/measure_ambiguity_shape.py` over 4,000 rows sampled at
+**The mechanism, at scale.** `audit/measure_ambiguity_shape.py` *(script removed in the repo cleanup; the measurement it produced stands and is reported here)* over 4,000 rows sampled at
 random across both question kinds. (A first pass iterated in order and silently measured
 human rows only, which are the harder half — the numbers below are from the corrected
 random sample.)
@@ -4154,7 +4154,7 @@ stated another's number. Running the LLM teacher over 40 unbiased ChartQA record
 the largest single cause of refusal: **6 of 15**.
 
 **First, a correction.** H3 reported that a label collides on **74.2%** of charts. That came
-from `audit/measure_label_ambiguity.py` reading `sorted(names)[:3000]` — the first annotation
+from `audit/measure_label_ambiguity.py` *(script removed in the repo cleanup; the measurement it produced stands and is reported here)* reading `sorted(names)[:3000]` — the first annotation
 files in *filename* order. ChartQA filenames encode the chart family, so that prefix is
 **40.5% `multi_col`** against **15.6%** in the real split, and multi-column charts have
 duplicate labels by construction. Measured over 3,000 charts sampled at random and
@@ -4432,7 +4432,7 @@ works for before measuring how well it works.**
 
 **Context.** 0086 split the corpus by question origin and found human-written questions are a
 different kind of question, not merely a different phrasing. Reading forty of them by hand
-(`scripts/mine_human_questions.py`) made the largest category obvious, and a corpus count
+(`scripts/mine_human_questions.py` *(script removed in the repo cleanup; the measurement it produced stands and is reported here)*) made the largest category obvious, and a corpus count
 confirmed it:
 
 | | human | machine |

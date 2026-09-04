@@ -461,3 +461,44 @@ def test_the_two_subtoken_definitions_stay_distinct():
             "the area fraction is what confirms PLAN 4.5's bucketing rule; a drift of "
             "more than 2 points means the definition moved"
         )
+
+
+#: Files a decision may cite that are not ours: the project briefs (which live one level up),
+#: and files belonging to other repositories or installed packages that a decision quotes.
+_EXTERNAL = {
+    "IDEA.md", "PLAN.md", "Prompt.md",
+    "config.json", "preprocessor_config.json", "image_processing_qwen2_vl.py",
+    "quantizer_bnb_4bit.py", "kaggle.json", "test_human.json",
+    "kagglesdk/kernels/types/kernels_api_service.py",
+    "evaluation/evaluate.py", "evaluation/filtered_results.jsonl",
+}
+
+
+def test_every_file_a_decision_cites_still_exists():
+    """A decision that points at a deleted script sends a reader looking for nothing.
+
+    The repo cleanup removed eight one-off measurement scripts and left eight decisions
+    citing them. The measurements stand — they are reported in the records themselves — but
+    the citations had to be annotated, and nothing would have caught that. This does.
+
+    A file that is genuinely gone should have its citation annotated in `DECISIONS.md`
+    rather than be added here; this list is for files that were never ours.
+    """
+    import re
+
+    root = ROOT
+    text = (root / "DECISIONS.md").read_text(encoding="utf-8")
+    # A citation immediately followed by the removal note is annotated on purpose: the
+    # measurement stands and is reported in the record, and the script is gone.
+    cited = {m.group(1) for m in
+             re.finditer(r"`([A-Za-z_][\w/]*\.(?:py|jsonl|sh))`(?!\s*\*?\(?script removed)",
+                         text)}
+    missing = sorted(
+        name for name in cited - _EXTERNAL
+        if not any(p for p in root.rglob(name)
+                   if ".venv" not in str(p) and "__pycache__" not in str(p)))
+    assert not missing, (
+        "DECISIONS.md cites files that no longer exist:\n  "
+        + "\n  ".join(missing)
+        + "\nEither restore them, annotate the citation as removed, or add them to "
+          "_EXTERNAL if they were never part of this repository.")

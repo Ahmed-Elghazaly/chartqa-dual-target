@@ -25,7 +25,7 @@ Legend — ✅ done · 🔄 in progress · ⬜ not started · 🚫 blocked (reas
 
 | # | item | status | verdict |
 |---|---|---|---|
-| 2.1 | Re-examine 0001–0079 against what we now know | 🔄 | 0067 amended by 0075; 0045 challenged by 0079 |
+| 2.1 | Re-examine 0001–0105 against what we now know | ✅ | done by supersession, and then checked mechanically: every file a decision cites is now verified to exist by `test_every_file_a_decision_cites_still_exists`. Superseded or amended: 0002 and 0052 by 0093, 0037/0060 by 0095, 0041 by 0082, 0067 by 0075, 0078/0079 by 0085/0088, 0080 by 0081, 0091 by 0101. Confirmed still correct: 0014, 0026, 0045, 0064, 0069 |
 | 2.2 | 0014 "emit few boxes" | ✅ | confirmed useful in a place it was not designed for: 90.3% of questions never touch `MAX_EVIDENCE` because evidence is selected by what the plan names (0084) | |
 | 2.3 | 0037/0060 resolution choice | ✅ | **superseded: native** (0095). 0060 rejected native only because 17.72 h broke a 10 h session; that gate is gone. Buys 11.9 points of sub-token targets (53.2% → 41.3%), and the sequence still fits at p99 864 of 1,024 |
 | 2.4 | 0041 empty-args fold convention | ✅ | the *pure* fold slipped past the guard and was silently truncated to 8 items; fixed in 0082 (`AUDIT.md` C4) |
