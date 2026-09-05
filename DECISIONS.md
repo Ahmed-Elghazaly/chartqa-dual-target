@@ -6508,3 +6508,66 @@ hiding, and each is now a test:
 
 Every one surfaced as a *failing test* rather than as a silently emptier corpus, which is
 the difference between this and the defects in 0071 through 0073.
+
+---
+
+## 0121 — Round-trip consistency: a bad decoder, a good confidence signal
+
+**Context.** `Prompt.md` Idea 11 asks how round-trip consistency — executing the model's own
+plan against its own evidence and comparing with its own answer — should be used at target
+construction, training-data filtering, validation, evaluation, and **inference
+diagnostics**. The first four were already settled: it is gate 4 of the five-gate target
+build, so agreement holds in **100%** of training targets by construction. The last was
+not, and it is the one with a decision behind it.
+
+Measured on the 1,920 real structured zero-shot generations from Phase 5.
+
+### Should the executor's result replace the model's answer?
+
+The idea is attractive: the executor does exact arithmetic, the answer field is
+autoregressive guessing. **It is wrong, and by a lot.**
+
+| decode policy | relaxed accuracy |
+|---|---:|
+| trust `model_answer` *(current)* | **48.70%** |
+| execute the plan whenever it executes | 41.77% |
+| oracle: pick the better of the two per item | 49.06% |
+
+Blind replacement costs **6.9 points**, and a *perfect* selector would gain only 0.36 — so
+there is almost nothing to win here even with an oracle. Of the 911 records whose plan
+executed, 695 (76.3%) agreed. Of the 215 that disagreed, the model's answer was right and
+the executor's wrong **140** times; the reverse happened **7** times.
+
+**Why:** the model's *evidence values* are misread far more often than its arithmetic is
+wrong. `lookup` — the operation with no arithmetic at all — accounts for 69 of the 140
+losses. The answer is reached by a visual route that does not pass through the evidence
+list, so executing propagates a misreading the answer had escaped.
+
+That is a concrete instance of Idea 11's own warning that these notions are not equivalent:
+plan executability is genuinely independent of benchmark answer correctness here.
+
+### Round-trip consistency as a confidence signal
+
+The same measurement, read the other way, is useful — and needs **no labels**:
+
+| bucket | share | accuracy of `model_answer` | 95% CI |
+|---|---:|---:|---|
+| plan executes and **agrees** with the answer | 36.2% | **81.0%** | [0.780, 0.839] |
+| plan executes and **disagrees** | 11.2% | 65.1% | [0.586, 0.712] |
+| plan refuses to execute | 20.1% | 60.1% | [0.552, 0.650] |
+| record does not parse | 32.5% | **0.0%** | — |
+
+Self-consistency separates right from wrong by **15.9 points** with non-overlapping
+intervals, on a signal computable at inference time on unlabelled data.
+
+**Decision.** Keep `model_answer` as the answer; the interpreter checks rather than
+replaces (which `README.md` already says, and 0114's guard does not change). Record
+round-trip agreement as a **reported diagnostic** rather than a decode rule.
+
+**Consequences.** This is a zero-shot baseline, and the direction it will move under
+fine-tuning is predictable but unmeasured: targets enforce agreement in 100% of cases, so
+the agree-rate should rise from 76.3% and the 7 executor wins should grow. That makes it a
+**pre-registered prediction** — if fine-tuning does not raise the agree-rate, the model has
+learned the format without learning to use its own evidence, which is the failure this
+project would most want to know about. The unparsed row is 0114's truncation, and it
+dominates everything else in this table.
