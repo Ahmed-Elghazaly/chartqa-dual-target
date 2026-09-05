@@ -6901,3 +6901,44 @@ at 11.86%, and when LLM mining runs over them the same ambiguity applies to a mi
 `argmax`. `distinguish.coincidences` already asks the general form of this question — *does
 another operand choice reach the same answer?* — so the gate exists; whether it fires on
 ties is a check to run against the mining output (`BLOCKED.md` §1).
+
+---
+
+## 0128 — Two evidence items, one label, two values: refuse rather than pick
+
+**Context.** `Prompt.md` Idea 10 lists **"duplicate evidence labels"** among the executor
+semantics to review. `by_label = {e.label: e for e in evidence}` keeps the last, silently.
+
+That is the same class of defect as `AUDIT.md` H3, where this module kept the *first* match
+and the executor kept the *last*, so a plan pointed at one bar and stated another's number.
+H3 was fixed on the target side by qualifying colliding labels (0083). The executor side
+was never revisited.
+
+**Measured** over 1,296 real parsed zero-shot generations:
+
+| | share |
+|---|---:|
+| carry a duplicated evidence label | 6.9% |
+| the plan references a duplicated label | 5.0% |
+| **the duplicates carry different values** | **1.2%** |
+
+Only the last matters. A model that repeats an item verbatim is untidy; a model that emits
+the same label with two different numbers has contradicted itself, and `by_label` then
+chooses between them by position.
+
+**Decision.** Refuse a plan that references a label whose duplicates **disagree**. Allow
+duplicates that agree — the repetition adds nothing but changes nothing.
+
+**What it costs: nothing on the headline metric.** The first estimate said 0.36 accuracy
+points, from the 7 of 15 affected records whose answer is currently correct. That estimate
+was wrong, and the reason matters: 0121 settled that `model_answer` **is** the answer and
+the executor only checks it. So an executor refusal does not change relaxed accuracy at
+all — it changes the plan-executable rate and the round-trip consistency diagnostic, both
+of which become *more* honest, since they were previously counting a coin-flip as a
+successful execution.
+
+**Consequences.** This is one of the seven notions Idea 11 insists on keeping distinct:
+"executable" was quietly including "executed on an arbitrary choice between contradictory
+operands". Targets are unaffected — `qualified_labels` already guarantees unique labels or
+refuses the record (0083) — so this changes inference-time behaviour only, which is where
+the duplicates come from.

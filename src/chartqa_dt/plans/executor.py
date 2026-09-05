@@ -200,12 +200,28 @@ def execute(node: Any, evidence: list[EvidenceItem], *, _depth_checked: bool = F
     args = node.get("args") or []
 
     by_label = {e.label: e for e in evidence}
+    #: Labels that appear twice with **different values**. `by_label` keeps the last, which
+    #: is a silent choice between two numbers the model itself contradicted itself about.
+    #:
+    #: `Prompt.md` Idea 10 lists "duplicate evidence labels" among the executor semantics to
+    #: review. Measured on 1,296 real parsed generations: 6.9% carry a duplicated label,
+    #: 5.0% have a plan that references one, and **1.2% have duplicates whose values
+    #: disagree** — the only case where last-wins changes the answer.
+    #:
+    #: Duplicates that *agree* are harmless and stay allowed: the model repeated itself,
+    #: which is untidy, not ambiguous (`DECISIONS.md` 0128).
+    _contradictory = {e.label for e in evidence
+                      if by_label[e.label].value != e.value}
 
     def resolve(a: Any) -> Any:
         """A bare string is ALWAYS an evidence label (decision 0016)."""
         if isinstance(a, dict):
             return execute(a, evidence, _depth_checked=True)
         if isinstance(a, str):
+            if a in _contradictory:
+                raise ExecutorError(
+                    f"evidence label {a!r} appears more than once with different values; "
+                    f"the plan cannot say which is meant")
             if a not in by_label:
                 raise ExecutorError(f"lookup of unknown evidence label: {a!r}")
             return by_label[a].value

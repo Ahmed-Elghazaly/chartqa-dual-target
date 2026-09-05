@@ -80,3 +80,53 @@ def test_the_answer_parser_is_only_ever_given_an_answer():
         + "\n  ".join(f"{where}: to_float({what})" for where, what in sorted(unexpected))
         + "\nUse `plans.executor.parse_numeric` for anything drawn on a chart, or add the "
           "call to _ALLOWED_TO_FLOAT with a reason if it really is an answer.")
+
+
+# --- duplicate evidence labels (`Prompt.md` Idea 10, `DECISIONS.md` 0128) --------------
+
+def test_duplicates_that_agree_are_allowed():
+    """The model repeated itself. Untidy, not ambiguous."""
+    from chartqa_dt.plans.executor import EvidenceItem, execute
+
+    ev = [EvidenceItem("A", 1.0), EvidenceItem("A", 1.0), EvidenceItem("B", 2.0)]
+    assert execute({"op": "lookup", "args": ["A"]}, ev) == 1.0
+
+
+def test_duplicates_that_disagree_are_refused():
+    """`by_label` kept the last one, silently choosing between two numbers the model
+    contradicted itself about — the same class of defect as AUDIT.md H3."""
+    import pytest
+
+    from chartqa_dt.plans.executor import EvidenceItem, ExecutorError, execute
+
+    ev = [EvidenceItem("A", 1.0), EvidenceItem("A", 9.0), EvidenceItem("B", 2.0)]
+    with pytest.raises(ExecutorError, match="more than once with different values"):
+        execute({"op": "lookup", "args": ["A"]}, ev)
+
+
+def test_an_unaffected_label_still_resolves():
+    """Refuse the ambiguous operand, not the whole evidence list."""
+    from chartqa_dt.plans.executor import EvidenceItem, execute
+
+    ev = [EvidenceItem("A", 1.0), EvidenceItem("A", 9.0), EvidenceItem("B", 2.0)]
+    assert execute({"op": "lookup", "args": ["B"]}, ev) == 2.0
+
+
+def test_a_fold_over_all_evidence_is_unaffected():
+    """`sum([])` folds over the items as given; it never resolves a label, so there is
+    nothing ambiguous to refuse."""
+    from chartqa_dt.plans.executor import EvidenceItem, execute
+
+    ev = [EvidenceItem("A", 1.0), EvidenceItem("A", 9.0)]
+    assert execute({"op": "sum", "args": []}, ev) == 10.0
+
+
+def test_a_nested_plan_refuses_through_the_nesting():
+    import pytest
+
+    from chartqa_dt.plans.executor import EvidenceItem, ExecutorError, execute
+
+    ev = [EvidenceItem("A", 1.0), EvidenceItem("A", 9.0), EvidenceItem("B", 2.0)]
+    plan = {"op": "difference", "args": [{"op": "lookup", "args": ["A"]}, "B"]}
+    with pytest.raises(ExecutorError):
+        execute(plan, ev)
