@@ -343,3 +343,18 @@ def test_nothing_mines_plans_with_the_deterministic_miner() -> None:
     assert not offenders, (
         "the deterministic miner is being called again — all mining is the LLM's "
         "(0141):\n  " + "\n  ".join(offenders))
+
+
+def test_line_charts_stay_excluded_from_element_extraction() -> None:
+    """`DECISIONS.md` 0144. Line `bboxes` are mostly the segments between points, and where
+    they are per-point they are the **value text** rather than the marker — measured, they
+    vary 15% in width within a chart and are 1.47x wider than tall, against 0% and 0.44 for
+    bars. Enabling them recovers 1.8% more records and teaches the model to point at the
+    printed number on lines while pointing at the mark on bars.
+    """
+    from chartqa_dt.data.chartqa import ELEMENT_LAYOUTS
+
+    assert ELEMENT_LAYOUTS["line"] == "segments", (
+        "line charts were re-enabled. 0144 tested that and reverted it: the per-point "
+        "boxes are text labels, not data markers.")
+    assert ELEMENT_LAYOUTS["v_bar"] == ELEMENT_LAYOUTS["h_bar"] == "series"

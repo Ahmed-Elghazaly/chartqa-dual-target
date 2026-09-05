@@ -7658,3 +7658,57 @@ where it is currently wired (0131 found it wired into one path). If it is near z
 gates are doing their job and that is worth knowing before spending on a full run.
 
 Cost: nothing extra. The comparison rides on a mining run that has to happen anyway.
+
+---
+
+## 0144 — Line charts: the premise was wrong, the decision was right
+
+**Context.** Measuring chart types before doing synthetic work turned up something that
+looked like a large loss: **line charts are 3,691 of ChartQA's 28,299 questions and produce
+exactly 0 records.**
+
+| type | in ChartQA | built | survival |
+|---|---:|---:|---:|
+| v_bar | 14,839 | 14,459 | 97.4% |
+| h_bar | 8,554 | 7,778 | 90.9% |
+| **line** | **3,691** | **0** | **0.0%** |
+| pie | 1,215 | 710 | 58.4% |
+
+It is deliberate. `annotation_boxes` excludes lines because their `bboxes` are the segments
+*between* consecutive points, so a point's box size is not recoverable and inventing one
+would fabricate training data.
+
+**The premise is only two-thirds true.** Measured over every line annotation: **918 models
+carry one box per point** against 2,297 with the segment layout. And no new code was needed
+to tell them apart — `_series_elements` already refuses a model whose box count does not
+match its point count, precisely so a misalignment cannot attach boxes to the wrong values.
+One word in `ELEMENT_LAYOUTS` recovered **428 records**.
+
+**Then reading them killed it.** Two sampled records showed the same element three times
+with an identical box, values like `'9.'` and `'0'`, and box widths from 21 to 107 in the
+same chart. Aggregate quality checks were mild — 1.4% duplicate boxes against 0.1% for bars
+— so the question was settled on box *shape*:
+
+| | width variation within a chart | aspect ratio w/h |
+|---|---:|---:|
+| **bar** | **0.00** | 0.44 |
+| **line** | **0.15** | **1.47** |
+
+A data-point marker has constant size and is roughly square. **These vary and are half again
+wider than tall: they are the value text printed beside the point, not the point.**
+
+**Decision.** Revert. Training grounding on them would teach the model to point at the
+*number written on the chart* for lines while pointing at the *mark* for bars — an
+inconsistency in the half of the objective that is grounding — to gain 1.8% more records.
+Ahmed's standing rule decides it: data quality over quantity.
+
+**Consequences.** The exclusion now carries its evidence rather than only its reasoning, and
+a test holds it, so the next person to notice the 0% does not repeat this. The real
+limitation is unchanged and worth stating: **the model gets no real line-chart grounding
+supervision at all**, on a type that is 13% of ChartQA. Synthetic line charts are the only
+source, which is an argument for keeping them in the generator rather than dropping them as
+area and scatter were (0091).
+
+The sequence is the point: a documented decision looked wrong, its premise *was* wrong, and
+the decision was still right. Checking the premise was worth it; acting on the premise alone
+would not have been.

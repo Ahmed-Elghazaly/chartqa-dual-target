@@ -84,7 +84,22 @@ def parse_table(text: str) -> dict[str, Any]:
 #: v_bar and h_bar pair one box per datapoint (97.5% / 98.6% of series), line stores
 #: SEGMENTS between consecutive points (85.6% of series have len(bboxes) == len(y) - 1),
 #: and pie uses a per-wedge layout with its own keys.
-ELEMENT_LAYOUTS = {"v_bar": "series", "h_bar": "series", "line": "segments", "pie": "wedges"}
+#: How each chart type stores its elements.
+#:
+#: **`line` stays excluded, and `DECISIONS.md` 0144 is the record of testing that.** The
+#: original reason was that a line's `bboxes` are the segments *between* points, so a
+#: point's box size is not recoverable and inventing one would fabricate training data.
+#:
+#: That premise is only two-thirds true — 918 line models carry one box per *point* against
+#: 2,297 with the segment layout — and enabling those recovered 428 records. Reading them
+#: showed what the count could not: the boxes vary 15% in width within a chart and are 1.47x
+#: wider than tall, against 0% and 0.44 for bars. A data-point marker has constant size and
+#: is roughly square. **These are the value text printed beside the point**, not the point.
+#:
+#: Training grounding on them would teach the model to point at the number written on the
+#: chart while bars teach it to point at the mark — for 1.8% more records.
+ELEMENT_LAYOUTS = {"v_bar": "series", "h_bar": "series", "line": "segments",
+                   "pie": "wedges"}
 
 
 def _one_colour(raw: Any) -> str | None:
