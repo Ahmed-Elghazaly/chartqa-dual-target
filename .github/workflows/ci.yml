@@ -105,7 +105,7 @@ jobs:
           bad=$(git log --all --pretty=format: --name-only --diff-filter=A \
                 | sort -u \
                 | grep -Ei '\.(png|jpg|jpeg|gif|bmp|webp|tiff|zip|parquet|arrow)$' \
-                | grep -Ev '^(report/figures/|demo/examples/)' || true)
+                | grep -Ev '^(report/figures/|demo/examples/|presentation/figures/)' || true)
           if [ -n "$bad" ]; then
             echo "::error::dataset content found in git history (non-negotiable rule 7):"
             echo "$bad"
