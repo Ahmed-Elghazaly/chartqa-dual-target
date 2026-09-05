@@ -976,6 +976,158 @@ summarised here rather than repeated.
 
 ---
 
+
+## Findings from the second audit pass (decisions 0112–0134)
+
+> Same 15-point record, for the findings raised after `FINDINGS.md` was first written.
+
+
+### 0114 — 26% of the zero-shot baseline scores zero from truncation
+
+| field | |
+|---|---|
+| **1. Current behavior** | generation stops at a 900-token cap; the record is unparseable and scores 0 |
+| **2. Original rationale** | the cap was raised 512→900 after 20% hit 512; the prompt was hardened at the same time |
+| **3. Evidence from code** | 500 of 1,920 generations hit the cap; **all 500 fail to parse**; 0 of 500 reach `model_answer` |
+| **4. Problem** | 80.1% of all parse failures; the reported baseline of 48.70% is depressed by a decode artifact, so any fine-tuning gain measured against it is inflated |
+| **5. External research** | constrained/structured decoding; execution-guided decoding |
+| **6. Alternatives** | raise the cap again (rejected: 512→900 already bought longer garbage); reorder the schema so the answer precedes evidence (deferred: changes the target format) |
+| **7. Recommended action** | mask every continuation but `]` once `MAX_EVIDENCE` items are emitted |
+| **8. Expected benefit** | 498 of 500 would finish — **25.9% of the eval set** moves from a guaranteed zero to scoreable |
+| **9. Risks** | changes what the model may emit, so a run using it is not comparable with one that does not |
+| **10. Files** | `eval/decoding.py`, `eval/generate.py`, `scripts/run_zeroshot.py` |
+| **11. Migration** | none |
+| **12. Tests** | `test_decoding.py`, 58 tests, 8 mutations |
+| **13. Experiment** | **required** — re-run the baseline with `--close-evidence` before reporting any gain |
+| **14. Priority** | **CRITICAL** |
+| **15. Confidence** | high — measured on 1,920 real generations |
+| **Status** | ✅ built and wired, ⛔ the re-run is GPU-blocked |
+
+### 0116 — grounding-only targets from whole-chart boxes teach "point at everything"
+
+| field | |
+|---|---|
+| **1. Current behavior** | `build_grounding_only_target` accepted any record with boxes |
+| **2. Original rationale** | extend supervision to records with gold boxes and no plan (0104) |
+| **3. Evidence from code** | ChartQA went 5 → 4,944 records; one target: *"Which year has the most crime?"* → evidence: all six years |
+| **4. Problem** | would have added 4,939 records teaching the model to point at every mark; AP@0.5 scores that near zero |
+| **5. External research** | — (a correctness bug) |
+| **6. Alternatives** | infer question-specificity from the source name (rejected: fragile); accept and hope (rejected: silent) |
+| **7. Recommended action** | require `has_question_specific_boxes`; ChartQA declares `evidence=None` |
+| **8. Expected benefit** | removes 4,939 poisoned records; keeps the 1,246 legitimate ones |
+| **9. Risks** | none — refusal only |
+| **10. Files** | `train/targets.py`, `scripts/build_mixtures.py`, `data/*.py` |
+| **11. Migration** | none |
+| **12. Tests** | `test_grounding_only_fallback.py`, 54 tests |
+| **13. Experiment** | none needed |
+| **14. Priority** | **CRITICAL** |
+| **15. Confidence** | high — read from real targets, not counts |
+| **Status** | ✅ fixed |
+
+### 0133 — RefChartQA ships gold derivations; 97.6% of them verify vacuously
+
+| field | |
+|---|---|
+| **1. Current behavior** | 35,304 records carry a program-of-thought `response`; nothing read it |
+| **2. Original rationale** | none — the field was parsed into `meta` and forgotten |
+| **3. Evidence from code** | every one parses; 29 step-shapes; the top 12 cover 93.4% |
+| **4. Problem** | a $213 mining run was queued to recover derivations we already had — but 11,370 of 11,652 folds were over a **single** element, so `max([x])` verifies by construction |
+| **5. External research** | semantic parsing from denotations; program-of-thought; weak supervision |
+| **6. Alternatives** | attach all 12,203 (rejected: 97.6% teach circular reasoning); attach none (rejected: 833 are sound) |
+| **7. Recommended action** | convert deterministically, refuse unhandled shapes, refuse folds over <2 elements |
+| **8. Expected benefit** | 833 verified plans at zero cost, no model, no licensing or contamination question |
+| **9. Risks** | the 11,370 remain unusable without resolving the evidence-list conflict |
+| **10. Files** | `plans/pot.py`, `scripts/build_mixtures.py` |
+| **11. Migration** | none — additive |
+| **12. Tests** | `test_pot_plans.py`, 32 tests |
+| **13. Experiment** | **open** — whether to widen the evidence list for folds needs a training run |
+| **14. Priority** | **HIGH VALUE** |
+| **15. Confidence** | high — measured over all 35,304 |
+| **Status** | ✅ landed at its true size |
+
+### 0115 — the RefChartQA scaling ladder could not have been run
+
+| field | |
+|---|---|
+| **1. Current behavior** | `REFCHARTQA_CAP` at rung 1; the *cache* cap also 4,000, holding 3,996 rows |
+| **2. Original rationale** | `PLAN.md` 3.4 says start at 4,000 and climb |
+| **3. Evidence from code** | rungs of 10,000 and 25,000 had no data behind them |
+| **4. Problem** | a month of "the ladder is still to run" was never a scheduling problem |
+| **5. External research** | — |
+| **6. Alternatives** | raise only the mixture cap (rejected: the cache still binds) |
+| **7. Recommended action** | cache the whole split; re-run the alignment |
+| **8. Expected benefit** | 3,996 → 55,486 rows; 2,265 → 31,348 usable targets |
+| **9. Risks** | disk; Ahmed authorised it |
+| **10. Files** | `scripts/cache_refchartqa.py`, `data/mixture.py` |
+| **11. Migration** | old caches stay readable via `from_dict` lifting |
+| **12. Tests** | two invariants, one failing with the historical message |
+| **13. Experiment** | the ladder itself is GPU-blocked |
+| **14. Priority** | **HIGH VALUE** |
+| **15. Confidence** | high |
+| **Status** | ✅ unblocked, ⛔ ladder GPU-blocked |
+
+### 0118 — the synthetic density ceiling was three caps, not compute
+
+| field | |
+|---|---|
+| **1. Current behavior** | no synthetic chart exceeded 7 marks; ChartQA's median is 10, max 78 |
+| **2. Original rationale** | 0101 concluded L3–L4 needed regenerating, "hours of compute" |
+| **3. Evidence from code** | `SENTINELS[i % 12]` cycled; `element_colours` saturated at n≈20; the largest label pool held 10 |
+| **4. Problem** | box verification collapsed above 10 marks — 0 of 10 at 24 |
+| **5. External research** | — |
+| **6. Alternatives** | accept the density (rejected); spend the compute (rejected: not the cause) |
+| **7. Recommended action** | farthest-point colour sampling, long label pools, density from ChartQA's measured quantiles |
+| **8. Expected benefit** | p50 4 → 10, max 7 → 40, at 10/10 verification for bars and pie |
+| **9. Risks** | line/area still degrade past 24 — a real geometric limit |
+| **10. Files** | `synth/generator.py` |
+| **11. Migration** | corpus must be regenerated |
+| **12. Tests** | `test_synth_density.py`, 4 mutations |
+| **13. Experiment** | none needed |
+| **14. Priority** | **HIGH VALUE** |
+| **15. Confidence** | high — measured per chart type |
+| **Status** | ✅ fixed, corpus regeneration pending |
+
+### 0124 — ELEMENTS and EVIDENCE split into first-class fields
+
+| field | |
+|---|---|
+| **1. Current behavior** | `boxes` meant three things by source; `meta["elements"]` meant two |
+| **2. Original rationale** | 0108 concluded no change, flagging two assumptions as "safe by circumstance" |
+| **3. Evidence from code** | four defects traced to it: 0067, 0071, 0098, 0116 |
+| **4. Problem** | the flagged assumption fired three weeks later |
+| **5. External research** | `Prompt.md` Ideas 1, 2, 5 |
+| **6. Alternatives** | opaque `element_id`s (rejected, 0107: the model must emit identity, and a label is meaningful where an id is not) |
+| **7. Recommended action** | `elements` + `evidence` as fields; `evidence=None` means unknown |
+| **8. Expected benefit** | the defect class closes at the representation, not one call site; synthetic keeps the whole chart |
+| **9. Risks** | 35 call sites; migration for cached records |
+| **10. Files** | `data/records.py` and every reader |
+| **11. Migration** | `from_dict` lifts legacy `meta`; `_with_evidence` reconstructs for old caches |
+| **12. Tests** | `test_record_structure.py`, 22 tests |
+| **13. Experiment** | none — yields identical before and after |
+| **14. Priority** | **HIGH VALUE** |
+| **15. Confidence** | high — behaviour-preserving, verified |
+| **Status** | ✅ done, Ahmed approved |
+
+
+### The rest, in brief
+
+| decision | finding | why it matters | priority | status |
+|---|---|---|---|---|
+| 0113 | box coordinates quantised to fewer bins | **refuted** — 100 bins destroys 4.2% of boxes; ChartQA marks are thinner than 1% of image width | EXPERIMENTAL → rejected | ✅ measured, not adopted |
+| 0113 | `answerable` is `true` in 100% of targets | the README's first advertised capability is not trained; adding it would likely *cost* accuracy, since every ChartQA gold answer exists | MEDIUM | ✅ limitation recorded, not fixed |
+| 0117 | stage 2 is 46.9% synthetic where the comment claimed one sixth | a fixed replay count against a variable pool is not a ratio; the share swings 12× across plausible supply | MEDIUM | ✅ documented; value unchanged pending the sweep |
+| 0121 | executing the plan instead of trusting `model_answer` | **refuted** — costs 6.9 points; a perfect selector would gain 0.36. Evidence *values* are misread far more often than arithmetic is wrong | EXPERIMENTAL → rejected | ✅ measured; kept as a confidence signal, +15.9 points of separation |
+| 0122 | synthetic questions sound nothing like ChartQA's | median 7 words vs 11; **0% past tense** against a corpus whose commonest opening is *"what was the"*; said "category" for countries | HIGH VALUE | ✅ fixed — median 10, past tense 51.3% |
+| 0123 | L3's seven operations were drawn uniformly | uniform sampling is a decision about the prior over questions, made by `rng.choice` rather than by anyone | MEDIUM | ✅ weighted; corpus-wide gap is a *level-proportion* question, open |
+| 0125 | synthetic never reaches plan depth 3–4 | **not a defect** — every plan mined from real data is depth 1 (12,667 of 12,667). Adding depth would widen the domain gap | LOW | ✅ measured, deliberately not changed |
+| 0126 | supervision provenance was scattered and partial | grounding and value provenance existed nowhere; they can disagree, and did — 35 of 105 records once contradicted their own answer | MEDIUM | ✅ two closed vocabularies, tagged per element |
+| 0127 | `argmax` on a tied extremum names a mark the data does not choose | 11.86% of **real** charts have a tied max or min; 4.78% of generated argmax questions landed on one | MEDIUM | ✅ the question is refused, the executor unchanged |
+| 0128 | duplicate evidence labels resolved last-wins, silently | 1.2% of real generations carry a label twice with *different* values; `by_label` chose by position | MEDIUM | ✅ refused; costs 0 accuracy since `model_answer` is the answer |
+| 0129 | plans reference labels the chart renders truncated | 96.9% of missing-operand cases are *"plan label is longer"* — the table holds the full label, the chart clips it | MEDIUM | ✅ rejoined by unique prefix; 216 of 240 recover, 0 ambiguous |
+| 0131 | conventions were written down and broken; checks were not | there was no `CLAUDE.md` and no `AGENTS.md`, so no session began with the rules present | HIGH VALUE | ✅ rules loaded automatically; `e2e.py` prints targets and gates composition drift |
+| 0132 | three `ChartRecord` constructors, one of them dead | the dead one is where the 0119 edit landed while the live path kept its old behaviour | MEDIUM | ✅ 87 lines removed; three tests hold the shape |
+| 0134 | the closed teacher's contamination and licensing were unaddressed | Idea 7 requires nine concerns explicitly addressed; two appeared nowhere | MEDIUM | ✅ addressed; **licensing needs Ahmed's decision** |
+
 # Part 4 — Task 1's 99 items
 
 > One row per item, with an honest depth mark rather than a uniform tick.
