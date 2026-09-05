@@ -87,6 +87,36 @@ def dedup_key(image_sha256: str, question: str) -> str:
 
 ELEMENTS_KEY = "elements"
 
+#: Where an element's **box** came from, and therefore how much to trust it.
+#: `Prompt.md` Idea 15 asks for exactly this, and asks that it be used for filtering,
+#: weighting, curriculum, debugging, auditing, ablations and reproducibility — **not**
+#: exposed to the model. It is carried per element rather than per record because a
+#: RefChartQA record can hold aligned and unaligned boxes at once (`DECISIONS.md` 0126).
+GROUNDING_PROVENANCE = {
+    #: Drawn by our own generator and checked against the rendered pixels. Exact.
+    "synthetic_exact",
+    #: RefChartQA's own per-question grounding annotation, as published.
+    "refchartqa_gold",
+    #: A RefChartQA box matched to a ChartQA element, so it also carries a label and a
+    #: value. `match_iou` and `match_margin` on the element say how good the match was
+    #: (measured: 98.9% at IoU >= 0.9, median 1.000 — 0077).
+    "refchartqa_aligned",
+    #: ChartQA's chart annotation: every element of the image, not question-specific.
+    "chartqa_annotation",
+}
+
+#: Where an element's **value** came from. Separate from the box, because the two can
+#: disagree — and did: reading values from the annotation instead of the gold table made
+#: 35 of 105 planned records contradict their own answer (`targets._evidence_from`).
+VALUE_PROVENANCE = {
+    "synthetic_generated",   # the generator chose it; exact by construction
+    "chartqa_table",         # the gold data table for that chart
+    "chartqa_annotation",    # the annotated element's own value
+    "derived",               # inferred, e.g. a single-box value set from the answer
+    "unknown",               # a box with no identity yet — an unaligned RefChartQA row
+}
+
+
 
 @dataclass(frozen=True)
 class ChartRecord:

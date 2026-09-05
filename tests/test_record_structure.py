@@ -11,6 +11,8 @@ one three weeks after 0108 named the assumption in writing. The distinction they
 
 from __future__ import annotations
 
+import pathlib
+
 import pytest
 
 from chartqa_dt.data.records import ELEMENTS_KEY, ChartRecord
@@ -133,3 +135,60 @@ def test_the_helper_is_now_just_the_field():
 def test_every_evidence_shape_is_representable(evidence):
     r = rec(elements=ELS, evidence=evidence)
     assert ChartRecord.from_dict(r.to_dict()).evidence == evidence
+
+
+# --- supervision provenance (`Prompt.md` Idea 15, `DECISIONS.md` 0126) -----------------
+
+def test_the_vocabularies_are_closed_sets():
+    from chartqa_dt.data.records import GROUNDING_PROVENANCE, VALUE_PROVENANCE
+
+    assert "refchartqa_aligned" in GROUNDING_PROVENANCE
+    assert "synthetic_exact" in GROUNDING_PROVENANCE
+    assert "chartqa_annotation" in GROUNDING_PROVENANCE
+    assert VALUE_PROVENANCE & {"chartqa_table", "synthetic_generated", "unknown"}
+
+
+def test_grounding_and_value_provenance_are_separate():
+    """They can disagree, and did: reading values from the annotation instead of the gold
+    table made 35 of 105 planned records contradict their own answer."""
+    from chartqa_dt.data.records import GROUNDING_PROVENANCE, VALUE_PROVENANCE
+
+    assert GROUNDING_PROVENANCE != VALUE_PROVENANCE
+
+
+def test_every_source_tags_provenance_from_the_closed_vocabulary():
+    import sys
+
+    sys.path.insert(0, ".")
+    from chartqa_dt.data.records import GROUNDING_PROVENANCE, VALUE_PROVENANCE
+
+    for name in ("src/chartqa_dt/data/refchartqa.py", "scripts/build_mixtures.py"):
+        text = (pathlib.Path(name)).read_text(encoding="utf-8")
+        assert "grounding_provenance" in text, f"{name} tags no grounding provenance"
+        assert "value_provenance" in text, f"{name} tags no value provenance"
+    # and every string it writes is in the vocabulary
+    import re
+    for name in ("src/chartqa_dt/data/refchartqa.py", "scripts/build_mixtures.py"):
+        text = pathlib.Path(name).read_text(encoding="utf-8")
+        for key, vocab in (("grounding_provenance", GROUNDING_PROVENANCE),
+                           ("value_provenance", VALUE_PROVENANCE)):
+            for value in re.findall(rf'"{key}":\s*"([a-z_]+)"', text):
+                assert value in vocab, f"{name} writes unknown {key} {value!r}"
+
+
+@pytest.mark.skipif(
+    not (pathlib.Path.home() / ".cache/chartqa_dt/data/refchartqa_train.jsonl").exists(),
+    reason="RefChartQA cache not present")
+def test_no_cached_element_reaches_a_mixture_untagged():
+    """Including the legacy-cache path, which reconstructs elements from `boxes` alone —
+    the first version of this left 470 of 3,571 elements with no provenance at all."""
+    import sys
+
+    sys.path.insert(0, ".")
+    from scripts.build_mixtures import refchartqa_records
+
+    cache = pathlib.Path.home() / ".cache/chartqa_dt/data/refchartqa_train.jsonl"
+    records = refchartqa_records(cap=1500, cache=cache)
+    untagged = [e for r in records for e in (r.elements or [])
+                if not e.get("grounding_provenance") or not e.get("value_provenance")]
+    assert not untagged, f"{len(untagged)} elements carry no provenance"

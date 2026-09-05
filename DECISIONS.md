@@ -6756,3 +6756,99 @@ which means *unknown*, which loses grounding-only targets instead of emitting wr
 used to police its spelling now polices the field instead. The one thing the split enables
 and nothing yet uses: synthetic records now keep the whole chart, so a distractor-aware
 spurious-program check is possible for the first time (0098).
+
+---
+
+## 0125 — Why synthetic stops at plan depth 2, and why that is right
+
+**Context.** Ahmed asked why synthetic never reaches depth 4. It is a fair question: the
+executor declares `MAX_DEPTH = 4` and the corpus never exceeds **2**.
+
+**Measured** over 12,000 generated questions:
+
+| level | plan depth |
+|---|---|
+| L1, L2, L3 | 1 |
+| L4 | 2 |
+
+That is what `PLAN.md` specifies — *"`L4` nested two-operation plans"* — so the
+implementation is faithful. The real question is whether the *specification* is right, and
+that is answerable from data rather than from the plan.
+
+**Measured** over every plan we have mined from **real** charts:
+
+| source | plans | depth 1 | depth 2 | depth 3+ |
+|---|---:|---:|---:|---:|
+| RefChartQA, aligned | 12,667 | **12,667** | 0 | **0** |
+| ChartQA, mined | 2 | 2 | 0 | 0 |
+| human questions, hand-judged | 9 | 7 | 2 | 0 |
+
+**Nothing real has ever needed depth 3.** Synthetic already goes one level *deeper* than
+almost every real question, and `MAX_DEPTH = 4` is a safety bound on what the executor will
+evaluate, not a target for the corpus to reach.
+
+**Decision.** Do not add depth-3 or depth-4 questions. `Prompt.md` Idea 9 is explicit about
+the tie-breaker — *"Do not increase diversity blindly. Prioritize diversity that reduces the
+real/synthetic domain gap"* — and depth-3 questions would widen it: budget spent teaching a
+shape that is 0% of observed demand is budget taken from depth 1, which is ~100% of it.
+
+**The confound, stated rather than buried.** The RefChartQA row is the largest and the
+weakest: those plans are depth 1 partly because *the miner that produced them searches a
+shallow space*. It is evidence about the miner as much as about the questions. The
+hand-judged human sample is unconfounded and found 2 of 9 at depth 2, still none at 3.
+
+**Consequences.** This becomes a question the **LLM mining run answers**, since the teacher
+is not restricted to a search space and can propose whatever depth a question needs (0088).
+The pre-registered check: if LLM-mined plans over real ChartQA show a non-trivial share at
+depth 3 or more, this decision is wrong and L4 should be extended. Until that run, adding
+depth would be guessing against the only evidence available.
+
+---
+
+## 0126 — Supervision provenance, per element rather than per record
+
+**Context.** `Prompt.md` Idea 15 asks whether supervision should explicitly track
+provenance and confidence, and lists exactly what for: filtering, weighting, curriculum,
+debugging, auditing, ablations, reproducibility — with the instruction *"do not
+automatically expose these to the model."*
+
+Some of it already existed and was scattered: `plan_provenance` from the teacher, and
+`match_iou` / `match_margin` written per element by the alignment. What was missing is the
+part Idea 15 names first — **grounding provenance** and **value provenance** — and 0124's
+own design listed them as `Element` fields and then did not implement them.
+
+**Decision.** Two closed vocabularies in `data/records.py`, and every source tags every
+element it emits.
+
+| grounding provenance | means |
+|---|---|
+| `synthetic_exact` | our generator, checked against the rendered pixels |
+| `refchartqa_gold` | RefChartQA's own per-question annotation, as published |
+| `refchartqa_aligned` | matched to a ChartQA element; `match_iou` / `match_margin` say how well |
+| `chartqa_annotation` | ChartQA's chart annotation — every element, not question-specific |
+
+| value provenance | means |
+|---|---|
+| `synthetic_generated` | the generator chose it; exact by construction |
+| `chartqa_table` | the gold data table for that chart |
+| `chartqa_annotation` | the annotated element's own value |
+| `derived` | inferred, e.g. a single-box value set from the answer |
+| `unknown` | a box with no identity yet — an unaligned RefChartQA row |
+
+**Two of them are separate on purpose.** A box and a value can come from different places
+and *disagree*: reading values from the annotation instead of the gold table made **35 of
+105** planned records contradict their own answer, which is why `_evidence_from` treats the
+table as the authority on values and the annotation as the authority on boxes. One
+"provenance" field would have flattened that distinction away.
+
+**Per element, not per record**, because a RefChartQA record can hold aligned and unaligned
+boxes at the same time — measured on the live cache, 3,101 aligned against 470 not.
+
+**Consequences.** Nothing is exposed to the model: this is `ChartRecord` metadata, and the
+target builder does not read it. What it buys immediately is auditing — *"which of these
+boxes is a matched guess and which is gold?"* is now answerable per element — and it is the
+prerequisite for the weighting and filtering Idea 15 asks about, neither of which is done.
+
+The first version left **470 of 3,571 elements untagged**: the legacy-cache path
+reconstructs elements from `boxes` alone and did not tag them. A test now asserts no cached
+element reaches a mixture without provenance, which is how that was found.

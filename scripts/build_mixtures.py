@@ -111,7 +111,9 @@ def synthetic_records(manifest: Path) -> list[ChartRecord]:
             # The generator now emits every mark on the chart and says which of them the
             # question needs, so the record carries both (`DECISIONS.md` 0124). Older
             # manifests have no `elements`, and fall back to the operands.
-            elements=e.get("elements") or e["evidence"],
+            elements=[{**el, "grounding_provenance": "synthetic_exact",
+                       "value_provenance": "synthetic_generated"}
+                      for el in (e.get("elements") or e["evidence"])],
             evidence=(e.get("evidence_index")
                       if e.get("elements") else list(range(len(e["evidence"])))),
             meta={"level": e["level"], "chart_type": e["chart_type"],
@@ -180,7 +182,8 @@ def chartqa_records(reader: ArchiveReader, *, limit: int, seed: int) -> list[Cha
                       # in `synthetic_records` under a different spelling until 0071,
                       # which is why the key is now a shared constant.
                       ELEMENTS_KEY: elements},
-                elements=elements,
+                elements=[{**e, "grounding_provenance": "chartqa_annotation",
+                           "value_provenance": "chartqa_annotation"} for e in elements],
                 # **`None`, and that is the whole point.** ChartQA annotates the CHART:
                 # these elements are every mark on the image, identical for every question
                 # asked about it, so nothing here knows which subset answers this one.
@@ -250,7 +253,11 @@ def _with_evidence(record: ChartRecord) -> ChartRecord:
     if record.evidence is not None or not record.boxes:
         return record
     elements = record.elements or [
-        {"label": None, "value": None, "unit": None, "bbox": b} for b in record.boxes]
+        {"label": None, "value": None, "unit": None, "bbox": b,
+         # Same provenance `row_to_record` now writes: the box is RefChartQA's own
+         # per-question annotation, and the value does not exist until alignment (0126).
+         "grounding_provenance": "refchartqa_gold", "value_provenance": "unknown"}
+        for b in record.boxes]
     return replace(record, elements=elements, evidence=list(range(len(elements))))
 
 
@@ -291,7 +298,13 @@ def refchartqa_records(*, cap: int, cache: Path) -> list[ChartRecord]:
             if a is None:
                 out.append(r)
                 continue
-            aligned = a[ELEMENTS_KEY]
+            aligned = [{**e,
+                        # Matched to a ChartQA element, so the box is RefChartQA's and the
+                        # value is ChartQA's table. `match_iou` / `match_margin` already on
+                        # the element say how good the match was (0077, 0126).
+                        "grounding_provenance": "refchartqa_aligned",
+                        "value_provenance": "chartqa_table"}
+                       for e in a[ELEMENTS_KEY]]
             meta = {**r.meta, ELEMENTS_KEY: aligned, "aligned_to_chartqa": True}
             # RefChartQA marks, per question, the regions a person used, and alignment
             # gives those regions their identity. Every one of them is evidence — that is

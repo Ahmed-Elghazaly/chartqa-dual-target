@@ -117,8 +117,13 @@ def row_to_record(row: dict[str, Any], *, split: str, image_path: str | Path,
         # every box it gives is evidence for *this* question. Identity comes later, from
         # `align_refchartqa.py`; until then an element is a box with no label, which is
         # still enough to say *what* the evidence is (`DECISIONS.md` 0124).
-        elements=[{"label": None, "value": None, "unit": None, "bbox": b}
-                  for b in (boxes or [])] or None,
+        elements=[{"label": None, "value": None, "unit": None, "bbox": b,
+                    # Idea 15: where this box and this value came from. The box is the
+                    # dataset's own per-question annotation; the value does not exist yet,
+                    # because identity arrives with alignment (`DECISIONS.md` 0126).
+                    "grounding_provenance": "refchartqa_gold",
+                    "value_provenance": "unknown"}
+                   for b in (boxes or [])] or None,
         evidence=list(range(len(boxes))) if boxes else None,
         meta={
             "refchartqa_id": row.get("id"),

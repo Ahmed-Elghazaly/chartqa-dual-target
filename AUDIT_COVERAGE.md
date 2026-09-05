@@ -20,7 +20,7 @@ hides.
 | 1 | Overall architecture | **V** | `ARCHITECTURE.md`, ten subsystems in the six-part form |
 | 2 | Repository organization | **M** | 330 → 298 tracked files; one mining path; outputs gitignored |
 | 3 | Phase structure and dependencies | **V** | `STATUS.md`; the two-stage split traced (0088) |
-| 4 | ChartRecord | **M** | `boxes` means 3 things (C2); identity design recorded (0107) |
+| 4 | ChartRecord | **M** | `boxes` meant 3 things (C2); identity settled (0107); **ELEMENTS/EVIDENCE now split into fields, yields unchanged** (0124) |
 | 5 | ChartQA adapter | **M** | colour never read (0087); series dropped (0083) |
 | 6 | RefChartQA adapter | **M** | boxes ARE ChartQA elements, 98.9% IoU ≥ 0.9 (0077) |
 | 7 | Synthetic adapter / conversion | **M** | elements = operands, not the chart (0098) |
@@ -36,13 +36,13 @@ hides.
 | 17 | Image-level leakage | **M** | `assert_no_held_out_images` — RefChartQA ships "train" rows using test charts (0049) |
 | 18 | Sealed-test logic | **V** | `sealed_image_hashes`; synthetic holdout by style and data seed |
 | 19 | Table representation | **L** | two shapes: `{columns, rows}` and `{labels, values}` (0098) |
-| 20 | Chart-element representation | **M** | series and colour now carried (0083, 0087) |
+| 20 | Chart-element representation | **M** | series and colour carried (0083, 0087); `elements` is a first-class field (0124) |
 | 21 | Labels | **M** | non-unique on 22.6% of charts, not 74.2% — that sample was biased (0083) |
 | 22 | Values | **M** | two parsers 100× apart; four call sites wrong (0082, 0089) |
 | 23 | Units | **M** | unit suffixes (`'26.29 t'`) on 0.8% of charts; `check_units` verified |
 | 24 | Bounding boxes | **M** | 0–1000 anisotropic; the official evaluator discards a box at exactly 1000 |
-| 25 | Evidence representation | **L** | derived, not stored; four defects lived in the derivation (0108) |
-| 26 | `meta` | **M** | `ELEMENTS_KEY` means two things by source (0098) |
+| 25 | Evidence representation | **M** | was derived and cost four defects (0108); **now stored as indices into `elements`, `None` = unknown** (0124) |
+| 26 | `meta` | **M** | `ELEMENTS_KEY` meant two things by source (0098); elements moved out of `meta` (0124) |
 | 27 | Label/value/bbox associations | **M** | 9.2% described different marks (C1, 0075) |
 | 28 | Coordinate systems | **V** | anisotropic by axis; ported to match `smart_resize` exactly |
 | 29 | Coordinate normalization | **V** | `clamp_for_official_evaluator`; G1 re-verified |
@@ -58,7 +58,7 @@ hides.
 | 39 | Typed reasoning DSL | **M** | 93.3% of a random corpus expressible; human questions need more (0081, 0090) |
 | 40 | Operator set | **M** | `within` added on measured demand; six more requested with numbers (0090) |
 | 41 | Operator semantics | **M** | each judged against 60 real questions (0081) |
-| 42 | Nested / compositional plans | **M** | depth ≤ 4, arity ≤ 4; median depth 1–2 in practice (0102) |
+| 42 | Nested / compositional plans | **M** | executor allows depth 4; synthetic reaches 2 and **every plan mined from real data is depth 1** — 12,667 of 12,667 (0125) |
 | 43 | Executor implementation | **M** | one shared parser after four defects (0082, 0089) |
 | 44 | Numerical tolerance | **V** | the answer's own precision, not 5% — 5% of the year 2014 is a century (0045) |
 | 45 | Unit behaviour | **V** | `check_units` refuses a mixed-unit aggregate |
@@ -75,14 +75,14 @@ hides.
 | 56 | Percentage handling | **M** | 21.4% of charts all-percent with a bare answer; the 100× defect (0082) |
 | 57 | Question semantics in mining | **M** | the miner never reads the question — the whole finding (0085, 0086) |
 | 58 | Synthetic curriculum | **M** | L1→L4 balanced; `balance_by_level` stops L3/L4 being cut by the cap (0066) |
-| 59 | Synthetic value generation | **I** | seeded per example (`data_seed`); reproducible; no defect found |
-| 60 | Synthetic question generation | **M** | templated — which is why pattern matching works on it and not on humans (0086) |
+| 59 | Synthetic value generation | **M** | was `uniform(4, 60)`, so no chart ever showed a thousands separator; now a lognormal fitted to ChartQA, with negatives and percentage charts at measured rates (0120) |
+| 60 | Synthetic question generation | **M** | templated (0086); rebuilt against ChartQA's own phrasing — median 7 → 10 words, past tense 0% → 51.3%, entity nouns (0122) |
 | 61 | Synthetic rendering | **V** | boxes from matplotlib artists, never a formula; proven against pixels |
-| 62 | Synthetic chart diversity | **M** | 25% were types ChartQA lacks, now dropped; density 2.8× under (0091, 0098) |
+| 62 | Synthetic chart diversity | **M** | types ChartQA lacks dropped (0091); **density ceiling removed — p50 4 → 10, max 7 → 40** (0118) |
 | 63 | Synthetic style diversity | **I** | `style_seed` over font size, dark mode, grid; three seeds sealed for the robustness test |
 | 64 | Synthetic geometry extraction | **V** | `artist_box`, `point_box`, `scatter_point_box`; degenerate boxes rejected |
 | 65 | Synthetic bbox verification | **V** | 640/640 verified across 8 chart types × 4 levels × 20 seeds |
-| 66 | Real-vs-synthetic domain gap | **M** | three mismatches: type, operation mix, density (0091, 0098, 0101) |
+| 66 | Real-vs-synthetic domain gap | **M** | five gaps measured; type, density, values and language closed (0091, 0118, 0120, 0122); operation mix partly, and the rest is a level-proportion question (0123) |
 | 67 | Data-quality gates | **M** | five gates; discard never repair; the value/box gate (0075) |
 | 68 | Target-yield checks | **M** | before/after on identical records throughout |
 | 69 | Supervision provenance | **M** | complete and unread; report before weighting (0105) |
