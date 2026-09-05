@@ -69,7 +69,7 @@ ten-hour training run (`DECISIONS.md` 0071–0074).
 | 9 | **all seven analyses built** | oracle, stratification, plan diagnostics, transfer, robustness, calibration, figures |
 | 10 | skeleton compiles, generator built | `cdt-report` fills tables from recorded JSON; 16 pages, 0 undefined refs |
 
-**1,069 tests pass**; `ruff check src tests scripts` clean; preflight green.
+**2,212 tests pass**; `ruff check src tests scripts` clean; preflight green (6/6).
 
 ## Phase 5.2 result — the first properly powered measurement
 
@@ -187,7 +187,7 @@ system as it now stands, including what is not built.
 |---|---|
 | mining direction | backwards search retired; a reader mines plans from finished records, five gates, discard never repair (0085, 0088) |
 | resolution | 512px → **native**, buying 11.9 points of targets too small for one visual token (0095) |
-| grounding supply | RefChartQA 56.6% → **98.5%** supervisable via grounding-only targets (0104) |
+| grounding supply | RefChartQA **86.7% usable** — 32,072 with a plan, 16,049 grounding-only, of 55,486 (0104, 0116, 0133) |
 | element identity | series carried into labels; colour read for the first time (0083, 0087) |
 | parsers | one shared value parser, guarded by an AST test after four separate defects (0082, 0089) |
 | comparability | 32.83 is **not in the RefChartQA paper**; results go against its Table 2, and our evaluator matches the official one to 0.068 points (0093) |

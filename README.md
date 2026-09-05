@@ -54,7 +54,7 @@ out to be wrong and why. Code comments point into it by number.
 | `src/chartqa_dt/` | the library — data readers, plan executor, training, evaluation |
 | `scripts/` | things you run once: build mixtures, mine plans, check the environment |
 | `audit/` | one-off measurement scripts, kept so a number can be reproduced |
-| `tests/` | ~1,050 tests; `scripts/preflight.sh` runs the lot plus lint |
+| `tests/` | ~2,200 tests; `scripts/preflight.sh` runs the lot plus lint and an end-to-end smoke |
 | `book/`, `presentation/` | explanatory writing, not part of the pipeline |
 
 ---
