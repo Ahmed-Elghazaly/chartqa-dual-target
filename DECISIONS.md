@@ -7001,3 +7001,45 @@ the gate was rejecting records whose plan and element genuinely name the same ma
 fixing the join is a correctness change that happens to recover records. Same class as 0067
 and 0083. The other 10% — appended values, and truncations shorter than eight characters —
 stay refused.
+
+---
+
+## 0130 — Should we keep both boxes? No: measured, they are the same box
+
+**Context.** `Prompt.md` Idea 3 ends with a direct question the project had answered in code
+without answering on the record: *"Determine whether the project should preserve BOTH the
+ChartQA chart-element bbox and the RefChartQA gold question-grounding bbox, because they may
+represent different annotation concepts/provenance."*
+
+`align_refchartqa.py` keeps the **ChartQA** element's box — `matched.append({**element, …})`
+— and discards RefChartQA's. That deserved checking rather than assuming, because RefChartQA
+AP@0.5 is scored against *RefChartQA's* boxes: training on a systematically offset box would
+cost grounding accuracy directly.
+
+**Measured over all 91,584 matched boxes:**
+
+| IoU(ChartQA element, RefChartQA gold) | |
+|---|---:|
+| p01 / p10 / p50 / mean | **1.000 / 1.000 / 1.000 / 1.0000** |
+| exactly 1.000 | **91,584 (100.0%)** |
+| below 0.99 | **0** |
+
+**They are the same boxes.** Not similar — identical. 0077 said this from a 6,340-box
+sample (*"98.9% match at IoU ≥ 0.9, median 1.000"*); at full scale every *accepted* match is
+exact. RefChartQA is ChartQA's element geometry plus a per-question selection, literally.
+
+**Decision.** Keep one box. Preserving both would store an exact duplicate on 91,584
+elements and buy nothing, and the concern that motivated the question — training on a
+different box from the one we are scored against — does not exist.
+
+**Consequences.** `MIN_IOU = 0.9` and `MIN_MARGIN = 0.5` never bind on an accepted match;
+every match that passes is at 1.000. They earn their place entirely by **rejecting** — the
+12.1% of records that stay unaligned — which is the behaviour Idea 3 asks for in bold:
+*"DO NOT force matches… a questionable match should remain unmatched rather than becoming
+incorrect supervision."* The thresholds are a refusal mechanism, not a scoring one, and
+this measurement is what shows that.
+
+Noted while reading: `labels_cover` in the same file already compares labels *"with
+truncation tolerance"*, because ChartQA element labels are stored as drawn. The concept was
+known here and had not reached `targets.py`, which is what 0129 fixed — the same
+observation, one file apart, three weeks apart.
