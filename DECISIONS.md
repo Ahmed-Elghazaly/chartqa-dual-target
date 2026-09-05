@@ -7762,3 +7762,52 @@ that and does not yet cover mining, because mining has never run.
 **Not changed:** `data/dedup.py` still runs at mixture time and still merges records across
 sources. That is a different job — dedup stops double-counting in *training*, this stops
 double-paying in *mining* — and 0108 already separated the two deliberately.
+
+---
+
+## 0146 — ChartQA sometimes boxes the mark and sometimes boxes the text, and only one is evidence
+
+**Context.** Chasing why pie charts survive at 58.4% found the same shape as 0144's line
+charts, which makes it one finding rather than two.
+
+**ChartQA's annotation does not always give a mark's geometry.** Where it does not, it
+gives the box around the *printed text* instead, and the two are not interchangeable.
+
+| chart type | what the annotation carries | share |
+|---|---|---:|
+| **bar** | one box per bar, constant width, aspect 0.44 | ~94% usable |
+| **pie** | `bbox` — real wedge geometry | **60.2%** |
+| **pie** | `bboxes: []` and a `text_bbox` around the label — *no wedge geometry at all* | **39.3%** |
+| **line** | `bboxes` for the segments *between* points | ~72% of models |
+| **line** | one box per point, but 15% width variation and aspect 1.47 — the value text | ~28% of models |
+
+A dropped pie wedge looks exactly like this:
+
+```
+{"bboxes": [], "text_bbox": {"x": 476, "y": 224, "w": 111, "h": 53},
+ "text_label": "Increased", "value": "31"}
+```
+
+**Decision.** Use mark geometry; never substitute text geometry. Both exclusions stay.
+
+The reason is not that a text box is useless — pointing at *"Increased 31%"* is arguably
+reasonable grounding for a pie chart. It is that **we would be using two different
+definitions of evidence in one training set**: point at the bar, but point at the label
+that names the wedge. AP@0.5 scores one prediction against one gold box, so a model taught
+both has no consistent target, and the inconsistency would be invisible in every aggregate.
+
+**Consequences.** Stated as costs rather than as a clean result: the project has **no real
+grounding supervision** for:
+
+* **line charts** — 3,691 questions, 13% of ChartQA;
+* **39.3% of pie wedges** — roughly 490 more questions.
+
+Synthetic data is the only source for both, which is a direct argument for keeping synthetic
+line and pie charts in the generator rather than trimming them the way area and scatter were
+dropped (0091). It also means grounding scores on line-heavy evaluation slices should be
+read as untrained rather than as failed.
+
+**The general rule this establishes**, and the reason to write it once: *an annotation
+naming a thing is not an annotation locating it.* `text_label` with a `text_bbox` tells you
+what a mark is called and where its **caption** sits — never where the mark is. Two of the
+audit's chart-type losses are the same sentence.

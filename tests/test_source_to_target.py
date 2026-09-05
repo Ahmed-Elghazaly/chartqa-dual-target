@@ -358,3 +358,18 @@ def test_line_charts_stay_excluded_from_element_extraction() -> None:
         "line charts were re-enabled. 0144 tested that and reverted it: the per-point "
         "boxes are text labels, not data markers.")
     assert ELEMENT_LAYOUTS["v_bar"] == ELEMENT_LAYOUTS["h_bar"] == "series"
+
+
+def test_a_pie_wedge_with_only_a_text_box_is_refused() -> None:
+    """`DECISIONS.md` 0146. 39.3% of pie wedges carry `bboxes: []` and a `text_bbox` around
+    the label — the caption's position, not the wedge's. Using it would put two different
+    definitions of evidence in one training set."""
+    from chartqa_dt.data.chartqa import _wedge_element
+
+    text_only = {"bboxes": [], "text_bbox": {"x": 476, "y": 224, "w": 111, "h": 53},
+                 "text_label": "Increased", "value": "31"}
+    assert _wedge_element(text_only, 800, 600) is None
+
+    real = {"bbox": {"x": 100, "y": 100, "w": 80, "h": 80},
+            "text_label": "Increased", "value": "31"}
+    assert _wedge_element(real, 800, 600) is not None
