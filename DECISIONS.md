@@ -5358,6 +5358,13 @@ disagreement correlates with being wrong, which is unmeasured — and measurable
 generations as 0096's answer-policy comparison, because both need the executed value and the
 stated answer side by side.
 
+> **Later (0121): measured, and the answer is yes.** On 1,920 real generations, records whose
+> plan agrees with their stated answer are **81.0%** correct and those that disagree are
+> **65.1%** — a 15.9-point gap with non-overlapping intervals. So resample-on-disagreement is
+> justified by evidence rather than plausibility. The *other* half of 0102 went the other way:
+> replacing the answer with the executed value **costs 6.9 points**, because evidence values
+> are misread far more often than arithmetic is wrong.
+
 **Decision.** Add nothing now. Record that the two applicable forms are (a) the `executed`
 answer policy, already implemented and awaiting Phase 5 data, and (b) resample-on-disagreement,
 which should be decided by the same experiment rather than a separate one. Fine-grained
@@ -5922,6 +5929,10 @@ Reading 3.4 confirms it was never meant to be a limit:
 > flattens."*
 
 The ladder was deferred. The starting point stayed.
+
+> **Later (0115): it was worse than deferred — it was impossible.** `scripts/cache_refchartqa.py`
+> had its own `--cap`, also 4,000, and the cache held 3,996 rows, so the ladder's 10,000 and
+> 25,000 rungs had no data behind them. The cache now holds 55,486.
 
 **And the cap is not even where the supply stops.** `scripts/cache_refchartqa.py` takes
 `--cap`, defaulting to **4,000**, and the cache holds **3,996** rows. The mixture-level cap has
@@ -7333,3 +7344,65 @@ in how the code is written, and that is worth stating plainly rather than only l
 faults.
 
 2,211 tests.
+
+---
+
+## 0137 — The 0133 "blocker" is eight times smaller than I said, and the fix I designed for it is wrong
+
+**Context.** 0133 ended by calling the evidence-list conflict *"the sharpest open question
+the audit has produced about the schema"*, and reported that **11,370 records** were stuck
+behind it. Both claims were checked before acting on them. Both were wrong.
+
+### The size
+
+Of the 13,458 records whose program-of-thought fold was refused for having a single element:
+
+| | records | share |
+|---|---:|---:|
+| **already carry a plan** from the earlier miner | 7,326 | 54.4% |
+| used as **grounding-only** targets | 4,358 | 32.4% |
+| **contributing nothing at all** | **1,774** | **13.2%** |
+
+**86.8% were never stuck.** They are supervised — most of them fully. The genuine loss is
+**1,774 records**, which makes this a MEDIUM finding rather than the sharpest open question
+in the audit, and I should not have said otherwise before counting.
+
+### The fix I designed, and why it fails
+
+The tension is real: one evidence list serves as the plan's operands *and* as the AP@0.5
+grounding target, and a fold wants every bar while the annotator marked one. The obvious
+resolution is to **make `bbox` optional** — carry all the values a fold needs, box only the
+marks worth pointing at. It is cheap (a value without a box is roughly a third of the
+tokens), it costs no AP (an unboxed item makes no prediction), and it matches what a person
+does: scan every bar, point at one.
+
+**It is still wrong, and the reason is the thing this project is for.** An operand with no
+box is an *unverifiable* operand. Today every evidence value carries a location, so a
+claimed value is a claim about a place in the image, and 0116's gate — operands must be
+grounded — has something to check. Make the box optional and the model can state a number
+with no location and no penalty. At training time the executor would catch an invented
+value, because the fold must reproduce the gold answer. **At inference there is no gold
+answer**, which is exactly where a verifiable-reasoning system must not have a hole.
+
+**Decision.** Reject the optional-`bbox` design. Keep the schema. The 1,774 records stay
+unused, and that is a proportionate price for not opening a route to ungrounded operands.
+
+**Consequences.** Recorded because the sequence is the useful part: I proposed a change,
+checked the problem it solved, found the problem was 8× smaller than claimed, then found
+the change would breach the project's central invariant anyway. Either check alone would
+have been enough to stop it. `Prompt.md`'s STOP CONDITIONS ask for exactly this — do not
+adopt a change because it is cleaner — and the corrected number came first only by
+accident.
+
+The one genuinely open question that survived was whether the same degeneracy exists in the
+*mined* plans, since 0133 found 97.6% of PoT folds had a single element. **Measured, and the
+answer is no:**
+
+| plan provenance | folds over all evidence | of those, over fewer than 2 elements |
+|---|---:|---:|
+| mined (pre-existing) | 1,346 | **0 (0.0%)** |
+| `refchartqa_pot` | 282 | **0 (0.0%)** |
+
+The miner never produced one, and the PoT gate now prevents them. A regression test holds
+it, because the property is invisible until it breaks: a degenerate fold verifies by
+construction, so it looks like a success everywhere except in the target itself.

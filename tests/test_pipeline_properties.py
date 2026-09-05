@@ -149,3 +149,30 @@ def test_every_emitted_target_box_is_inside_the_official_range():
                 f"evaluator cannot score")
             checked += 1
     assert checked > 200, f"only {checked} boxes checked"
+
+
+@needs_cache
+def test_no_plan_anywhere_folds_over_fewer_than_two_elements():
+    """A degenerate fold verifies by construction — `max([x])` is `x` — so it looks like a
+    success everywhere except in the target itself. 97.6% of the first PoT conversion's
+    folds were this (0133); the mined plans have never had one (0137). Both held here.
+    """
+    import sys
+
+    sys.path.insert(0, ".")
+    from scripts.build_mixtures import refchartqa_records
+
+    from chartqa_dt.plans.executor import FOLD_OPS
+
+    offenders = []
+    for record in refchartqa_records(cap=8000, cache=CACHE):
+        plan = record.plan or {}
+        if plan.get("op") not in FOLD_OPS or plan.get("args"):
+            continue
+        n = len([e for e in (record.elements or []) if e.get("label") is not None])
+        if n < 2:
+            offenders.append((record.record_id,
+                              (record.meta or {}).get("plan_provenance", "mined"),
+                              plan["op"], n))
+    assert not offenders, (
+        f"{len(offenders)} plans fold over fewer than two elements, e.g. {offenders[:3]}")
