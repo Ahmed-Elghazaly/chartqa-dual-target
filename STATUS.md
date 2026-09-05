@@ -1,31 +1,46 @@
 # Status
 
-> ## Where this stops, 2026-09-05
+> ## Current state, 2026-09-05
 >
-> Everything is committed and pushed, CI is green, the working tree is clean.
+> **Clean.** Working tree clean, CI green, 2,212 tests, preflight 6/6 including an
+> end-to-end smoke over real data.
 >
-> **The synthetic corpus is NOT regenerated.** The generator changed substantially
-> (0118 density, 0120 values, 0122 language, 0123 operation mix, 0127 tied extrema, 0124
-> whole-chart elements), and the corpus in `~/.cache/chartqa_dt/data/synthetic/` is still
-> the **old** one — 24,000 examples from the pre-change generator. A regeneration was
-> started three times and stopped three times, each time because another generator bug
-> surfaced after it had begun. It is deliberately left undone: it takes ~90 minutes and
-> should be the **last** step before training, not a step repeated after every change.
+> ### What just happened
 >
-> Nothing is half-written. The partial output was deleted; the active corpus is untouched
-> and still valid for the *old* generator.
+> `Prompt.md` was verified **line by line**, all 1,832 of them, rather than by heading. Four
+> gaps, all closed: `ARCHITECTURE.md` stale after the schema change; the closed teacher's
+> **contamination and licensing** unaddressed although Idea 7 requires it; the second-pass
+> findings had no **15-point records**; and RefChartQA's **gold derivations were unused**
+> (0133).
 >
-> **Next session begins with a repo cleanup**, agreed with Ahmed: 15 markdown files where
-> six of them (`AUDIT`, `AUDIT_COVERAGE`, `AUDIT_PLAN`, `FINDINGS`, `VERDICT`,
-> `PROMPT_CHECKLIST`) all answer *"what did we check and find"*, and three (`STATUS`,
-> `RUNS`, `BLOCKED`) all answer *"where are we"*. Target is ~7 files with nothing lost.
+> A scan for the bug classes this project has actually suffered found **one** silent handler
+> (0135 — and it was ChartQA shipping placeholder boxes, not our bug). No mutable defaults,
+> no float-equality errors, no broad excepts in the supervision path. **The code is in
+> better shape than the process was**; the defects this audit finds are about what the data
+> *means*.
 >
-> **The process rule that came out of this session**, because most of its bugs were one
-> mistake repeated: *change one end of a pipeline and not the other, discover it only by
-> running the whole thing.* The fallback that was dead code, the provenance that missed the
-> legacy path, the decode fix with no CLI flag — all the same shape. **Run the end-to-end
-> pipeline before committing, not after, and do not start a long job until the changes
-> have settled.**
+> ### Two things corrected in the same session
+>
+> * The PoT conversion first yielded **12,203** plans; reading four showed 97.6% verified
+>   vacuously — `max()` over one element. True yield **833**.
+> * I called the schema tension *"the sharpest open question"* with 11,370 records stuck.
+>   Counting showed **86.8% were never stuck**; the real loss is **1,774** (0137). The fix I
+>   then designed was rejected: an operand with no box is unverifiable at inference.
+>
+> ### The synthetic corpus is still NOT regenerated
+>
+> The generator changed substantially (0118, 0120, 0122, 0123, 0127) and the cached corpus
+> is the pre-change one. Regeneration takes ~90 minutes and belongs **last**, immediately
+> before training — it was started and killed four times because generator bugs kept
+> surfacing after it began.
+>
+> ### What needs Ahmed
+>
+> | question | recommendation |
+> |---|---|
+> | **Teacher licensing** — Anthropic requires written permission to train on outputs, excepting non-competing specialised tools | **open-weights teacher** — removes the question *and* fixes reproducibility, since a closed model can be deprecated |
+> | **Which teacher**, when you decide to mine | a ~$5 calibration comparing verified yield beats guessing |
+> | **Level proportions** — `difference` is 25% of the corpus against 1.8% real, driven by level shares not operation weights | settle by a training run, not by argument |
 
 
 **Phase 5 in progress** (5.1 and 5.2 done, 5.3 running, 5.4 queued). **Phases 6 to 9 are
