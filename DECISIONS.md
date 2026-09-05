@@ -7438,3 +7438,108 @@ stated reason, and the allow-list is down to four entries that genuinely need no
 broader scan found nothing else: no mutable defaults, no equality on a division result, and
 the `== 0.0` comparisons are all deliberate — an exactly-zero gradient *is* the thing being
 detected.
+
+---
+
+## 0139 — What "32,072 RefChartQA plan targets" actually consists of
+
+**Context.** Ahmed asked where the number came from. Tracing it found the headline was
+carrying three different things under one word, and the breakdown matters more than the
+total.
+
+| | records | |
+|---|---:|---|
+| carried a **real plan** — mined, or converted from a gold derivation | **9,292** | 29.0% |
+| plan **derived at target-build time** — all `lookup`, all single-box | **22,780** | 71.0% |
+
+Only **13,500** RefChartQA records carry a plan at all (12,667 mined + 833 from 0133), and
+9,292 of those survive the other gates. The remaining 22,780 "plan targets" get their plan
+from `build_record`'s fallback, which for a single-box record sets the evidence value to the
+answer and emits `lookup`.
+
+### The alarm, and why it was wrong
+
+`align_refchartqa.py`'s docstring warns that this fallback *"makes the round-trip pass by
+construction and teaches nothing about reading the chart"*, and one printed target looked
+much worse than that:
+
+> *"What is the **difference** between the value of Obama in 2012 and that in 2006?"* — gold
+> `36` — plan `lookup("item1")` — evidence `[('item1', 36.0)]`
+
+A difference is not a mark on a chart, so that reads as **fabricated evidence**: a claim
+that a box exists holding 36 when 36 is the *result*. A keyword classifier put 4,044 records
+(17.8%) in that category.
+
+**Checked against each chart's own gold table before acting, and the classifier was
+wrong.** Of the questions it called computed, **3,379 have the answer present among the
+chart's real values and only 6 do not**; across all derived lookups the fabrication rate is
+**24 of ~19,100**.
+
+So the evidence is real. The questions that *sound* computed are overwhelmingly answered by
+a single mark the annotator boxed — a chart that literally draws an "average" bar, or an
+extremum, which is a value on the chart by definition.
+
+**Decision.** No gate. A change that would have dropped ~4,000 sound records was stopped by
+one validation query.
+
+**What is genuinely true, and smaller.** For the **7,488** extremum questions in this group,
+the plan says `lookup` where the question asks for `max`. The evidence is correct and the
+behaviour taught is correct — find the largest bar, point at it, read it — but the plan is a
+poor *record of the reasoning*. That is a semantic-precision limitation, not wrong
+supervision, and it is what LLM mining would improve.
+
+**Consequences.** The honest description of RefChartQA supervision is: **9,292 records teach
+a plan, 22,780 teach grounding and value-reading with a trivial plan, 16,049 teach grounding
+alone.** All three are useful and only the first is *plan* supervision. Saying "32,072 plan
+targets" overstated it, and this is the second overstatement in two days (0137) — both found
+by counting rather than by reasoning about the number.
+
+---
+
+## 0140 — The caps stop describing the supply and start limiting it
+
+**Context.** Ahmed: *"are there any limits bounded by compute or space that if we can raise
+ll benefit us? if so and that's available we can do it"* — then, on being shown the two,
+*"yes raise the cap if it just needs more training hrs"*.
+
+Two limits qualified. Neither is bounded by disk any more; both are bounded by GPU hours,
+of which there are ~90 a week across three accounts against ~19 committed.
+
+### `REFCHARTQA_CAP`: 4,000 → 25,000
+
+Rung 3 of the ladder `PLAN.md` 3.4 specifies. 0115 filled the cache to 55,486 rows, so the
+only thing that ever stopped this was the cache holding 3,996.
+
+### `STAGE1_CAP` / `STAGE2_CAP`: 12,000 → 24,000
+
+12,000 was a **compute** budget — 3,000 optimizer steps at effective batch 8 — set when
+*supply* was the binding constraint. It no longer is, and the rebuild is what showed it:
+
+| | before | after raising `REFCHARTQA_CAP` |
+|---|---|---|
+| stage 1 | 9,509 records, cap not reached | **12,000 — cap reached exactly** |
+| stage 2 | 4,264 records | **12,000 — cap reached exactly** |
+| stage 2 synthetic share | **46.9%** | **12.4%** |
+
+So the cap has changed job. It used to describe what existed; it now discards roughly 60,000
+usable records.
+
+**A second thing fixed itself.** 0117 recorded that stage 2 was 46.9% synthetic where the
+comment claimed one sixth, and left the value alone because *"guessing a second time is how
+the first guess got here"*. Real supply grew and the realised share fell to **12.4%** without
+`SYNTHETIC_REPLAY` moving — which is exactly what 0117 predicted a fixed count would do
+against a variable pool, and confirms the diagnosis rather than the number.
+
+**Decision.** Raise both. `cli.train.steps_for` derives optimizer steps from the mixture
+size rather than a separate constant, so the GPU cost scales linearly and no second number
+needs keeping in sync — doubling the cap doubles the run.
+
+**Stated plainly: whether more data helps is not established.** This is the number a scaling
+ladder would settle, and none has been run. It is raised because the supply exists, the
+compute exists, and the cap was chosen under a constraint that no longer applies — not
+because more data is known to be better. If a run shows no gain, lower it; the change is one
+constant.
+
+**Consequences.** Every training run now costs about twice what the plan assumed, which is
+affordable this week and would not have been before Ahmed's three accounts. `RUNS.md` should
+record the real wall time against the doubled budget the first time it is paid.
