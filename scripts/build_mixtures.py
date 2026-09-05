@@ -261,6 +261,83 @@ def _with_evidence(record: ChartRecord) -> ChartRecord:
     return replace(record, elements=elements, evidence=list(range(len(elements))))
 
 
+def attach_pot_plans(records: list[ChartRecord]) -> list[ChartRecord]:
+    """Give a record the plan its own gold derivation implies — if it verifies.
+
+    RefChartQA ships a program of thought on 63.6% of rows and nothing read it
+    (`DECISIONS.md` 0133). `plans/pot.py` converts the ones whose shape is unambiguous;
+    this attaches the result **only when it executes against the record's own evidence and
+    reproduces the gold answer**, which is the same gate every other plan passes.
+
+    Records that already carry a plan are left alone: a mined plan has been through the
+    full five gates, and this one has been through one of them.
+    """
+    from chartqa_dt.eval.metrics import relaxed_correctness
+    from chartqa_dt.plans.executor import (
+        FOLD_OPS,
+        EvidenceItem,
+        ExecutorError,
+        execute,
+        parse_numeric,
+    )
+    from chartqa_dt.plans.pot import to_plan
+
+    def rendered(value: object) -> str | None:
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            return "Yes" if value else "No"
+        if isinstance(value, float):
+            return (str(int(value)) if value == int(value)
+                    else f"{value:.6f}".rstrip("0").rstrip("."))
+        return str(value)
+
+    out: list[ChartRecord] = []
+    attached = refused = 0
+    for record in records:
+        response = (record.meta or {}).get("response")
+        if record.plan or not response or record.answer is None:
+            out.append(record)
+            continue
+        plan = to_plan(response)
+        if plan is None:
+            out.append(record)
+            continue
+        evidence = [EvidenceItem(label=str(e.get("label")),
+                                 value=parse_numeric(e.get("value")),
+                                 unit=e.get("unit"))
+                    for e in (record.elements or []) if e.get("label") is not None]
+        try:
+            got = rendered(execute(plan, evidence)) if evidence else None
+        except ExecutorError:
+            got = None
+        # **A fold over one item is not a verified fold.** `max([x])` is `x`, so
+        # "it reproduces the gold answer" proves nothing — and the target would teach the
+        # model to emit one box and trivially fold it, which is the circular supervision
+        # `align_refchartqa.py` already warns about: it "makes the round-trip pass by
+        # construction and teaches nothing about reading the chart".
+        #
+        # Measured: 97.6% of the fold plans this converter produced folded over a single
+        # marked element, because RefChartQA marks only the region a person used — for
+        # "what is the maximum", that is the maximum bar alone (`DECISIONS.md` 0133).
+        folds = plan["op"] in FOLD_OPS and not plan.get("args")
+        if folds and len(evidence) < 2:
+            refused += 1
+            out.append(record)
+            continue
+        if got is not None and relaxed_correctness(got, str(record.answer)):
+            out.append(replace(record, plan=plan,
+                               meta={**record.meta, "plan_provenance": "refchartqa_pot"}))
+            attached += 1
+        else:
+            refused += 1
+            out.append(record)
+    if attached or refused:
+        print(f"  refchartqa: {attached:,} plans recovered from gold derivations, "
+              f"{refused:,} refused by the executor")
+    return out
+
+
 def refchartqa_records(*, cap: int, cache: Path) -> list[ChartRecord]:
     """Streamed RefChartQA training rows, enriched with semantic identity where available.
 
@@ -316,7 +393,7 @@ def refchartqa_records(*, cap: int, cache: Path) -> list[ChartRecord]:
         records = out
         print(f"  refchartqa: {enriched:,} of {len(records):,} records enriched with "
               f"ChartQA element identity")
-    return records[:cap]
+    return attach_pot_plans(records[:cap])
 
 
 def usable_only(records: list[ChartRecord], label: str) -> list[ChartRecord]:

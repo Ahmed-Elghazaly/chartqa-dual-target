@@ -7137,3 +7137,73 @@ were removed instead of 87 — taking the archive reader with them. Every import
 broke immediately, so nothing could have shipped, but the lesson is the one this session
 keeps producing: *a textual heuristic over code is a guess.* The second attempt used `ast`
 and removed exactly the three function bodies.
+
+---
+
+## 0133 — RefChartQA ships gold derivations, and most of them cannot be used
+
+**Context.** Reading `Prompt.md` line by line for Idea 7 — which requires a closed teacher's
+*contamination* to be explicitly addressed — meant checking whether public programs exist
+for these questions. They do, and they are already in our cache.
+
+**35,304 of 55,486 cached RefChartQA records (63.6%) carry a `response` field holding a
+program of thought**: a commented, step-by-step derivation of the answer.
+`data/refchartqa.py` read it into `meta` and **nothing ever used it**, while the blocked-work
+list carried an LLM mining run at roughly **USD 213** whose job is to recover derivations.
+
+    <comment># Get the value of 'Number of foreign students' in 'China', set to Y_1</comment>
+    <step>Y_1=7562</step>
+    <comment># Divide Y_1 by Y_2, set to Answer</comment>
+    <step>Answer=np.divide(Y_1, Y_2)</step>
+
+Every one parses; they take only **29 step-shapes**, the twelve commonest covering 93.4%.
+So conversion is a parsing problem and `plans/pot.py` does it deterministically, refusing
+any shape whose meaning is not unambiguous.
+
+### The first result was wrong, and reading the targets is what showed it
+
+Converting and verifying gave **12,203 plans** — a large free win, and the composition
+snapshot flagged the drift for inspection. Reading four of the new targets showed this:
+
+> *"Across all Characteristic, what is the maximum amount in Offline sales?"* — gold `92.8`
+> — plan `max()` — **evidence: one element, `'2013' = 92.8`.**
+
+`max([x])` is `x`. The plan "reproduces the gold answer" **because there is nothing to fold
+over**, so the verification proves nothing — and the target would teach the model to emit
+one box and trivially fold it. That is the circular supervision `align_refchartqa.py`
+already warns about in its own docstring: it *"makes the round-trip pass by construction and
+teaches nothing about reading the chart"*. I had rebuilt it at scale.
+
+**Measured: 11,370 of the 11,652 fold plans — 97.6% — folded over a single element**, because
+RefChartQA marks only the region a person used, and for *"what is the maximum"* that is the
+maximum bar alone.
+
+**Decision.** Refuse a fold whose evidence has fewer than two items. The honest yield is
+**833 plans, not 12,203**, and RefChartQA plan targets go 31,339 → **32,072**.
+
+### The tension this exposes, which is the more useful finding
+
+Those 11,370 records have a genuine question, a correct derivation and a correct gold
+answer. What they lack is *evidence to fold over* — and the chart's other elements do
+exist, in ChartQA's annotation for the same image, which `align_refchartqa.py` already
+reads and then discards.
+
+But supplying them breaks the other half of the objective. Our schema has **one evidence
+list serving two purposes**: it is the operand set for the plan *and* the grounding target
+scored by AP@0.5. For *"what is the maximum"*, the plan wants every bar and the grounding
+wants only the maximum one — and RefChartQA's human annotator marked exactly the latter.
+0014 says point at what the answer needs and nothing else; a fold says the answer needs
+everything.
+
+**Not resolved here**, deliberately. The options are to emit all elements and lose grounding
+precision, to rewrite the plan as a `lookup` and lose semantic correctness, or to let a plan
+reference elements outside its evidence and lose self-containment. Each trades one half of
+the dual target for the other, and it should be settled by a training run rather than
+argued. It is the sharpest open question the audit has produced about the *schema* rather
+than about the data.
+
+**Consequences.** Cost is zero and no model was involved, so three of Idea 7's nine concerns
+— reproducibility, contamination, licensing — do not arise for these 833. The finding is
+recorded at its true size rather than its first size, and the thing that corrected it was
+`scripts/e2e.py` printing whole targets, built one commit earlier for exactly this
+(0131). Counting said 12,203; reading said 833.

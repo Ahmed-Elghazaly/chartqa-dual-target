@@ -183,16 +183,18 @@ revised conclusion*. Ten subsystems, in the order data moves through them.
   source-agnostic.
 * **Implementation** — `chartqa_records`, `refchartqa_records`, `synthetic_records` in
   `scripts/build_mixtures.py`.
-* **Observed** — the abstraction leaks. `record.boxes` meant three different things by source
-  (C2), and `meta[elements]` still means the *operands* on a synthetic record and the *whole
-  chart* on a ChartQA one (M3). `record.table` has two shapes.
-* **Limitations** — a consumer reading these fields generically gets different semantics per
-  source, silently.
-* **New evidence** — targets agree only because `_evidence_from` prunes ChartQA's elements to
-  the plan's labels, which hid the divergence for months.
-* **Revised** — `boxes` fixed at the point of use (0076); the `elements` divergence is
-  measured and recorded, not yet unified. Unifying it changes synthetic records and belongs
-  with the L3–L4 regeneration.
+* **Observed** — the abstraction leaked. `record.boxes` meant three different things by
+  source (C2), and `meta[elements]` meant the *operands* on a synthetic record and the
+  *whole chart* on a ChartQA one (M3). `record.table` still has two shapes.
+* **Limitations** — a consumer reading those fields generically got different semantics per
+  source, silently, and four defects came from it (0067, 0071, 0098, 0116).
+* **New evidence** — targets agreed only because `_evidence_from` pruned ChartQA's elements
+  to the plan's labels, which hid the divergence for months; then 0116 built a target that
+  did not prune and produced *"point at everything"*.
+* **Revised** — **unified (0124).** `ChartRecord.elements` is every mark; `ChartRecord.evidence`
+  is the indices that answer *this* question, or `None` for unknown, which is what ChartQA
+  is. Each source also tags per-element grounding and value provenance (0126). `record.table`
+  having two shapes is the one part of this that remains open.
 
 ### Deduplication and cross-source fusion
 
@@ -209,8 +211,11 @@ revised conclusion*. Ten subsystems, in the order data moves through them.
 
 ### Element and evidence representation
 
-* **Intention** — a chart element is a label, a value, a unit and a box.
-* **Implementation** — `annotation_boxes` and `meta[ELEMENTS_KEY]`.
+* **Intention** — a chart element is a label, a value, a unit and a box; and the question's
+  *evidence* is the subset of those elements that answers it.
+* **Implementation** — `ChartRecord.elements` and `ChartRecord.evidence`, first-class fields
+  since 0124. `annotation_boxes` still builds the elements; `meta[ELEMENTS_KEY]` is written
+  only so records cached before the fields existed stay readable.
 * **Observed** — labels are not unique on 22.6% of charts, and the target builder and the
   executor resolved collisions differently — first match against last (H3). Colour was
   produced by the annotation and dropped (H7).
@@ -219,6 +224,9 @@ revised conclusion*. Ten subsystems, in the order data moves through them.
   unique on 94.4% of them.
 * **Revised** — colliding labels qualified as `"Democratic · 2019"`; colour carried on 96.9%
   of elements; a label that still collides is refused, not resolved by position (0083, 0087).
+  ELEMENTS and EVIDENCE are now separate fields rather than one overloaded key, which is what
+  `Prompt.md` Ideas 1, 2 and 5 asked for and what four defects argued for (0124). An element
+  whose label is a *truncated render* of the plan's operand rejoins by unique prefix (0129).
 
 ### Plan mining
 
