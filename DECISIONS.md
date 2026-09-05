@@ -7406,3 +7406,35 @@ answer is no:**
 The miner never produced one, and the PoT gate now prevents them. A regression test holds
 it, because the property is invisible until it breaks: a degenerate fold verifies by
 construction, so it looks like a success everywhere except in the target itself.
+
+---
+
+## 0138 — The last constant that did not explain itself
+
+**Context.** Ahmed asked for the limits to be revised again. All 58 module-level numeric
+constants were enumerated with the comment block attached to each. The invariant test from
+0112 already requires every one to carry a reason, with a six-name allow-list for constants
+said to be self-explaining.
+
+**Four of the five were.** `SOURCE_IMAGE_W/H` is a smoke-test fixture's image size,
+`DEV_ROWS` is the `--dev` subset, `HOLDOUT_SEED_START` is named by `is_holdout`, and
+`QWEN3VL_MERGE_SIZE = 2` is a property of the model rather than a choice anyone made.
+
+**`MEMORY_GATE_GB = 13.5` was not.** It decides whether a training configuration is allowed
+to run at all, and the comment sitting beneath it belongs to `FULL_RUN_GATE_HOURS` — which
+is how it read as documented for as long as it has existed.
+
+**The number is right, and that is the point of checking rather than changing.** A Kaggle
+T4 reports ~15.8 GiB usable, so 13.5 leaves ~2.3 GiB for fragmentation and the eval pass;
+`RUNS.md` records real peaks of 1.482 GiB for the 512-pixel smoke and 5.65–10.87 GiB across
+batch 2/4/8, and the native-resolution arm is exactly the case the gate exists to catch.
+Nine decisions reason against it.
+
+**Decision.** Write the reason where the constant is, and take it off the allow-list — an
+allow-list entry is a promise that a name is self-evident, and this one was not.
+
+**Consequences.** Every numeric constant in `src/` now carries either a measurement or a
+stated reason, and the allow-list is down to four entries that genuinely need none. The
+broader scan found nothing else: no mutable defaults, no equality on a division result, and
+the `== 0.0` comparisons are all deliberate — an exactly-zero gradient *is* the thing being
+detected.

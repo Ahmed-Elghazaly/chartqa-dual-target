@@ -429,7 +429,6 @@ _SELF_EXPLAINING = {
     "DEV_ROWS",                            # the `--dev` subset size, a convenience
     "HOLDOUT_SEED_START",                  # named by `is_holdout`, which explains it
     "QWEN3VL_MERGE_SIZE",                  # a property of the model, not a choice
-    "MEMORY_GATE_GB",                      # named by the gate it guards
 }
 
 

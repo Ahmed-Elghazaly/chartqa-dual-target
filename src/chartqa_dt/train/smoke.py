@@ -70,6 +70,16 @@ from chartqa_dt.seeding import load_rng_state, rng_state
 SOURCE_IMAGE_W = 800
 SOURCE_IMAGE_H = 557
 
+#: Peak reserved VRAM a configuration may use and still be allowed to run.
+#:
+#: A Kaggle T4 reports ~15.8 GiB usable of its nominal 16, so this leaves ~2.3 GiB of
+#: headroom for fragmentation and the eval pass. **Measured against it** in `RUNS.md`:
+#: 1.482 GiB for the 512-pixel smoke, 5.65–10.87 GiB across batch 2/4/8 at 512, and the
+#: native-resolution arm is the case it exists to catch.
+#:
+#: It was the one constant on the invariant test's self-explaining allow-list that did not
+#: explain itself — the comment beneath it belongs to `FULL_RUN_GATE_HOURS`, and a gate
+#: deciding whether a run may start needs its own reason (`DECISIONS.md` 0138).
 MEMORY_GATE_GB = 13.5
 # Revised from 10.0 in decision 0034, disclosed in 0037: the 10-hour figure proxied
 # for 'can this run finish', which verified kill-and-resume now answers directly.
