@@ -316,3 +316,45 @@ revised conclusion*. Ten subsystems, in the order data moves through them.
   output, and its M and PoT numbers reproduce exactly.
 * **Revised** — report against Table 2's six models (0093); make all three answer policies
   scoreable from one generation set and decide on data (0096).
+
+---
+
+## The scripts, and what each one produces
+
+**Nothing here is dead, and that is the point of the table.** Two scripts have zero
+references from anywhere in the repo — `build_val_slices.py` and `refchartqa_audit.py` —
+and both are essential: the first froze the validation slice every Phase 5 measurement uses,
+the second produced the 200-row box audit that decision 0047 rests on. A reference count is
+not a liveness check for a script whose job is to *produce an artifact once*, and deleting
+one would make its artifact unreproducible (`DECISIONS.md` 0132 nearly made that mistake in
+the other direction, on code that genuinely was dead).
+
+| script | what it does | writes |
+|---|---|---|
+| `align_refchartqa.py` | give RefChartQA's boxes semantic identity from ChartQA elements | `<data>/refchartqa_aligned.jsonl` |
+| `build_mixtures.py` | build the stage-1 and stage-2 mixtures | `data/mixture_stage{1,2}.json` |
+| `build_sealed_images.py` | record the pixel hash of every val/test image | `data/sealed_images.json` |
+| `build_semantic_audit.py` | the stratified manual audit set (0129) | `<data>/semantic_audit.jsonl` |
+| `build_val_slices.py` | **freeze the validation slices Phase 5 iterates on** | `<data>/slices/*.jsonl` |
+| `cache_refchartqa.py` | stream RefChartQA into a local record cache | `<data>/refchartqa_train.jsonl` |
+| `characterise_official_evaluator.py` | run the official evaluator to characterise it | `verification/` |
+| `check_ci.py` | CI status for *this* commit, not the last run | — |
+| `check_credentials.py` | verify every credential and say what is wrong | — |
+| `crosscheck_evaluators.py` | our metrics against the official ones | `verification/evaluator_crosscheck.json` |
+| `e2e.py` | build real targets, **print some**, fail on composition drift | `data/composition_snapshot.json` |
+| `gpu_budget.py` | live Kaggle quota against what is still to spend | — |
+| `kaggle_run.py` | drive a Kaggle GPU kernel non-interactively | — |
+| `make_presentation_figures.py` | figures, from our own generated charts | `presentation/figures/` |
+| `measure_resolution_ladder.py` | visual-token cost vs input resolution (0095) | — |
+| `measure_subtoken.py` | what fraction of grounding targets are sub-token | — |
+| `measure_target_yield.py` | how many records become training examples, on CPU | — |
+| `mine_plans.py` | mine and verify a plan per record with a language model | `audit/plans/` |
+| `record_parquet_hashes.py` | expected SHA-256 per parquet, without downloading | `data/` manifest |
+| `refchartqa_audit.py` | **the 200-row box audit behind decision 0047** | `data/refchartqa_audit.jsonl` |
+| `reproduce_level_b.py` | the Level-B reproduction | `verification/level_b_reproduction.json` |
+| `run_zeroshot.py` | zero-shot baselines on GPU | `outputs/phase5/` |
+| `write_prereg.py` | generate `PREREGISTRATION.md` from recorded facts | `PREREGISTRATION.md` |
+
+`audit/` holds one-off measurement scripts — 18 of them, tracked deliberately. Each is the
+*evidence* for a number in `DECISIONS.md`: how it was measured, not just what it came to.
+They are kept for reproducibility and are not expected to be re-run.
