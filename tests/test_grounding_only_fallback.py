@@ -407,6 +407,11 @@ def test_chartqa_records_declare_whole_chart_boxes():
 
     from chartqa_dt.data.chartqa import ArchiveReader
 
+    # CI has no dataset archive (rule 7 keeps it out of git), so this skips there.
+    # It cost a red run once: the first version asserted unconditionally and every
+    # CI job failed on a missing zip.
+    if not pathlib.Path(archive_path()).exists():
+        pytest.skip("ChartQA archive not present")
     records = chartqa_records(ArchiveReader(archive_path()), limit=8, seed=0)
     assert records, "no ChartQA records to check"
     for r in records:
@@ -414,7 +419,6 @@ def test_chartqa_records_declare_whole_chart_boxes():
         assert not has_question_specific_boxes(r)
 
 
-@needs_cache
 def test_refchartqa_records_declare_question_specific_boxes():
     import inspect
 
