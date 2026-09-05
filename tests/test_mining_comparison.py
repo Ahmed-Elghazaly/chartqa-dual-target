@@ -18,7 +18,7 @@ from types import SimpleNamespace
 import pytest
 
 sys.path.insert(0, ".")
-from scripts.mine_plans import report_conflicts  # noqa: E402
+from scripts.mine_plans import report_conflicts
 
 
 def proposal(rid, plan, prior):
