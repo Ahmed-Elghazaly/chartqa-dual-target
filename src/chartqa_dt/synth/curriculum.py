@@ -77,6 +77,75 @@ def _labels_for(plan: dict) -> list[str]:
     return out
 
 
+#: What the chart's categories *are*, inferred from the labels themselves.
+#:
+#: **Measured** over ChartQA's 28,299 training questions: the four most common openings
+#: are *"what was the"* (6,485), *"what is the"* (3,291), *"what percentage of"* (1,459)
+#: and *"how much did"* (750), and the list goes on with *"in what year"*, *"how many
+#: people"*, *"which country was"*, *"who is the"*. Real questions name the kind of thing
+#: they ask about. Synthetic questions said *"category"* every time, which is a word that
+#: appears in almost no real question (`DECISIONS.md` 0122).
+ENTITY_NOUNS: tuple[tuple[str, str], ...] = (
+    ("year", "year"),
+    ("quarter", "quarter"),
+    ("month", "month"),
+    ("country", "country"),
+    ("state", "state"),
+    ("age group", "age group"),
+    ("category", "category"),
+)
+
+_MONTHS = {"jan", "feb", "mar", "apr", "may", "jun",
+           "jul", "aug", "sep", "oct", "nov", "dec"}
+_COUNTRIES = {"argentina", "australia", "brazil", "canada", "china", "france",
+              "germany", "india", "italy", "japan", "mexico", "nigeria", "norway",
+              "spain", "sweden", "united kingdom", "united states", "vietnam"}
+_STATES = {"alabama", "alaska", "arizona", "california", "colorado", "florida",
+           "georgia", "illinois", "michigan", "ohio", "oregon", "texas", "utah",
+           "vermont", "virginia", "washington", "wyoming"}
+
+
+def entity_noun(labels: list[str]) -> str:
+    """The noun a person would use for these labels — "year", "country", "category".
+
+    Cheap and deliberately conservative: anything it cannot recognise stays "category",
+    which is what every question used to say.
+    """
+    lows = [x.strip().lower() for x in labels]
+    if all(x.isdigit() and 1800 <= int(x) <= 2100 for x in lows):
+        return "year"
+    if all(x[:2] in {"q1", "q2", "q3", "q4"} for x in lows):
+        return "quarter"
+    if all(x[:3] in _MONTHS for x in lows):
+        return "month"
+    if sum(x in _COUNTRIES for x in lows) >= max(2, len(lows) // 2):
+        return "country"
+    if sum(x in _STATES for x in lows) >= max(2, len(lows) // 2):
+        return "state"
+    if all("-" in x or x.endswith("+") for x in lows):
+        return "age group"
+    return "category"
+
+
+#: Past tense is the *majority* voice in ChartQA — *"what was the"* outnumbers *"what is
+#: the"* roughly two to one — and synthetic data had none of it at all.
+PAST_TENSE_SHARE = 0.55
+
+
+#: Trailing clauses that lengthen a question the way real ones are lengthened. ChartQA's
+#: questions run to a median of **11** words and a 90th percentile of **16**; synthetic
+#: ran to 7 and never exceeded 10.
+TAIL_CLAUSES: tuple[str, ...] = (
+    "", "", "", " according to the chart", " in the chart",
+    " shown in the graph", " based on the chart",
+)
+
+
+def _tense(rng: random.Random) -> tuple[str, str]:
+    """`(is/was, does/did)` — one draw, so a question does not mix voices."""
+    return ("was", "did") if rng.random() < PAST_TENSE_SHARE else ("is", "does")
+
+
 def build_question(
     level: Level,
     series: list[tuple[str, float]],
@@ -91,14 +160,20 @@ def build_question(
     by_label = dict(series)
     labels = [lab for lab, _ in series]
     aggregate_over_all = False
+    noun = entity_noun(labels)
+    is_was, does_did = _tense(rng)
+    tail = rng.choice(TAIL_CLAUSES)
 
     if level == "L1":
         lab = rng.choice(labels)
         plan = {"op": "lookup", "args": [lab]}
         q = rng.choice([
-            f"What is the {quantity} for {lab}?",
-            f"What {quantity} is shown for {lab}?",
-            f"How much is {lab}?",
+            f"What {is_was} the {quantity} for {lab}{tail}?",
+            f"What {quantity} {is_was} shown for {lab}{tail}?",
+            f"How much {is_was} {lab}{tail}?",
+            f"What {is_was} the {quantity} of {lab}{tail}?",
+            f"For the {noun} {lab}, what {is_was} the {quantity}{tail}?",
+            f"How much {quantity} {is_was} recorded for {lab}{tail}?",
         ])
         answer = by_label[lab]
 
@@ -110,17 +185,28 @@ def build_question(
         if style == "difference":
             plan = {"op": "difference", "args": [a, b]}
             q = rng.choice([
-                f"How much more is {a} than {b}?",
-                f"What is the difference between {a} and {b}?",
+                f"How much more {is_was} {a} than {b}{tail}?",
+                f"What {is_was} the difference between {a} and {b}{tail}?",
+                f"By how much {is_was} {a} greater than {b}{tail}?",
+                f"How much larger {is_was} the {quantity} for {a} than for {b}{tail}?",
+                f"What {is_was} the gap between {a} and {b}{tail}?",
             ])
             answer = by_label[a] - by_label[b]
         elif style == "ratio" and by_label[b] != 0:
             plan = {"op": "ratio", "args": [a, b]}
-            q = f"What is the ratio of {a} to {b}?"
+            q = rng.choice([
+                f"What {is_was} the ratio of {a} to {b}{tail}?",
+                f"How many times larger {is_was} {a} than {b}{tail}?",
+                f"What {is_was} the ratio between the {quantity} for {a} and for {b}{tail}?",
+            ])
             answer = by_label[a] / by_label[b]
         else:
             plan = {"op": "compare", "args": [a, b]}
-            q = f"Is {a} greater or less than {b}?"
+            q = rng.choice([
+                f"{is_was.title()} {a} greater or less than {b}{tail}?",
+                f"Which {is_was} larger, {a} or {b}{tail}?",
+                f"{is_was.title()} the {quantity} for {a} greater or less than for {b}{tail}?",
+            ])
             answer = "greater" if by_label[a] > by_label[b] else (
                 "less" if by_label[a] < by_label[b] else "equal")
 
@@ -133,19 +219,49 @@ def build_question(
         aggregate_over_all = True
         values = [v for _, v in series]
         if op == "sum":
-            q, answer = f"What is the total {quantity} across all categories?", sum(values)
+            q, answer = rng.choice([
+                f"What {is_was} the total {quantity} across all {noun}s{tail}?",
+                f"What {is_was} the sum of all the {quantity}s shown{tail}?",
+                f"Added together, what {is_was} the total {quantity}{tail}?",
+            ]), sum(values)
         elif op == "mean":
-            q, answer = f"What is the average {quantity}?", statistics.fmean(values)
+            q, answer = rng.choice([
+                f"What {is_was} the average {quantity}{tail}?",
+                f"What {is_was} the mean {quantity} across all {noun}s{tail}?",
+                f"On average, what {is_was} the {quantity} per {noun}{tail}?",
+            ]), statistics.fmean(values)
         elif op == "max":
-            q, answer = f"What is the highest {quantity} shown?", max(values)
+            q, answer = rng.choice([
+                f"What {is_was} the highest {quantity} shown{tail}?",
+                f"What {is_was} the largest {quantity} in the chart{tail}?",
+                f"What {is_was} the peak {quantity} recorded{tail}?",
+            ]), max(values)
         elif op == "min":
-            q, answer = f"What is the lowest {quantity} shown?", min(values)
+            q, answer = rng.choice([
+                f"What {is_was} the lowest {quantity} shown{tail}?",
+                f"What {is_was} the smallest {quantity} in the chart{tail}?",
+                f"What {is_was} the minimum {quantity} recorded{tail}?",
+            ]), min(values)
         elif op == "count":
-            q, answer = "How many categories are shown?", float(len(values))
+            q, answer = rng.choice([
+                f"How many {noun}s are shown{tail}?",
+                f"How many {noun}s appear in the chart{tail}?",
+                f"What {is_was} the number of {noun}s shown{tail}?",
+            ]), float(len(values))
         elif op == "argmax":
-            q, answer = f"Which category has the highest {quantity}?", max(series, key=lambda p: p[1])[0]
+            q, answer = rng.choice([
+                f"Which {noun} {'had' if is_was == 'was' else 'has'} the highest "
+                f"{quantity}{tail}?",
+                f"In which {noun} {is_was} the {quantity} highest{tail}?",
+                f"Which {noun} recorded the largest {quantity}{tail}?",
+            ]), max(series, key=lambda p: p[1])[0]
         else:
-            q, answer = f"Which category has the lowest {quantity}?", min(series, key=lambda p: p[1])[0]
+            q, answer = rng.choice([
+                f"Which {noun} {'had' if is_was == 'was' else 'has'} the lowest "
+                f"{quantity}{tail}?",
+                f"In which {noun} {is_was} the {quantity} lowest{tail}?",
+                f"Which {noun} recorded the smallest {quantity}{tail}?",
+            ]), min(series, key=lambda p: p[1])[0]
 
     elif level == "L4":
         lab = rng.choice(labels)
@@ -154,18 +270,32 @@ def build_question(
         aggregate_over_all = True
         if style == "vs_mean":
             plan = {"op": "difference", "args": [lab, {"op": "mean", "args": []}]}
-            q = f"How far is {lab} from the average?"
+            q = rng.choice([
+                f"How far {is_was} {lab} from the average{tail}?",
+                f"By how much {does_did} {lab} differ from the mean {quantity}{tail}?",
+                f"What {is_was} the difference between {lab} and the average{tail}?",
+            ])
             answer = by_label[lab] - statistics.fmean(values)
         elif style == "vs_max":
             plan = {"op": "difference", "args": [{"op": "max", "args": []}, lab]}
-            q = f"How much lower is {lab} than the highest category?"
+            q = rng.choice([
+                f"How much lower {is_was} {lab} than the highest {noun}{tail}?",
+                f"How far below the maximum {is_was} {lab}{tail}?",
+                f"What {is_was} the gap between {lab} and the highest {quantity}{tail}?",
+            ])
             answer = max(values) - by_label[lab]
         else:
             total = sum(values)
             if total == 0:
                 return None
             plan = {"op": "ratio", "args": [lab, {"op": "sum", "args": []}]}
-            q = f"What fraction of the total does {lab} represent?"
+            q = rng.choice([
+                f"What fraction of the total {does_did} {lab} represent{tail}?",
+                f"What share of the total {quantity} {is_was} {lab}{tail}?",
+                # No trailing clause here: the template already ends in a preposition,
+                # and "account for shown in the graph" is not English.
+                f"What proportion of the total {does_did} {lab} account for?",
+            ])
             answer = by_label[lab] / total
     else:
         raise ValueError(f"unknown level: {level!r}")

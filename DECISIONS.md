@@ -6571,3 +6571,49 @@ the agree-rate should rise from 76.3% and the 7 executor wins should grow. That 
 learned the format without learning to use its own evidence, which is the failure this
 project would most want to know about. The unparsed row is 0114's truncation, and it
 dominates everything else in this table.
+
+---
+
+## 0122 — Synthetic questions now sound like ChartQA's, which they did not at all
+
+**Context.** `Prompt.md` Idea 9's LANGUAGE block asks for template diversity, paraphrases,
+naturalness, ChartQA-like wording, varied operand order and varied referring expressions.
+Nothing in it had been done, and the checklist called it the largest untouched item. As
+with 0118 and 0120, the gap was measured before anything was written.
+
+Over ChartQA's **28,299** training questions against 8,000 synthetic ones:
+
+| | ChartQA | synthetic (before) |
+|---|---:|---:|
+| question length, median words | **11** | 7 |
+| p90 | **16** | 9 |
+| maximum | 47 | **10** |
+| past tense | *"what was the"* is the single commonest opening, 6,485 of them | **0.0%** |
+| the word "category" | almost never | in every aggregate question |
+
+Three specific findings, none of which was guessable:
+
+1. **Past tense is the majority voice.** *"what was the"* (6,485) outnumbers *"what is
+   the"* (3,291) roughly two to one. Synthetic data contained no past tense at all — a
+   fine-tuned model would meet it first at evaluation.
+2. **Real questions name the kind of thing they ask about** — *"in what year"*, *"how many
+   people"*, *"which country was"*, *"who is the"*. Ours said *"which category has the
+   highest value"* for a chart of countries.
+3. **Ours were too short**, by four words at the median, and had a hard ceiling of ten.
+
+**Decision.** Expand the templates along those three axes rather than by adding synonyms:
+tense drawn once per question so it cannot mix voices; an `entity_noun` inferred from the
+labels themselves — year, quarter, month, country, state, age group, else *category*, and
+deliberately conservative because a wrong noun reads worse than a generic one; and optional
+trailing clauses, mostly empty, so questions lengthen the way real ones do.
+
+**Result:** median 10 words (11), p90 13 (16), max 18, past tense 51.3% (~55%), distinct
+opening trigrams 193 → 234, and no single opening is more than 30% of the corpus.
+
+**Consequences.** Semantics are untouched — a test executes every generated plan against
+its own evidence and compares through `format_answer`, so a language change cannot quietly
+alter an answer. One sentence did ship broken in the first pass and is now a named test:
+*"What proportion of the total does Aug account for shown in the graph?"*, where a trailing
+clause followed a dangling preposition. Still open from the LANGUAGE block: **distractors**
+and **referring expressions** ("the tallest bar", "the blue segment"), which need the chart
+geometry and colour at question-build time rather than only the series.

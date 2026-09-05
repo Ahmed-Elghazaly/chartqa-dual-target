@@ -108,8 +108,9 @@ matches the official one to 0.068 points across 11,690 predictions.
 |---|:---:|---|
 | nested reasoning | ✅ | L4 |
 | ambiguity avoidance | ✅ | colliding labels refused, not guessed (0083) |
-| varied operand order | 🟡 | partial |
-| template diversity, paraphrases, naturalness, ChartQA-like wording, referring expressions, distractors | ❌ | **~15 templates total**, and this is the largest untouched item in Idea 9 |
+| varied operand order | ✅ | multiple orderings per operation (0122) |
+| template diversity, paraphrases, naturalness, ChartQA-like wording | ✅ | 40+ templates; median 7 → 10 words, past tense 0% → 51.3%, entity nouns instead of "category" (0122) |
+| referring expressions, distractors | ❌ | need chart geometry and colour at question-build time, not just the series (0122) |
 
 **GROUNDING**
 
@@ -174,7 +175,7 @@ matches the official one to 0.068 points across 11,690 predictions.
 **Not done, and doable without a GPU:**
 
 1. ❌ **ELEMENTS/EVIDENCE structural split** (Ideas 1–2). Patched with a boolean, not restructured.
-2. ❌ **Question-language diversity** (Idea 9). ~15 templates. The biggest single gap left in synthetic data.
+2. 🟡 **Question language** (Idea 9). Templates, tense, length and entity nouns done (0122). **Referring expressions and distractors are not** — they need geometry and colour at question-build time.
 3. ❌ **Operation-mix reweighting** (0091). `difference` 13.8× over-represented; selection-only fix.
 4. ❌ **Stacked bars**, tiny/overlapping elements, legend-association tasks, clutter and imperfections.
 5. ❌ **Within-chart correlations** and multi-column tables.
