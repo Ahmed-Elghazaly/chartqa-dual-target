@@ -326,3 +326,78 @@ def test_the_l3_operation_chain_still_answers_each_operation_correctly():
             assert float(got) == pytest.approx(want), f"{op}: {got} != {want}"
         else:
             assert str(got) == want, f"{op}: {got} != {want}"
+
+
+# --- colour-referring questions (`DECISIONS.md` 0147) -----------------------------------
+
+def test_a_colour_reference_is_refused_when_two_marks_share_the_colour():
+    """*"the green bar"* is unanswerable with two green bars, and a target built on it
+    would teach the model to guess. Same refusal as a colliding label (0083)."""
+    from chartqa_dt.synth.curriculum import colour_reference
+
+    assert colour_reference(["A", "B"], ["#3060c8", "#c83030"], 0) == "blue"
+    assert colour_reference(["A", "B"], ["#3060c8", "#3060c8"], 0) is None
+
+
+def test_a_colour_reference_needs_colours_at_all():
+    from chartqa_dt.synth.curriculum import colour_reference
+
+    assert colour_reference(["A"], None, 0) is None
+    assert colour_reference(["A"], [], 0) is None
+    assert colour_reference(["A"], ["#3060c8"], 5) is None
+
+
+def test_colour_referring_questions_appear_at_chartqa_s_rate():
+    """Measured over 28,299 real questions: 5.0% mention a colour. Synthetic: 0% before."""
+    import re
+
+    from chartqa_dt.synth.generator import PALETTES, element_colours
+
+    pattern = re.compile(r"\b(blue|red|green|orange|purple|yellow|grey|teal)\b", re.I)
+    rng = random.Random(0)
+    questions = []
+    for _ in range(1200):
+        for level in LEVELS:
+            series, _, unit = sample_series(rng, n=sample_density(rng, level))
+            q = build_question(level, series, rng, unit=unit, quantity="value",
+                               colours=element_colours(list(PALETTES[0]), len(series)),
+                               mark="bar")
+            if q is not None:
+                questions.append(q.question)
+    share = sum(bool(pattern.search(q)) for q in questions) / len(questions)
+    assert 0.02 < share < 0.10, f"{share:.1%} colour-referring; ChartQA is 5.0%"
+
+
+def test_a_colour_question_still_carries_a_label_based_plan():
+    """The whole point: the question says *"the blue bar"*, the plan says the label, and
+    only the image connects them. A plan that referred to the colour would be unexecutable,
+    because evidence is keyed by label."""
+    from chartqa_dt.plans.executor import EvidenceItem, execute
+    from chartqa_dt.synth.generator import PALETTES, element_colours
+
+    rng = random.Random(0)
+    checked = 0
+    for _ in range(3000):
+        series, _, unit = sample_series(rng, n=4)
+        q = build_question("L1", series, rng, unit=unit, quantity="value",
+                           colours=element_colours(list(PALETTES[0]), len(series)),
+                           mark="bar")
+        if q is None or (q.meta or {}).get("referring_expression") != "colour":
+            continue
+        checked += 1
+        assert q.plan["args"][0] in dict(series), "plan operand is not a chart label"
+        by = dict(series)
+        got = execute(q.plan, [EvidenceItem(label=lab, value=by[lab], unit=unit)
+                               for lab in q.evidence_labels])
+        assert format_answer(got) == format_answer(q.answer)
+    assert checked > 20, f"only {checked} colour questions generated"
+
+
+def test_the_mark_word_matches_the_chart_type():
+    """"the blue slice" on a pie, "the blue bar" on a bar. Saying "bar" for a pie is a
+    giveaway that the question was generated."""
+    from chartqa_dt.synth.generator import MARK_WORD
+
+    assert MARK_WORD["pie"] == "slice"
+    assert MARK_WORD["vbar"] == MARK_WORD["hbar"] == "bar"
+    assert MARK_WORD["line"] == "line"

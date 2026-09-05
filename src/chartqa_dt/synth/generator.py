@@ -421,6 +421,13 @@ MAGNITUDE_LOG10_SD = 1.33
 MAGNITUDE_LOG10_RANGE = (-0.7, 8.4)
 
 
+#: What a reader calls one mark of each chart type, for questions that point at one —
+#: *"the blue bar"*, *"the green slice"*. ChartQA's own questions say "bar", "graph",
+#: "line" and "slice"; using the wrong noun for the chart would be a giveaway that the
+#: question was generated (`DECISIONS.md` 0147).
+MARK_WORD = {"vbar": "bar", "hbar": "bar", "grouped_bar": "bar", "pie": "slice",
+             "line": "line", "multi_line": "line", "area": "area", "scatter": "point"}
+
 #: Chart families that cannot draw a value below zero. A pie is a part-to-whole chart, so
 #: matplotlib refuses outright — `ValueError: Wedge sizes 'x' must be non negative values`
 #: — which is the correct behaviour and not something to work around by taking absolutes.
@@ -674,7 +681,13 @@ def generate_example(
     series, quantity, unit = sample_series(data_rng, n=sample_density(data_rng, level),
                                            chart_type=chart_type)
 
-    question = build_question(level, series, data_rng, unit=unit, quantity=quantity)
+    # Colours are deterministic from the style and the count, so they can be known before
+    # the chart is drawn — which is what lets a question refer to a mark by colour
+    # (`DECISIONS.md` 0147).
+    element_colour_list = element_colours(style.palette, len(series))
+    question = build_question(level, series, data_rng, unit=unit, quantity=quantity,
+                              colours=element_colour_list,
+                              mark=MARK_WORD.get(chart_type, "bar"))
     if question is None:
         return None
 

@@ -166,6 +166,44 @@ L3_OPERATION_WEIGHTS: tuple[tuple[str, float], ...] = (
 )
 
 
+#: How often a question names a mark by its **colour** instead of its label.
+#:
+#: **Measured** over ChartQA's 28,299 training questions: **5.0% mention a colour** —
+#: *"What's the rightmost value dark brown graph?"*, *"Is the largest value of green bar
+#: 30?"* — and among human-written ones it is **21.8%** (`DECISIONS.md` 0087). Synthetic
+#: questions mentioned a colour **never**.
+#:
+#: This is not phrasing variety. A question that says *"the blue bar"* can only be answered
+#: by looking at the image and deciding which bar is blue; the label never appears. It is
+#: the one question form that cannot be answered from the data table alone, and the model
+#: had no training signal for it at all (`DECISIONS.md` 0147).
+#: **Calibrated to the corpus rate, not the per-question rate**, and the difference is a
+#: factor of four: only L1 asks about a single named mark, L1 is a quarter of the
+#: curriculum, and `colour_reference` refuses whenever two marks share a colour name. At
+#: 0.20 the finished corpus lands at 4.9% against ChartQA's measured 5.0%; at 0.05 it
+#: landed at 1.3%.
+COLOUR_REFERENCE_SHARE = 0.20
+
+
+def colour_reference(labels: list[str], colours: list[str] | None,
+                     index: int) -> str | None:
+    """A phrase naming element `index` by colour — *"the blue bar"* — or `None`.
+
+    `None` whenever the reference would be ambiguous, which is most of the time and is the
+    point: two green bars make *"the green bar"* unanswerable, and a target built on it
+    would teach the model to guess. Same refusal as a colliding label (0083).
+    """
+    if not colours or index >= len(colours):
+        return None
+    from chartqa_dt.plans.teacher import describe_colour
+
+    names = [describe_colour(c) for c in colours[:len(labels)]]
+    mine = names[index]
+    if not mine or names.count(mine) != 1:
+        return None
+    return mine
+
+
 def build_question(
     level: Level,
     series: list[tuple[str, float]],
@@ -173,6 +211,8 @@ def build_question(
     *,
     unit: str | None = None,
     quantity: str = "value",
+    colours: list[str] | None = None,
+    mark: str = "bar",
 ) -> SynthQuestion | None:
     """One question at the requested level, or None if the data cannot support it."""
     if len(series) < 2:
@@ -187,6 +227,23 @@ def build_question(
     if level == "L1":
         lab = rng.choice(labels)
         plan = {"op": "lookup", "args": [lab]}
+        # Name it by colour instead of by label, at ChartQA's measured rate. The *plan*
+        # still says the label — the model has to read the chart to connect them, which is
+        # the entire point of the form (0147).
+        if rng.random() < COLOUR_REFERENCE_SHARE:
+            phrase = colour_reference(labels, colours, labels.index(lab))
+            if phrase:
+                q = rng.choice([
+                    f"What {is_was} the {quantity} of the {phrase} {mark}{tail}?",
+                    f"How much {is_was} the {phrase} {mark}{tail}?",
+                    f"What {quantity} {is_was} shown for the {phrase} {mark}{tail}?",
+                ])
+                answer = by_label[lab]
+                used = sorted(set(_labels_for(plan)))
+                return SynthQuestion(level=level, question=q,
+                                     answer=format_answer(answer), plan=plan,
+                                     evidence_labels=used, unit=unit,
+                                     meta={"referring_expression": "colour"})
         q = rng.choice([
             f"What {is_was} the {quantity} for {lab}{tail}?",
             f"What {quantity} {is_was} shown for {lab}{tail}?",

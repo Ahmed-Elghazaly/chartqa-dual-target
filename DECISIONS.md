@@ -7811,3 +7811,55 @@ read as untrained rather than as failed.
 naming a thing is not an annotation locating it.* `text_label` with a `text_bbox` tells you
 what a mark is called and where its **caption** sits — never where the mark is. Two of the
 audit's chart-type losses are the same sentence.
+
+---
+
+## 0147 — Questions that name a mark by its colour
+
+**Context.** Ahmed asked for the synthetic generator to be improved and **finalised**,
+because retraining is expensive. `Prompt.md` Idea 9's LANGUAGE block lists *referring
+expressions* and *distractors* as the two items 0122 left open, and Idea 9's tie-breaker
+decides which to do first: *prioritise diversity that reduces the real/synthetic domain
+gap*. So the gap was measured rather than guessed.
+
+**Measured** over ChartQA's 28,299 training questions:
+
+| | share |
+|---|---:|
+| mention a **colour** | **5.0%** |
+| mention a position or superlative | 5.0% |
+| synthetic questions mentioning either | **0%** |
+
+and among *human-written* questions alone, colour reaches **21.8%** (0087).
+
+**This is not phrasing variety, and that is why it was worth doing.** *"What's the rightmost
+value dark brown graph?"* can only be answered by looking at the image and deciding which
+line is dark brown — the label never appears in the question. It is the one question form
+that **cannot be answered from the data table alone**, and the model had no training signal
+for it whatsoever.
+
+**Decision.** `colour_reference` names a mark by colour when the name is unambiguous, and
+`build_question` uses it on L1 lookups.
+
+Three things it does *not* do, each deliberate:
+
+* **It refuses when two marks share a colour name.** *"The green bar"* with two green bars
+  is unanswerable, and a target built on it teaches guessing — the same refusal a colliding
+  label already gets (0083).
+* **The plan still names the label.** The question says *"the blue bar"*, the plan says
+  `lookup("Alpha")`, and only the image connects them. A plan referring to the colour would
+  not execute at all, since evidence is keyed by label.
+* **The noun follows the chart type** — *slice* on a pie, *line* on a line chart. Saying
+  "bar" for a pie is a giveaway that a question was generated.
+
+**Calibrated to the corpus, not to the question.** `COLOUR_REFERENCE_SHARE = 0.20` sounds
+like four times too much until you notice only L1 asks about a single named mark, L1 is a
+quarter of the curriculum, and ambiguity refuses some. At 0.05 the corpus landed at **1.3%**;
+at 0.20 it lands at **4.9%** against ChartQA's 5.0%.
+
+**Consequences.** Colour was already read from the annotation and carried on every element
+(0087) and never used for anything — this is the first thing that consumes it. The remaining
+LANGUAGE item is **distractors**, and **position/superlative** references are now the
+larger untouched gap at 5.0%: *"the rightmost value"*, *"the tallest bar"*. `argmax` covers
+the superlative case semantically; the positional case has no operator at all, and inventing
+one is a DSL change rather than a phrasing change.
