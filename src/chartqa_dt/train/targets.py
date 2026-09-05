@@ -397,9 +397,16 @@ def has_question_specific_boxes(record: ChartRecord) -> bool:
     close to zero. It is the same mistake `_evidence_from` was written to avoid, arriving
     through a different door (`DECISIONS.md` 0116).
 
-    A source may declare this directly with a `question_specific_boxes` meta flag.
-    Otherwise the evidence is `refchartqa_id`: it is present exactly when the boxes came
-    from RefChartQA's per-question grounding annotation.
+    **Every source now declares this at ingestion** — `chartqa.py` sets it False, and
+    `refchartqa.py` and the synthetic reader set it True — so the semantics travel with the
+    record instead of being re-derived by each consumer. That is the narrow version of the
+    change `Prompt.md` Ideas 1 and 2 ask about: 0108 enumerated nine consumers of `boxes`
+    and recorded two assumptions as *"safe by circumstance rather than by contract"*, and
+    this is the one that then fired (`DECISIONS.md` 0119).
+
+    The `refchartqa_id` fallback remains for records cached before the flag existed. A new
+    source that declares nothing is treated as whole-chart, which is the safe direction:
+    it loses grounding-only targets rather than emitting wrong ones.
     """
     flag = record.meta.get("question_specific_boxes")
     if flag is not None:

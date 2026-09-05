@@ -115,6 +115,10 @@ def row_to_record(row: dict[str, Any], *, split: str, image_path: str | Path,
         plan=None,
         meta={
             "refchartqa_id": row.get("id"),
+            # RefChartQA marks, per question, which regions a person used to answer it.
+            # Declared so `build_grounding_only_target` need not infer it from the
+            # presence of `refchartqa_id` (`DECISIONS.md` 0116, 0119).
+            "question_specific_boxes": True,
             "image_size": [width, height],
             "n_boxes": len(boxes),
             "boxes_dropped_outside_image": dropped,

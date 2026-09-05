@@ -395,3 +395,40 @@ def test_a_grounding_only_target_emits_exactly_the_marked_boxes():
             wrong += 1
     assert built > 500, f"only {built} grounding-only targets built; test is too weak"
     assert wrong == 0, f"{wrong} of {built} targets did not emit exactly the marked boxes"
+
+
+# --- every source declares what its boxes mean --------------------------------------
+
+def test_chartqa_records_declare_whole_chart_boxes():
+    """Declared at ingestion, not inferred by each consumer (`DECISIONS.md` 0119)."""
+    import sys
+    sys.path.insert(0, ".")
+    from scripts.build_mixtures import archive_path, chartqa_records
+
+    from chartqa_dt.data.chartqa import ArchiveReader
+
+    records = chartqa_records(ArchiveReader(archive_path()), limit=8, seed=0)
+    assert records, "no ChartQA records to check"
+    for r in records:
+        assert r.meta.get("question_specific_boxes") is False
+        assert not has_question_specific_boxes(r)
+
+
+@needs_cache
+def test_refchartqa_records_declare_question_specific_boxes():
+    import inspect
+
+    from chartqa_dt.data.refchartqa import row_to_record
+
+    src = inspect.getsource(row_to_record)
+    assert '"question_specific_boxes": True' in src, (
+        "row_to_record no longer declares box semantics; cached records fall back to "
+        "inferring from refchartqa_id, and a new cache would carry nothing")
+
+
+def test_a_source_that_declares_nothing_is_treated_as_whole_chart():
+    """The safe direction: lose grounding-only targets rather than emit wrong ones."""
+    r = rec(meta={"n_elements": 3})
+    assert not has_question_specific_boxes(r)
+    with pytest.raises(TargetError, match="whole chart"):
+        build_grounding_only_target(r)

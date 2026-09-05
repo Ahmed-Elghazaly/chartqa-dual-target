@@ -6395,3 +6395,53 @@ This is the fourth finding of one shape (0112, 0115, 0117): a limit that was def
 when written, whose consequence was later measured and attributed to something else. The
 distinctive part here is that the symptom was measured *twice*, in detail, and written up
 both times without anyone opening the function that caused it.
+
+---
+
+## 0119 — Box semantics are declared at ingestion, not inferred by each consumer
+
+**Context.** `Prompt.md` Ideas 1 and 2 ask whether `boxes` and `meta["elements"]` carry one
+clean semantic contract, and whether the representation should be redesigned — explicitly
+*"not merely for elegance"*, but only if the current semantics are **harming** target
+construction, evidence selection, correctness, or extensibility.
+
+The project answered twice. 0098 measured that the same key holds *the operands* on
+synthetic and *the whole chart* on ChartQA. 0108 enumerated all nine consumers, concluded
+**no representation change**, and recorded two assumptions as *"safe by circumstance rather
+than by contract"* — one of them `targets.py`'s fallback branch.
+
+**That assumption then fired.** 0116 built grounding-only targets from ChartQA records and
+produced *"Which year has the most crime?"* → answer 2014 → evidence: **all six years**.
+The audit named the landmine and a change three weeks later stepped on it. So Idea 1's test
+is now met with evidence rather than argument: the semantics *did* harm correctness, in
+target construction and evidence selection, exactly where 0108 predicted.
+
+**Decision.** Take the narrow change, not the redesign. Every source now **declares** what
+its boxes mean at ingestion:
+
+| source | `question_specific_boxes` | because |
+|---|---|---|
+| ChartQA | **False** | annotates the chart — every element, identical for every question about that image |
+| RefChartQA | True | annotates, per question, which regions a person used |
+| synthetic | True | the generator emits only the elements the question needs |
+
+`has_question_specific_boxes` reads the declaration; the `refchartqa_id` inference stays as
+a fallback for records cached before the flag existed. **A source that declares nothing is
+treated as whole-chart** — the safe direction, losing grounding-only targets rather than
+emitting wrong ones.
+
+**Why not the full redesign.** 0107 already settled element identity (qualified labels, not
+opaque ids) and 0108's argument still holds: EVIDENCE is derived by `_evidence_from`, that
+derivation is the most heavily tested function in the repository, and four defects that
+once lived there are fixed. Making it a stored object would reopen all of it to buy
+tidiness. What was actually missing was not a new structure but **a fact the record never
+carried**: whether its boxes answer the question. That is one boolean, and it converts the
+assumption 0108 could only describe into something the code checks.
+
+**Consequences.** Found on the way: **ChartQA records are built in two places** —
+`data/chartqa.py` and `scripts/build_mixtures.py` — with separately maintained `meta`
+dicts, and only the second feeds the mixtures. The first edit landed in the unused one and
+the test caught it. Both now declare, but two constructors for one source is how the
+`elements`/`evidence` spelling defect in 0067 and 0071 managed to happen twice; it is
+recorded here rather than fixed, because merging them is a refactor with no measurement
+behind it yet.

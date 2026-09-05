@@ -110,7 +110,11 @@ def synthetic_records(manifest: Path) -> list[ChartRecord]:
             # real labels. All 12,000 stage-1 records, silently (`DECISIONS.md` 0071).
             meta={"level": e["level"], "chart_type": e["chart_type"],
                   ELEMENTS_KEY: e["evidence"], "style_seed": e["style_seed"],
-                  "data_seed": e["data_seed"]}))
+                  "data_seed": e["data_seed"],
+                  # The generator emits only the elements the question needs, so these
+                  # boxes ARE the evidence for it. Declared rather than inferred
+                  # (`DECISIONS.md` 0116, 0119).
+                  "question_specific_boxes": True}))
     return out
 
 
@@ -167,6 +171,10 @@ def chartqa_records(reader: ArchiveReader, *, limit: int, seed: int) -> list[Cha
                 meta={"chart_type": reader.read_json(ann_name).get("type"),
                       "imgname": row["imgname"], "image_size": [width, height],
                       "n_elements": len(elements),
+                      # ChartQA annotates the CHART, not the question: these are every
+                      # element of the image, identical for every question asked about it.
+                      # Declared so no consumer has to work it out (`DECISIONS.md` 0119).
+                      "question_specific_boxes": False,
                       # The per-element label, value and unit — not just the count.
                       # Dropping them left the elements empty while `boxes` was full, so
                       # every training target fell back to "item1" placeholders and the
