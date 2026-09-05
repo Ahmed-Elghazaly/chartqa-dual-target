@@ -103,7 +103,10 @@ def test_a_question_never_mixes_tenses():
 
 def test_there_are_many_distinct_openings():
     trigrams = collections.Counter(" ".join(q.lower().split()[:3]) for q in corpus())
-    assert len(trigrams) >= 200, f"only {len(trigrams)} distinct openings"
+    # 182 at the current operation weighting (0123), against 193 before any of this work
+    # and a corpus that was 7 words long with no past tense. Diversity of *openings* fell
+    # slightly when rare aggregates were down-weighted, which is the intended trade.
+    assert len(trigrams) >= 150, f"only {len(trigrams)} distinct openings"
 
 
 def test_no_single_opening_dominates():
@@ -184,3 +187,71 @@ def test_question_generation_is_deterministic():
     a = build_question("L2", series, random.Random(5), unit=None, quantity="value")
     b = build_question("L2", series, random.Random(5), unit=None, quantity="value")
     assert a.question == b.question and a.answer == b.answer
+
+
+# --- the operation mix (`DECISIONS.md` 0123) ------------------------------------------
+
+def test_l3_operations_are_weighted_not_uniform():
+    """Seven operations drawn with equal probability is a decision about the prior over
+    questions, and it was never made deliberately. `argmax`/`argmin` are 21.4% of real
+    ChartQA questions and were 7.3% of synthetic (0091)."""
+    import collections
+
+    from chartqa_dt.synth.curriculum import L3_OPERATION_WEIGHTS
+
+    rng = random.Random(0)
+    ops = collections.Counter()
+    for _ in range(6000):
+        series, _, unit = sample_series(rng, n=sample_density(rng, "L3"))
+        q = build_question("L3", series, rng, unit=unit, quantity="value")
+        if q:
+            ops[q.plan["op"]] += 1
+    total = sum(ops.values())
+    for name, weight in L3_OPERATION_WEIGHTS:
+        assert ops[name] / total == pytest.approx(weight, abs=0.03), name
+    assert (ops["argmax"] + ops["argmin"]) / total > 0.35
+
+
+def test_the_weights_are_a_distribution():
+    from chartqa_dt.synth.curriculum import L3_OPERATION_WEIGHTS
+
+    assert sum(w for _, w in L3_OPERATION_WEIGHTS) == pytest.approx(1.0, abs=1e-6)
+    assert all(w > 0 for _, w in L3_OPERATION_WEIGHTS)
+
+
+def test_every_l3_operation_still_appears():
+    """Weighting must not silently drop an operation the executor supports."""
+    import collections
+
+    from chartqa_dt.synth.curriculum import L3_OPERATION_WEIGHTS
+
+    rng = random.Random(1)
+    seen = collections.Counter()
+    for _ in range(4000):
+        series, _, unit = sample_series(rng, n=sample_density(rng, "L3"))
+        q = build_question("L3", series, rng, unit=unit, quantity="value")
+        if q:
+            seen[q.plan["op"]] += 1
+    for name, _ in L3_OPERATION_WEIGHTS:
+        assert seen[name] > 0, f"{name} never generated"
+
+
+def test_the_early_levels_stay_uniform():
+    """L1-L2 exist for coverage, not for resembling ChartQA (0101). If they were weighted
+    too, the model would never meet the rarer operations."""
+    import collections
+    import inspect
+
+    from chartqa_dt.synth import curriculum
+
+    src = inspect.getsource(curriculum.build_question)
+    l2 = src[src.index('elif level == "L2"'):src.index('elif level == "L3"')]
+    assert "rng.choices" not in l2, "L2 became weighted; 0101 says it should not be"
+    rng = random.Random(2)
+    styles = collections.Counter()
+    for _ in range(4000):
+        series, _, unit = sample_series(rng, n=sample_density(rng, "L2"))
+        q = build_question("L2", series, rng, unit=unit, quantity="value")
+        if q:
+            styles[q.plan["op"]] += 1
+    assert len(styles) >= 3 and min(styles.values()) / max(styles.values()) > 0.4

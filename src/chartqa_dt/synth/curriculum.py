@@ -146,6 +146,26 @@ def _tense(rng: random.Random) -> tuple[str, str]:
     return ("was", "did") if rng.random() < PAST_TENSE_SHARE else ("is", "does")
 
 
+#: Which aggregate an L3 question asks for.
+#:
+#: **Not uniform, and 0101 is why.** `PLAN.md` 6.1 grades stage 1 easy->hard, and 0101
+#: settled what the grade means: L1-L2 give *uniform* coverage so the model meets every
+#: operation, and **L3-L4 should look like ChartQA**. Against Claude's judgement of 60
+#: random real questions (0091), `argmax`/`argmin` are **21.4%** of real questions and were
+#: **7.3%** of synthetic — 2.9x under — while the rarer aggregates were over-weighted by
+#: being drawn uniformly. Sampling seven operations with equal probability is a decision
+#: about the prior over questions, and it was never made deliberately (`DECISIONS.md` 0123).
+L3_OPERATION_WEIGHTS: tuple[tuple[str, float], ...] = (
+    ("argmax", 0.24),
+    ("argmin", 0.20),
+    ("max", 0.16),
+    ("min", 0.13),
+    ("mean", 0.11),
+    ("sum", 0.09),
+    ("count", 0.07),
+)
+
+
 def build_question(
     level: Level,
     series: list[tuple[str, float]],
@@ -211,7 +231,8 @@ def build_question(
                 "less" if by_label[a] < by_label[b] else "equal")
 
     elif level == "L3":
-        op = rng.choice(["sum", "mean", "max", "min", "count", "argmax", "argmin"])
+        op = rng.choices([name for name, _ in L3_OPERATION_WEIGHTS],
+                         weights=[w for _, w in L3_OPERATION_WEIGHTS], k=1)[0]
         # Empty args is the executor's own idiom for "fold over all the evidence"
         # (`PLAN.md` Appendix B). Listing every label instead would blow the schema's
         # `maxItems: 4` on args as soon as a chart has five categories.

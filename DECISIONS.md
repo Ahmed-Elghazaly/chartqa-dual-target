@@ -6617,3 +6617,46 @@ alter an answer. One sentence did ship broken in the first pass and is now a nam
 clause followed a dangling preposition. Still open from the LANGUAGE block: **distractors**
 and **referring expressions** ("the tallest bar", "the blue segment"), which need the chart
 geometry and colour at question-build time rather than only the series.
+
+---
+
+## 0123 — L3's operation mix was uniform by accident, and the corpus-wide mix is a different question
+
+**Context.** 0091 measured the operation mismatch against Claude's judgement of 60 random
+real ChartQA questions and it was the worst of the three: `lookup` 64.3% real against 25.0%
+synthetic, `argmax`/`argmin` **21.4%** against **7.3%**, `difference` 1.8% against
+**24.6%** — 13.8× over. 0101 then settled how hard to match: L1–L2 give uniform coverage
+so the model meets every operation, and **L3–L4 should look like ChartQA**.
+
+**What was actually wrong at L3.** `rng.choice` over seven aggregates. Sampling seven
+operations with equal probability *is* a decision about the prior over questions, and it
+was never made deliberately — it is what `choice` does when nobody chooses. `L3_OPERATION_WEIGHTS`
+now weights `argmax`/`argmin` to 44% of L3, in the direction 0091 measured.
+
+**Decision.** Weight L3; leave L1–L2 uniform, and assert in a test that they stay uniform,
+because weighting them would defeat the coverage they exist for.
+
+**Result, corpus-wide:**
+
+| operation | real | before | after |
+|---|---:|---:|---:|
+| `argmax` + `argmin` | 21.4% | 7.3% | **10.8%** |
+| `difference` | 1.8% | 24.6% | **25.1%** |
+| `lookup` | 64.3% | 25.0% | 25.0% |
+
+**And that is the honest headline: half the gap did not move, because it is not this
+gap.** Corpus-wide operation share is dominated by the *level proportions* — four levels
+drawn equally — not by the choice within a level. `difference` is 25% because L2 and L4 are
+half the corpus and both are built on it. Closing that would mean making L1–L2 rare, which
+is exactly what 0101 rejected: a stage that teaches format on charts maximally unlike the
+target is the worst case, but a stage that never shows the model a `ratio` is not better.
+
+So the remaining mismatch is a **mixture-time selection** question, which is what 0091 said
+in the first place, and it turns on what stage 1 is for. `balance_by_level` is where it
+would be answered, and it is **not answered here** — it needs Ahmed's call, and it is the
+kind of change that should be tested by a training run rather than argued.
+
+**Consequences.** One measured cost: distinct opening trigrams fell from 193 to 182, since
+down-weighting the rare aggregates removes the phrasings attached to them. That is the
+intended trade — question variety for operation realism — and the test threshold records
+it rather than hiding it.
