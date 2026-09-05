@@ -54,16 +54,16 @@ matches the official one to 0.068 points across 11,690 predictions.
 | 3 | connect RefChartQA grounding to ChartQA elements | ✅ | `scripts/align_refchartqa.py`. 98.9% of boxes match a ChartQA element at IoU ≥ 0.9 (0077). Re-run at full scale today: **3,405 → 48,770 aligned (87.9%)** (0115). |
 | 4 | reconsider the ChartQA ↔ RefChartQA merge | ✅ | Merge separated from deduplication; every consumer enumerated (0108, 0109). |
 | 5 | evidence should have one clear meaning | ✅ | TABLE / ELEMENTS / EVIDENCE / PLAN / ANSWER is what the code does; the one gap (EVIDENCE not first-class) is recorded, not hidden (0108). |
-| 6 | target builder | ✅ | Five gates; discard, never repair. Grounding-only targets added and then correctly restricted (0116). |
+| 6 | target builder | ✅ | Five gates; discard, never repair. Grounding-only targets added then correctly restricted (0116). **Duplicate values** — the brief's own item — now refuse a tied `argmax` (0127), and truncated operands rejoin (0129). |
 | 7 | plan mining, two approaches | ✅ | Deterministic search retired after measuring it must refuse 53.9%; LLM mining is the single path (0088). |
 | 8 | (spurious programs / execution filtering) | ✅ | Spurious-program detector measured; the check it names by name was run. |
 | 9 | synthetic data | 🟡 | **Density ceiling removed (0118)** and **value distribution fitted to ChartQA (0120)**. Remaining items listed in the table below. |
-| 10 | DSL + executor | ✅ | Ops audited against real question text; `NEEDS_TABLE` ops declared and refused rather than silently wrong. |
+| 10 | DSL + executor | ✅ | Every edge case in the brief's list tested: division by zero, NaN/Infinity, missing evidence, depth limits, `mean([])` — all handled or refused explicitly. Duplicate labels with contradictory values now refused (0128). |
 | 11 | round-trip verification | ✅ | Seven notions kept distinct. Executor-replaces-answer **measured and rejected** (−6.9 points); agreement kept as a label-free confidence signal, +15.9 points (0121). |
 | 12 | Qwen3-VL preprocessing | ✅ | Verified against the official processor; we do not pre-resize. No change needed. |
 | 13 | model output format | ✅ | Audited; no change. |
-| 14 | training objective | ✅ | Loss composition measured — boxes are 35.6%. Quantisation tested and refuted (0113). |
-| 15 | supervision provenance / confidence | ✅ | Provenance recorded per record. |
+| 14 | training objective | ✅ | Loss masking verified end to end (prompt, padding and image tokens all masked, with a `supervised` count check). Composition measured — boxes 35.6%. Quantisation tested and refuted (0113). |
+| 15 | supervision provenance / confidence | ✅ | Two closed vocabularies — grounding and value — tagged **per element** by every source; kept out of the model, as the brief requires (0126). |
 
 ---
 
@@ -143,13 +143,13 @@ matches the official one to 0.068 points across 11,690 predictions.
 | requirement | status | evidence |
 |---|:---:|---|
 | DATA QUALITY > QUANTITY | ✅ | 0116 discarded 4,939 records rather than accept wrong ones |
-| MANUAL SEMANTIC AUDIT SET | ✅ | 200 RefChartQA rows judged, recorded in `data/refchartqa_audit.jsonl` |
+| MANUAL SEMANTIC AUDIT SET | ✅ | `scripts/build_semantic_audit.py` — 16 strata, seeded, short strata left short; 237 rows awaiting judgement. Found the truncated-operand join bug on its first run (0129). |
 | PRIORITIZATION (15-point record) | ✅ | `FINDINGS.md` |
 | EMPIRICAL VALIDATION | 🟡 | every CPU-measurable claim has a number; the GPU ones are listed as blocked below |
 | TESTING REQUIREMENTS | ✅ | 2,100+ tests; new work mutation-checked (8 mutations on the decoder, 4 on the generator) |
 | — quality statistics before/after for data changes | ✅ | 0118 and 0120 both carry before/after tables |
 | — successful / rejected / ambiguous / regression cases | ✅ | e.g. `test_synth_density.py`, `test_grounding_only_fallback.py` |
-| WORK ORDER phases 1–9 | 🟡 | 1–6 done; 7 partial; 8–9 gated on GPU runs |
+| WORK ORDER phases 1–9 | 🟡 | 1–6 done; 7 partial; 8–9 gated on GPU runs — every blocked one has a runnable command in `BLOCKED.md` |
 
 ---
 
@@ -180,10 +180,24 @@ matches the official one to 0.068 points across 11,690 predictions.
 5. ❌ **Within-chart correlations** and multi-column tables.
 6. ❌ Two ChartQA record constructors still exist (0119, 0124) — a merge with no measurement behind it yet.
 7. ❌ **Distractor-aware spurious-program check.** Newly *possible* — synthetic records now keep the whole chart (0124) — and not yet built.
+8. ❌ **Judge the 237-row semantic audit set.** Built and sampled (0129); the judging is manual and not done.
 
 **Blocked:**
 
-8. ⛔ **LLM plan mining at volume.** ChartQA contributes **5 records of 22,947** to stage 1 today. Everything is built and ready to run; it needs the API run.
-9. ⛔ **RefChartQA scaling ladder** (4,000 / 10,000 / 25,000). Unblocked as of 0115 — needs GPU.
-10. ⛔ **Re-run the zero-shot baseline with `close_evidence=True`** (0114), or the reported fine-tuning gain will include a truncation fix.
-11. ⛔ **Three training seeds**, Phase 8–9 verification and reporting.
+9. ⛔ **LLM plan mining at volume.** ChartQA contributes **5 records of 22,947** to stage 1 today. Everything is built and ready to run; it needs the API run.
+10. ⛔ **RefChartQA scaling ladder** (4,000 / 10,000 / 25,000). Unblocked as of 0115 — needs GPU.
+11. ⛔ **Re-run the zero-shot baseline with `close_evidence=True`** (0114), or the reported fine-tuning gain will include a truncation fix.
+12. ⛔ **Three training seeds**, Phase 8–9 verification and reporting.
+
+
+---
+
+## Where the blocked work is written down
+
+`BLOCKED.md` — six experiments, each with why it is blocked, a copy-pasteable command, and
+what result would change a decision already recorded. `Prompt.md` requires exactly that:
+*"clearly document the blocked experiment and exactly how it should be run later."*
+
+Reading the prompt line by line for that section found that the decode fix from 0114 had
+**no CLI flag** — it existed and could not be run, the same shape as the scaling ladder
+whose cache held 3,996 rows. `run_zeroshot.py --close-evidence` now exists.
