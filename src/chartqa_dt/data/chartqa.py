@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import csv
 import io
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -171,12 +172,30 @@ def _wedge_element(model: dict[str, Any], image_w: int, image_h: int
             "kind": "wedge", "colour": _one_colour(model.get("color"))}
 
 
+#: Boxes dropped for being unusable, since the process started. **Counted, not silent.**
+#:
+#: `feed.py`'s own docstring records four defects of one shape — something the pipeline
+#: cannot use, caught by an `except`, and skipped — and notes that *"from outside, an
+#: `except` that counts and continues is indistinguishable from there being no failures"*.
+#: This handler was the fifth: measured over 3,944 real ChartQA records it dropped **602**
+#: boxes, and **6.5% of records ended with fewer elements than their table has cells**
+#: (`DECISIONS.md` 0135).
+#:
+#: Dropping is still the right behaviour — a degenerate box cannot be pointed at — so the
+#: fix is visibility, not a behaviour change.
+DROPPED_BOXES = Counter()
+
+
 def _norm_or_none(box: Any, image_w: int, image_h: int) -> list[float] | None:
     try:
         norm = xywh_to_norm1000(box, image_w, image_h)
     except ValueError:
+        DROPPED_BOXES["not normalisable"] += 1
         return None
-    return norm if norm[2] > norm[0] and norm[3] > norm[1] else None
+    if norm[2] > norm[0] and norm[3] > norm[1]:
+        return norm
+    DROPPED_BOXES["degenerate after normalising"] += 1
+    return None
 
 
 def annotation_boxes(annotation: dict[str, Any], image_w: int, image_h: int
@@ -295,6 +314,7 @@ class ArchiveReader:
 # one place that builds a ChartQA `ChartRecord` (`DECISIONS.md` 0132).
 
 __all__ = [
+    "DROPPED_BOXES",
     "QA_FILES",
     "ROOT",
     "SPLITS",

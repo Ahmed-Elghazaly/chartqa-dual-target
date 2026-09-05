@@ -194,6 +194,13 @@ def chartqa_records(reader: ArchiveReader, *, limit: int, seed: int) -> list[Cha
     if dropped:
         print(f"  chartqa: {dropped} rows dropped — a train image identical to a "
               f"held-out chart")
+    # Say how many element boxes were unusable. Silent until 0135, and 6.5% of records
+    # end up with fewer elements than their table has cells because of it.
+    from chartqa_dt.data.chartqa import DROPPED_BOXES
+    if DROPPED_BOXES:
+        detail = ", ".join(f"{k}: {v:,}" for k, v in DROPPED_BOXES.most_common())
+        print(f"  chartqa: {sum(DROPPED_BOXES.values()):,} element boxes dropped "
+              f"as unusable ({detail})")
     return attach_mined_plans(out, cache=chartqa_plans_path())
 
 

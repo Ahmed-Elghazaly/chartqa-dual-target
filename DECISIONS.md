@@ -7250,3 +7250,46 @@ yield between teachers for a few dollars.
 **Consequences.** Idea 7 is now fully answered. The three gaps were found by reading the
 brief line by line rather than by its headings, which is the same method that produced 0113,
 0114 and 0133 — and the fourth time it has paid, which is itself worth recording.
+
+---
+
+## 0135 — The fifth silent handler, and it was ChartQA's data rather than our code
+
+**Context.** A systematic scan of every `except` in the supervision path — `data/`, `train/`,
+`plans/`, `build_mixtures.py` — for the failure shape `feed.py`'s own docstring names: *"an
+`except` that counts and continues is indistinguishable from there being no failures"*. Four
+defects of that shape are already recorded (0071, 0072, 0073 and the image-path one).
+
+Every handler in that path is narrow and typed, which is good. **One was silent.**
+`_norm_or_none` returns `None` for a box that will not normalise, and nothing counted it.
+
+**Measured** over 4,693 real ChartQA records: **722 element boxes dropped**, across 68
+images, and **6.5% of records end with fewer elements than their own table has cells**.
+
+**What they are — and this is the part worth knowing.** Every one is
+`{"x": 0, "y": 0, "w": 0, "h": 0}`. Not a rounding artefact, not a bug in
+`xywh_to_norm1000`: **ChartQA's own annotation ships literal placeholder boxes** for some
+elements. Dropping them is unambiguously correct — a zero-area box cannot be pointed at and
+would be a guaranteed false positive in every grounding score.
+
+**Decision.** Change the *visibility*, not the behaviour. `DROPPED_BOXES` counts by reason
+and `build_mixtures.py` prints the total, so a run now says
+*"722 element boxes dropped as unusable (degenerate after normalising: 722)"* instead of
+nothing.
+
+The two reasons are kept distinct because they have different causes: *"not normalisable"*
+would mean a malformed annotation and would be our problem; *"degenerate after
+normalising"* means the dataset gave us a placeholder. All 722 are the second, and if that
+ratio ever moves, something upstream changed.
+
+**Consequences.** A fold over *"all elements"* on one of those 6.5% of records aggregates
+fewer marks than the chart draws. The round-trip gate catches it — the aggregate will not
+reproduce the gold answer — so it costs **yield rather than correctness**, which is why no
+refusal was added. Recorded rather than fixed, because refusing those records would trade a
+measured loss for an unmeasured gain.
+
+The scan itself is the other result: eight handlers in the supervision path, seven already
+narrow, typed and counted. The broad `except Exception` handlers all sit in infrastructure
+— `env`, `seeding`, `hub`, `net` — where a broken CUDA install must not be fatal, and each
+carries its reason inline. **That is a good state**, and it is worth saying so rather than
+only reporting what was wrong.

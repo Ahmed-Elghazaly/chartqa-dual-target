@@ -275,3 +275,41 @@ class TestOneConstructorPerSource:
         from chartqa_dt.data import refchartqa
 
         assert hasattr(refchartqa, "row_to_record")
+
+
+class TestDroppedBoxesAreCounted:
+    """`feed.py` records four defects of one shape — something the pipeline cannot use,
+    caught by an `except`, and skipped — and notes that from outside, such a handler is
+    indistinguishable from there being no failures. `_norm_or_none` was the fifth
+    (`DECISIONS.md` 0135)."""
+
+    def test_the_counter_exists_and_is_exported(self) -> None:
+        from chartqa_dt.data.chartqa import DROPPED_BOXES, __all__
+
+        assert "DROPPED_BOXES" in __all__
+        assert hasattr(DROPPED_BOXES, "most_common")
+
+    def test_a_degenerate_box_is_counted_not_merely_dropped(self) -> None:
+        from chartqa_dt.data import chartqa
+
+        before = sum(chartqa.DROPPED_BOXES.values())
+        assert chartqa._norm_or_none({"x": 0, "y": 0, "w": 0, "h": 0}, 400, 400) is None
+        assert sum(chartqa.DROPPED_BOXES.values()) == before + 1
+
+    def test_a_usable_box_is_not_counted(self) -> None:
+        from chartqa_dt.data import chartqa
+
+        before = sum(chartqa.DROPPED_BOXES.values())
+        assert chartqa._norm_or_none({"x": 10, "y": 10, "w": 50, "h": 50}, 400, 400)
+        assert sum(chartqa.DROPPED_BOXES.values()) == before
+
+    def test_the_two_reasons_are_distinguished(self) -> None:
+        """"not normalisable" and "degenerate after normalising" have different causes;
+        measured on real data, all 722 were the second — ChartQA ships literal
+        `{x:0, y:0, w:0, h:0}` placeholders."""
+        from chartqa_dt.data import chartqa
+
+        chartqa._norm_or_none({"x": 0, "y": 0, "w": 0, "h": 0}, 400, 400)
+        chartqa._norm_or_none("not a box", 400, 400)
+        assert set(chartqa.DROPPED_BOXES) == {"degenerate after normalising",
+                                              "not normalisable"}
