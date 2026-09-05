@@ -24,16 +24,9 @@ from __future__ import annotations
 
 import csv
 import io
-from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
-from chartqa_dt.data.records import (
-    ELEMENTS_KEY,
-    ChartRecord,
-    image_content_sha256,
-    make_record_id,
-)
 from chartqa_dt.data.refchartqa import xywh_to_norm1000
 
 ROOT = "ChartQA Dataset"
@@ -230,41 +223,6 @@ def axis_labels(annotation: dict[str, Any], image_w: int, image_h: int
     return out
 
 
-def row_to_record(row: dict[str, Any], *, split: str, kind: str,
-                  image_path_on_disk: str | Path, image_sha256: str,
-                  image_size: tuple[int, int], table: dict[str, Any] | None = None,
-                  annotation: dict[str, Any] | None = None) -> ChartRecord:
-    """One ChartQA QA row as a `ChartRecord`, with whatever gold data is available."""
-    question = str(row["query"])
-    width, height = image_size
-    meta: dict[str, Any] = {"imgname": row.get("imgname"),
-                            "image_size": [width, height]}
-    boxes = None
-    if annotation is not None:
-        elements = annotation_boxes(annotation, width, height)
-        meta["chart_type"] = annotation.get("type")
-        meta[ELEMENTS_KEY] = elements
-        meta["axis_labels"] = axis_labels(annotation, width, height)
-        boxes = [e["bbox"] for e in elements] or None
-
-    return ChartRecord(
-        record_id=make_record_id("chartqa", split, image_sha256, question),
-        source="chartqa",
-        split=split,
-        image_path=str(image_path_on_disk),
-        image_sha256=image_sha256,
-        question=question,
-        answer=None if row.get("label") is None else str(row["label"]),
-        question_kind=kind,
-        table=table,
-        boxes=boxes,
-        plan=None,
-        elements=meta.get(ELEMENTS_KEY),
-        # `None`: ChartQA annotates the chart, not the question, so nothing here knows
-        # which marks answer this one. Only a plan can select (`DECISIONS.md` 0124).
-        evidence=None,
-        meta=meta,
-    )
 
 
 class ArchiveReader:
@@ -317,61 +275,24 @@ class ArchiveReader:
         return self.read_json(qa_path(split, kind))
 
 
-def iter_records_from_archive(reader: ArchiveReader, *, split: str, kind: str,
-                              limit: int | None = None,
-                              with_annotations: bool = True) -> Iterator[ChartRecord]:
-    """Convert QA rows by reading members out of the zip.
-
-    The image hash is over the DECODED PIXELS, not the stored bytes — that is what lets
-    `dedup_key` recognise the same chart when RefChartQA ships a re-encoded copy of it
-    (`DECISIONS.md` 0048).
-    """
-    rows = reader.qa_rows(split, kind)
-    for row in rows[:limit] if limit else rows:
-        img_name = image_path(split, row["imgname"])
-        if not reader.exists(img_name):
-            continue
-        raw = reader.read(img_name)
-        size = reader.image_size(img_name)
-        digest = image_content_sha256(raw)
-        table = annotation = None
-        tbl = table_path(split, row["imgname"])
-        if reader.exists(tbl):
-            table = parse_table(reader.read_text(tbl))
-        if with_annotations:
-            ann = annotation_path(split, row["imgname"])
-            if reader.exists(ann):
-                annotation = reader.read_json(ann)
-        yield row_to_record(row, split=split, kind=kind, image_path_on_disk=img_name,
-                            image_sha256=digest, image_size=size, table=table,
-                            annotation=annotation)
 
 
-def iter_records(rows: Iterable[dict[str, Any]], *, split: str, kind: str,
-                 root: str | Path, with_annotations: bool = True) -> Iterator[ChartRecord]:
-    """Convert QA rows against an extracted archive on disk."""
-    import json
 
-    from PIL import Image
 
-    root = Path(root)
-    for row in rows:
-        img = root / image_path(split, row["imgname"])
-        with Image.open(img) as im:
-            size = im.size
-        digest = image_content_sha256(img)
-        table = annotation = None
-        tbl = root / table_path(split, row["imgname"])
-        if tbl.exists():
-            table = parse_table(tbl.read_text(encoding="utf-8", errors="replace"))
-        if with_annotations:
-            ann = root / annotation_path(split, row["imgname"])
-            if ann.exists():
-                annotation = json.loads(ann.read_text(encoding="utf-8"))
-        yield row_to_record(row, split=split, kind=kind, image_path_on_disk=img,
-                            image_sha256=digest, image_size=size, table=table,
-                            annotation=annotation)
-
+# **Record construction does not live here, and that is deliberate.**
+#
+# It used to: `row_to_record`, `iter_records` and `iter_records_from_archive` built
+# `ChartRecord`s from ChartQA rows. Nothing outside this file ever called them — the live
+# path is `scripts/build_mixtures.py::chartqa_records`, which also filters sealed images,
+# attaches mined plans and samples per question kind.
+#
+# Two constructors for one source is not a tidiness problem. It is how `DECISIONS.md` 0119
+# went wrong: an edit adding `question_specific_boxes` landed in the dead one while the
+# mixture kept its old behaviour, and only a test caught it. It is also how the
+# `elements`/`evidence` spelling defect managed to happen twice (0067, 0071).
+#
+# So the dead path is gone, and `tests/test_source_to_target.py` asserts there is exactly
+# one place that builds a ChartQA `ChartRecord` (`DECISIONS.md` 0132).
 
 __all__ = [
     "QA_FILES",
@@ -383,11 +304,8 @@ __all__ = [
     "annotation_path",
     "axis_labels",
     "image_path",
-    "iter_records",
-    "iter_records_from_archive",
     "parse_table",
     "qa_path",
-    "row_to_record",
     "split_dir",
     "table_path",
 ]

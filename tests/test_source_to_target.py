@@ -102,8 +102,9 @@ class TestKeyIsShared:
         would produce records that look complete and ground nothing.
         """
         root = Path(__file__).resolve().parents[1]
+        # ChartQA's record construction lives in `build_mixtures.py` alone since 0132
+        # removed the dead duplicate in `data/chartqa.py`.
         sources = {
-            "src/chartqa_dt/data/chartqa.py": "elements=",
             "src/chartqa_dt/data/refchartqa.py": "elements=",
             "scripts/build_mixtures.py": "elements=",
         }
@@ -115,8 +116,7 @@ class TestKeyIsShared:
         """`evidence=None` is a claim ("unknown"), not an omission, and each source has to
         make it deliberately — that is what 0116 got wrong when it was inferred."""
         root = Path(__file__).resolve().parents[1]
-        for name in ("src/chartqa_dt/data/chartqa.py",
-                     "src/chartqa_dt/data/refchartqa.py",
+        for name in ("src/chartqa_dt/data/refchartqa.py",
                      "scripts/build_mixtures.py"):
             text = (root / name).read_text(encoding="utf-8")
             assert "evidence=" in text, f"{name} never sets evidence"
@@ -239,3 +239,39 @@ class TestSourceDrawsCannotDrift:
 
         assert CHARTQA_DRAW >= 20_901, "must cover the whole ChartQA machine split"
         assert REFCHARTQA_CAP > 0
+
+
+class TestOneConstructorPerSource:
+    """Two constructors for one source is how the same defect happened twice.
+
+    `DECISIONS.md` 0067 and 0071 are the `elements`/`evidence` spelling defect, once per
+    reader. 0119 is an edit that landed in the *dead* ChartQA constructor while the live
+    one kept its old behaviour. 0132 removed the dead path; this keeps it removed.
+    """
+
+    def test_only_one_place_builds_a_chartqa_chart_record(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        builders = []
+        for path in list((root / "src").rglob("*.py")) + list((root / "scripts").glob("*.py")):
+            text = path.read_text(encoding="utf-8")
+            if "ChartRecord(" not in text:
+                continue
+            if 'source="chartqa"' in text or '"chartqa", split' in text:
+                builders.append(str(path.relative_to(root)))
+        assert len(builders) <= 1, (
+            f"{len(builders)} places build a ChartQA ChartRecord: {builders}. An edit to "
+            f"one of them will silently miss the other, which is DECISIONS.md 0119.")
+
+    def test_the_dead_record_path_stays_removed(self) -> None:
+        from chartqa_dt.data import chartqa
+
+        for gone in ("row_to_record", "iter_records", "iter_records_from_archive"):
+            assert not hasattr(chartqa, gone), (
+                f"chartqa.{gone} is back. Nothing outside that module ever called it, and "
+                f"its presence is what let an edit land in the wrong constructor (0132).")
+
+    def test_refchartqa_still_has_exactly_one(self) -> None:
+        """RefChartQA's `row_to_record` is live — `scripts/cache_refchartqa.py` uses it."""
+        from chartqa_dt.data import refchartqa
+
+        assert hasattr(refchartqa, "row_to_record")

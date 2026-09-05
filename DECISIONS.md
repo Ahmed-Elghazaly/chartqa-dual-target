@@ -7096,3 +7096,44 @@ element's value, so a `lookup` would serve equally well. That is a lower bound �
 only exact numeric coincidences — and it is recorded here rather than fixed, because
 routing those plans through the gate is a change to the mining path and belongs with the
 LLM mining run (`STATUS.md`, blocked experiment 1).
+
+---
+
+## 0132 — Two constructors for one source, and the dead one is where the edits landed
+
+**Context.** Tier 2 of the cleanup Ahmed asked for. `ChartRecord` was built in three places,
+which 0119 had already noted as *"how the `elements`/`evidence` spelling defect managed to
+happen twice"* and recorded rather than fixed, *"because merging them is a refactor with no
+measurement behind it yet."*
+
+There is a measurement now, and it is better than expected: **the ChartQA path in
+`data/chartqa.py` was dead.** `row_to_record`, `iter_records` and `iter_records_from_archive`
+were referenced only by each other and by `__all__`. Nothing in `src/`, `scripts/` or
+`tests/` ever called them. The live path is `scripts/build_mixtures.py::chartqa_records`,
+which additionally filters sealed images, attaches mined plans and samples per question
+kind.
+
+**That is the whole story of the 0119 bug.** The edit adding `question_specific_boxes`
+landed in the dead constructor while the mixture kept its old behaviour, and a test caught
+it only because the test read a *record* rather than the source. The duplication was not
+a maintenance smell; it was a trap with one live half and one decoy.
+
+**Decision.** Delete the dead path — 87 lines — and leave a comment where it was saying
+where record construction actually happens and why it is not here. `CLAUDE.md` says *delete
+what is dead*; this is the case it was written for.
+
+RefChartQA's `row_to_record` **stays**: it is live, called by `scripts/cache_refchartqa.py`.
+
+**Consequences.** Three tests hold the shape:
+`test_only_one_place_builds_a_chartqa_chart_record` fails if a second constructor appears,
+`test_the_dead_record_path_stays_removed` fails if the deleted names come back, and
+`test_refchartqa_still_has_exactly_one` stops the first two being "fixed" by deleting the
+live one too.
+
+**A mistake worth recording, because it nearly shipped.** The first deletion used a
+line-scanner that walked from `def row_to_record(` to the next line starting with `def `.
+`ArchiveReader` is a **class**, so `class ArchiveReader` did not stop the scan and 143 lines
+were removed instead of 87 — taking the archive reader with them. Every import of the module
+broke immediately, so nothing could have shipped, but the lesson is the one this session
+keeps producing: *a textual heuristic over code is a guess.* The second attempt used `ast`
+and removed exactly the three function bodies.
