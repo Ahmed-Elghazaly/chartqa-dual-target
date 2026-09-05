@@ -7615,3 +7615,46 @@ rungs remain available as `--refchartqa-cap 4000|10000|25000` for anyone who wan
 `RUNS.md` should record the real wall time the first time it is paid. The invariant from
 0115 now accepts a rung *or* no cap, and refuses a number between rungs — which would mean
 it was set by neither decision.
+
+---
+
+## 0143 — Mine the records that already have a plan, and compare
+
+**Context.** 0141 removed the deterministic miner but not the **derived** plans: 22,780
+RefChartQA records still carry a trivial `lookup`, written by `build_record` when a single
+marked box and a numeric answer leave only one possible plan. Ahmed kept them, and added
+the useful part: *"still use llm on them and compare them and if there r conflicts we ll
+see them."*
+
+**That is the only free validation set this project has.** Everywhere else, a mined plan is
+checked against the gold *answer* — which numeric agreement can satisfy while the reasoning
+is wrong. Here an independent method has already committed to *which mark* the answer comes
+from, so a disagreement is a signal about the **teacher**, not about the chart.
+
+**Two things had to change before it was possible.**
+
+* `finished_records` read **ChartQA only**, so the records carrying a prior plan were
+  exactly the ones the teacher would never see. `--source chartqa|refchartqa|all`.
+* Nothing carried the existing plan through scoring. Proposals now hold `prior_plan`.
+
+**Decision.** `report_conflicts` prints three outcomes and decides nothing:
+
+| outcome | what it means |
+|---|---|
+| **agree** | the cheapest confirmation available — the teacher is not inventing operations |
+| **different operation** | the model saw reasoning a derived plan could not; a derived plan is only ever `lookup`, so this is the expected and wanted case |
+| **same operation, different operands** | the dangerous one. Both reproduce the gold answer from **different marks** — precisely what `distinguish.coincidences` exists to detect and what numeric agreement cannot |
+
+**The rule that makes this evidence rather than a filter: the comparison reports, it never
+decides.** A prior plan must not make a proposal more or less likely to be accepted, or the
+teacher ends up agreeing with itself. A test reads the function's source and fails if it
+ever starts appending to `kept` or touching `accepted`.
+
+**Consequences.** When mining runs, it yields a measurement nobody has: how often a strong
+model, given the same chart data and gold answer, picks different operands than the
+mechanical reading. If "same operation, different operands" is common, the five gates are
+weaker than believed and `coincidences` needs to run on every mined plan rather than only
+where it is currently wired (0131 found it wired into one path). If it is near zero, the
+gates are doing their job and that is worth knowing before spending on a full run.
+
+Cost: nothing extra. The comparison rides on a mining run that has to happen anyway.

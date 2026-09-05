@@ -44,13 +44,87 @@ OUT = Path("audit/plans")
 SHOW_ITEMS = 24
 
 
-def finished_records(*, limit: int, seed: int, kind: str) -> list[ChartRecord]:
-    """Complete records, straight from the reader the mixture builder uses."""
-    from chartqa_dt.data.chartqa import ArchiveReader
-    from scripts.build_mixtures import archive_path, chartqa_records
+def report_conflicts(proposals: list[dict], verdicts: list) -> None:
+    """Where the model and the record's existing plan disagree, and how.
 
-    with ArchiveReader(archive_path()) as reader:
-        records = chartqa_records(reader, limit=limit, seed=seed)
+    **Nothing here accepts or rejects.** The verifier has already run; this only reports.
+    A record that already carries a plan is one where an independent method committed to an
+    answer, so a disagreement says something about the *teacher* — and agreement on a
+    trivial `lookup` says the teacher is at least not inventing operations (0143).
+
+    Three outcomes worth separating:
+
+    * **agree** — same operation, same operands. The cheapest possible confirmation.
+    * **same operation, different operands** — the dangerous one. Both may reproduce the
+      gold answer while pointing at different marks, which is exactly what
+      `distinguish.coincidences` exists to detect and what numeric agreement cannot.
+    * **different operation** — the model saw reasoning the derived plan could not. Usually
+      the model is right, since a derived plan is only ever `lookup`; that is the whole
+      reason for running this comparison.
+    """
+    import collections
+
+    outcome = collections.Counter()
+    examples: dict[str, list] = collections.defaultdict(list)
+    for proposal, verdict in zip(proposals, verdicts):
+        prior = proposal.get("prior_plan")
+        if not prior or not verdict.accepted:
+            continue
+        new = proposal["plan"]
+        if not isinstance(new, dict):
+            continue
+        if prior.get("op") != new.get("op"):
+            key = "different operation"
+        elif (prior.get("args") or []) != (new.get("args") or []):
+            key = "same operation, DIFFERENT operands"
+        else:
+            key = "agree"
+        outcome[key] += 1
+        if len(examples[key]) < 3:
+            examples[key].append((proposal["record_id"], prior, new))
+
+    total = sum(outcome.values())
+    if not total:
+        return
+    print(f"\n  comparison against the {total:,} records that already had a plan:")
+    for key in ("agree", "different operation", "same operation, DIFFERENT operands"):
+        n = outcome.get(key, 0)
+        print(f"    {key:38s} {n:6,} ({n / total:5.1%})")
+        for rid, prior, new in examples[key][:2]:
+            print(f"        [{rid[:20]}] was {json.dumps(prior)[:44]} "
+                  f"-> {json.dumps(new)[:44]}")
+    if outcome.get("same operation, DIFFERENT operands"):
+        print("    ^ these reproduce the same answer from different marks. Read them: "
+              "numeric agreement is not semantic agreement.")
+
+
+def finished_records(*, limit: int, seed: int, kind: str,
+                     source: str = "chartqa") -> list[ChartRecord]:
+    """Complete records, straight from the readers the mixture builder uses.
+
+    **RefChartQA is included on purpose**, and that is new. Its records already carry a
+    trivial `lookup` plan wherever a single marked box and a numeric answer make one
+    unambiguous — not mined, just the only plan such a record can have. Ahmed asked for the
+    model to be run over them anyway *"and compare them and if there r conflicts we ll see
+    them"*.
+
+    That is a free validation set and the only one available: 22,780 records where an
+    independent method already committed to an answer, so a disagreement is a signal about
+    the *teacher* rather than about the chart (`DECISIONS.md` 0143).
+    """
+    from pathlib import Path as _Path
+
+    from chartqa_dt.data.chartqa import ArchiveReader
+    from chartqa_dt.env import get_env
+    from scripts.build_mixtures import archive_path, chartqa_records, refchartqa_records
+
+    records: list[ChartRecord] = []
+    if source in ("chartqa", "all"):
+        with ArchiveReader(archive_path()) as reader:
+            records += chartqa_records(reader, limit=limit, seed=seed)
+    if source in ("refchartqa", "all"):
+        cache = _Path(get_env().data_root) / "refchartqa_train.jsonl"
+        records += refchartqa_records(cap=limit, cache=cache)
     if kind != "all":
         records = [r for r in records if r.question_kind == kind]
     return [r for r in records if r.answer is not None and r.meta.get(ELEMENTS_KEY)]
@@ -91,6 +165,10 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=500)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--kind", choices=("all", "human", "machine"), default="all")
+    ap.add_argument("--source", choices=("chartqa", "refchartqa", "all"),
+                    default="chartqa",
+                    help="which pool to mine. `refchartqa` records already carry a trivial "
+                         "derived plan, so mining them yields a comparison (0143)")
     ap.add_argument("--batch-size", type=int, default=40)
     ap.add_argument("--write-batches", action="store_true")
     ap.add_argument("--score", help="JSON of {batch: {item: plan|refusal}} to verify")
@@ -98,7 +176,8 @@ def main() -> int:
     ap.add_argument("--model", default="claude-opus-5", choices=sorted(teacher.PRICING))
     args = ap.parse_args()
 
-    records = finished_records(limit=args.limit, seed=args.seed, kind=args.kind)
+    records = finished_records(limit=args.limit, seed=args.seed, kind=args.kind,
+                               source=args.source)
     pairs = [(r, evidence_of(r)) for r in records]
     batches = [pairs[i:i + args.batch_size] for i in range(0, len(pairs), args.batch_size)]
     print(f"{len(records):,} finished records ({args.kind}), "
@@ -150,7 +229,10 @@ def main() -> int:
                 continue
             proposals.append({"record_id": record.record_id, "plan": reply,
                               "answer": record.answer, "evidence": evidence,
-                              "marked_labels": None})
+                              "marked_labels": None,
+                              # What this record already believed, if anything. Compared
+                              # after verification, never used to accept or reject (0143).
+                              "prior_plan": record.plan})
 
     verdicts, stats = llm_mining.verify_many(proposals)
     kept = [{"record_id": p["record_id"], "plan": p["plan"],
@@ -178,6 +260,7 @@ def main() -> int:
         existing[entry["record_id"]] = entry      # a rerun replaces, never duplicates
     cache.write_text("".join(json.dumps(v, ensure_ascii=False) + "\n"
                              for v in existing.values()), encoding="utf-8")
+    report_conflicts(proposals, verdicts)
     print(f"\n  kept {len(kept):,} verified plans; cache now holds {len(existing):,}")
     print(f"  -> {cache}")
     if asked:
