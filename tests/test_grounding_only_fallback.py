@@ -24,22 +24,26 @@ from chartqa_dt.train.targets import (
 )
 
 
-def rec(i=0, *, answer="1", boxes=None, plan=None, meta=None):
+def rec(i=0, *, answer="1", boxes=None, plan=None, meta=None, evidence="all"):
+    """A RefChartQA-shaped record: its boxes mark the evidence for THIS question.
+
+    `evidence="all"` marks every element as evidence, which is what RefChartQA means.
+    `chartqa_shaped()` below passes `evidence=None` — the other kind, which must be
+    refused (`DECISIONS.md` 0124).
+    """
+    bx = boxes if boxes is not None else [[1, 2, 3, 4], [5, 6, 7, 8]]
+    elements = [{"label": None, "value": None, "unit": None, "bbox": b} for b in bx]
+    idx = list(range(len(elements))) if evidence == "all" else evidence
     return ChartRecord(record_id=f"r{i}", source="refchartqa", split="train",
                        image_path="x.png", image_sha256=f"{i:064d}", question=f"q{i}",
                        answer=answer, question_kind="human",
-                       boxes=boxes if boxes is not None else [[1, 2, 3, 4], [5, 6, 7, 8]],
-                       plan=plan,
-                       # RefChartQA-shaped: its boxes mark the evidence for THIS question.
-                       # `chartqa_shaped()` below is the other kind, which must be refused.
+                       boxes=bx, plan=plan, elements=elements or None, evidence=idx,
                        meta=meta if meta is not None else {"refchartqa_id": f"rc{i}"})
 
 
 def chartqa_shaped(i=0, **kw):
-    """A record whose boxes describe the whole chart, as ChartQA's annotation does.
-
-    `ChartRecord` is frozen, so this builds one rather than mutating a RefChartQA fixture.
-    """
+    """A record whose boxes describe the whole chart, as ChartQA's annotation does."""
+    kw["evidence"] = None
     kw.setdefault("meta", {"n_elements": 6})
     return rec(i, **kw)
 
@@ -316,21 +320,19 @@ def test_the_mixture_builder_does_not_offer_a_whole_chart_record_to_stage_one():
     assert plans == [] and grounding == []
 
 
-def test_a_source_may_declare_the_property_directly():
-    """The flag is the contract; `refchartqa_id` is only the fallback evidence for it."""
-    assert has_question_specific_boxes(rec(meta={"question_specific_boxes": True}))
-    assert not has_question_specific_boxes(rec(meta={"question_specific_boxes": False}))
-
-
-def test_the_declared_flag_overrides_the_inferred_one():
-    r = rec(meta={"refchartqa_id": "x", "question_specific_boxes": False})
-    assert not has_question_specific_boxes(r)
-    with pytest.raises(TargetError, match="whole chart"):
-        build_grounding_only_target(r)
-
-
-def test_refchartqa_records_are_recognised_without_a_flag():
+def test_the_record_itself_says_whether_it_knows_its_evidence():
+    """No flag, no inference: the field is the contract (`DECISIONS.md` 0124)."""
     assert has_question_specific_boxes(rec())
+    assert not has_question_specific_boxes(rec(evidence=None))
+
+
+def test_evidence_elements_selects_the_marked_subset():
+    r = rec(boxes=[[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]], evidence=[2])
+    assert [e["bbox"] for e in r.evidence_elements] == [[9, 10, 11, 12]]
+
+
+def test_evidence_elements_is_none_when_the_record_does_not_know():
+    assert chartqa_shaped().evidence_elements is None
 
 
 def test_the_precondition_does_not_touch_plan_targets():
@@ -415,24 +417,26 @@ def test_chartqa_records_declare_whole_chart_boxes():
     records = chartqa_records(ArchiveReader(archive_path()), limit=8, seed=0)
     assert records, "no ChartQA records to check"
     for r in records:
-        assert r.meta.get("question_specific_boxes") is False
+        assert r.elements, "ChartQA records must carry their chart elements"
+        assert r.evidence is None, "ChartQA cannot know which marks answer this question"
         assert not has_question_specific_boxes(r)
 
 
-def test_refchartqa_records_declare_question_specific_boxes():
+def test_refchartqa_records_mark_every_box_as_evidence():
+    """RefChartQA annotates, per question, the regions a person used — so all of them."""
     import inspect
 
     from chartqa_dt.data.refchartqa import row_to_record
 
     src = inspect.getsource(row_to_record)
-    assert '"question_specific_boxes": True' in src, (
-        "row_to_record no longer declares box semantics; cached records fall back to "
-        "inferring from refchartqa_id, and a new cache would carry nothing")
+    assert "evidence=list(range(len(boxes)))" in src, (
+        "row_to_record no longer marks its boxes as evidence, so every RefChartQA record "
+        "would look like ChartQA's whole-chart annotation")
 
 
 def test_a_source_that_declares_nothing_is_treated_as_whole_chart():
     """The safe direction: lose grounding-only targets rather than emit wrong ones."""
-    r = rec(meta={"n_elements": 3})
+    r = rec(meta={"n_elements": 3}, evidence=None)
     assert not has_question_specific_boxes(r)
     with pytest.raises(TargetError, match="whole chart"):
         build_grounding_only_target(r)

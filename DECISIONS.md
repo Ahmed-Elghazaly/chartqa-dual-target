@@ -6721,15 +6721,38 @@ capability gain, not tidiness: it is what a distractor-aware detector needs.
 in 9 — plus `from_dict` migration for records already cached, and a rebuild of both caches
 (RefChartQA 55,486 rows, ~25 minutes; synthetic 24,000, ~80 minutes). No GPU.
 
-**Decision.** *Not taken here.* This is a schema change, and the standing agreement is to
-check with Ahmed before one rather than migrate silently. The recommendation is **do it**,
+**Decision.** **Taken** — Ahmed approved it when asked. This is a schema change, and the
+standing agreement is to check before one rather than migrate silently. The recommendation is **do it**,
 and the reason is the table above: the same representation has produced four defects, the
 most recent one three weeks after an audit named it, and the current guard is a boolean
 that a new source can simply forget to set. The counter-argument — that `_evidence_from` is
 heavily tested — is an argument for migrating carefully, not for keeping a contract the
 code has repeatedly failed to honour.
 
-**Consequences.** Either way: if it is taken, the natural moment is now: the synthetic
-corpus is being regenerated anyway, so half the cache rebuild is already being paid. If it
-is not, `has_question_specific_boxes` stays the contract, and any new source must declare
-it — a test asserts that an undeclared source is treated as whole-chart, which fails safe.
+### What it changed, once done
+
+**Yields are identical** — 2,265 plan targets, 1,246 grounding-only, 489 refused, 87.8%
+usable at rung 4,000, the same four numbers as before. A restructure that changes the
+numbers has changed behaviour it did not mean to; this one did not.
+
+Three things fell out that were not in the design:
+
+* **`has_question_specific_boxes` is now one line** — `return record.has_question_evidence`.
+  The 0119 version inferred from a meta flag with `refchartqa_id` as a fallback, and a test
+  now asserts it cannot go back to inferring.
+* **An element with no label needed a rule.** An unaligned RefChartQA record carries boxes
+  without identity — alignment is what supplies labels — and reading those as elements put
+  the string `"None"` in a target. They now take the same `item1, item2` placeholder path
+  they took when they lived only in `boxes`.
+* **The legacy cache did not need rebuilding.** `from_dict` lifts `meta["elements"]`, and
+  `refchartqa_records` reconstructs `evidence` from `boxes` for rows written before the
+  fields existed — which is what `row_to_record` now writes anyway. Twenty-five minutes
+  saved, and old caches stay readable.
+
+**Consequences.** The four-defect family is closed at the representation rather than at one
+call site: a new source that forgets to say what its boxes mean gets `evidence is None`,
+which means *unknown*, which loses grounding-only targets instead of emitting wrong ones.
+`ELEMENTS_KEY` is still written for readers of already-cached records, and the test that
+used to police its spelling now polices the field instead. The one thing the split enables
+and nothing yet uses: synthetic records now keep the whole chart, so a distractor-aware
+spurious-program check is possible for the first time (0098).

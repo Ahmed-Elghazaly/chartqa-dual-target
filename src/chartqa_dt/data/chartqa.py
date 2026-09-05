@@ -237,13 +237,8 @@ def row_to_record(row: dict[str, Any], *, split: str, kind: str,
     """One ChartQA QA row as a `ChartRecord`, with whatever gold data is available."""
     question = str(row["query"])
     width, height = image_size
-    # **False, and this is load-bearing.** ChartQA annotates the *chart*, not the question:
-    # `boxes` here is every element of the image, identical for every question asked about
-    # it. A grounding-only target built from them teaches "point at everything" — measured,
-    # the target for *"Which year has the most crime?"* pointed at all six years
-    # (`DECISIONS.md` 0116). Only a plan can select evidence from an annotation like this.
-    meta: dict[str, Any] = {"imgname": row.get("imgname"), "image_size": [width, height],
-                            "question_specific_boxes": False}
+    meta: dict[str, Any] = {"imgname": row.get("imgname"),
+                            "image_size": [width, height]}
     boxes = None
     if annotation is not None:
         elements = annotation_boxes(annotation, width, height)
@@ -264,6 +259,10 @@ def row_to_record(row: dict[str, Any], *, split: str, kind: str,
         table=table,
         boxes=boxes,
         plan=None,
+        elements=meta.get(ELEMENTS_KEY),
+        # `None`: ChartQA annotates the chart, not the question, so nothing here knows
+        # which marks answer this one. Only a plan can select (`DECISIONS.md` 0124).
+        evidence=None,
         meta=meta,
     )
 

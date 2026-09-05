@@ -103,16 +103,50 @@ class ChartRecord:
     table: dict | None = None
     boxes: list[list[float]] | None = None       # 0-1000 normalised [x1,y1,x2,y2]
     plan: dict | None = None                      # typed tree, only when known exactly
+    #: **Every semantic object the chart draws** — one dict per mark, with `label`,
+    #: `value`, `unit` and `bbox`. A first-class field rather than a `meta` key, because
+    #: as a `meta` key it meant two different things on two sources and nothing said so
+    #: (`DECISIONS.md` 0098).
+    elements: list[dict[str, Any]] | None = None
+    #: **Which of those elements answer *this* question**, as indices into `elements` —
+    #: or `None` for *"unknown"*.
+    #:
+    #: The distinction this field exists to carry, and which four defects came from not
+    #: carrying it (0067, 0071, 0098, 0116):
+    #:
+    #: * **ChartQA** annotates the *chart*, not the question. Its elements are the same
+    #:   for every question asked about that image, so `evidence` is `None`: nothing in
+    #:   the record knows which subset answers it, and only a plan can select one.
+    #: * **RefChartQA** marks, per question, the regions a person used. Every element is
+    #:   evidence, so `evidence` lists them all.
+    #: * **synthetic** knows exactly which marks its plan needs, and now keeps the *rest
+    #:   of the chart* as well — information the old representation discarded.
+    #:
+    #: `None` means unknown and is the safe default: a consumer that needs question-level
+    #: grounding must refuse rather than assume the whole chart is the answer.
+    evidence: list[int] | None = None
     meta: dict[str, Any] = field(default_factory=dict)
-    #: The `meta` key holding per-element label/value/unit/bbox dictionaries. Named here
-    #: because `build_target` joins the plan's labels against it, and a source that spells
-    #: it differently produces records that look complete and refuse silently: the
-    #: synthetic reader wrote `evidence` and all 12,000 stage-1 targets were lost
-    #: (`DECISIONS.md` 0071). Both readers and the target builder use this constant.
 
     @property
     def key(self) -> str:
         return dedup_key(self.image_sha256, self.question)
+
+    @property
+    def evidence_elements(self) -> list[dict[str, Any]] | None:
+        """The elements that answer this question, or `None` when that is not known."""
+        if self.evidence is None or self.elements is None:
+            return None
+        return [self.elements[i] for i in self.evidence
+                if 0 <= i < len(self.elements)]
+
+    @property
+    def has_question_evidence(self) -> bool:
+        """Whether this record knows which marks answer its own question.
+
+        Replaces the `question_specific_boxes` meta flag from 0119: that put a fact about
+        the boxes *beside* the boxes, where this makes the record say what it holds.
+        """
+        return self.evidence is not None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -120,7 +154,15 @@ class ChartRecord:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> ChartRecord:
         known = set(cls.__dataclass_fields__)
-        return cls(**{k: v for k, v in d.items() if k in known})
+        kept = {k: v for k, v in d.items() if k in known}
+        # Records cached before `elements` became a field carry it under `meta`. Lifting
+        # it here means an old cache stays readable instead of silently producing records
+        # with no elements at all — which is exactly the shape of defect 0071.
+        if kept.get("elements") is None:
+            legacy = (d.get("meta") or {}).get(ELEMENTS_KEY)
+            if legacy:
+                kept["elements"] = legacy
+        return cls(**kept)
 
 
 def make_record_id(source: str, split: str, image_sha256: str, question: str,

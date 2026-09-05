@@ -21,7 +21,6 @@ from pathlib import Path
 
 import pytest
 
-from chartqa_dt.data.records import ELEMENTS_KEY
 from chartqa_dt.plans.schema import MAX_EVIDENCE
 from chartqa_dt.train.targets import TargetError, build_target
 
@@ -66,11 +65,17 @@ class TestSyntheticReader:
         assert [e["label"] for e in target["evidence"]] == ["2019", "2018"]
         assert target["plan"] == {"op": "difference", "args": ["2019", "2018"]}
 
-    def test_element_metadata_lands_under_the_key_the_target_builder_reads(
+    def test_elements_land_on_the_field_the_target_builder_reads(
             self, tmp_path, synthetic_records):
+        """`DECISIONS.md` 0071 was a *spelling* defect: the synthetic reader wrote
+        `evidence` where the builder read `elements`, and all 12,000 stage-1 targets went
+        silently. A shared string constant was the first fix; a dataclass **field** is the
+        real one, because a misspelling is now an error rather than an empty dict (0124).
+        """
         [record] = synthetic_records(_manifest(tmp_path))
-        assert record.meta[ELEMENTS_KEY] == EVIDENCE
-        assert "evidence" not in record.meta, "one canonical key, not two"
+        assert record.elements, "no elements on the record"
+        assert record.evidence is not None, "synthetic knows which marks its plan needs"
+        assert all(record.elements[i] in record.elements for i in record.evidence)
 
     def test_the_evidence_carries_the_real_labels_not_placeholders(
             self, tmp_path, synthetic_records):
@@ -89,17 +94,32 @@ class TestSyntheticReader:
 
 
 class TestKeyIsShared:
-    def test_no_source_writes_a_hand_spelled_elements_key(self) -> None:
-        """Both readers and the target builder must go through the same constant."""
+    def test_every_source_populates_the_elements_field(self) -> None:
+        """The contract that replaced the shared-constant one (0124).
+
+        `ELEMENTS_KEY` is still written for readers of already-cached records, but the
+        field is what `_evidence_from` reads, so a source that sets only the meta key
+        would produce records that look complete and ground nothing.
+        """
         root = Path(__file__).resolve().parents[1]
-        offenders = []
-        for path in [root / "src/chartqa_dt/data/chartqa.py",
-                     root / "src/chartqa_dt/train/targets.py",
-                     root / "scripts/build_mixtures.py"]:
-            for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-                if '"elements"' in line and not line.lstrip().startswith("#"):
-                    offenders.append(f"{path.name}:{i}: {line.strip()}")
-        assert not offenders, "use ELEMENTS_KEY:\n" + "\n".join(offenders)
+        sources = {
+            "src/chartqa_dt/data/chartqa.py": "elements=",
+            "src/chartqa_dt/data/refchartqa.py": "elements=",
+            "scripts/build_mixtures.py": "elements=",
+        }
+        missing = [name for name, needle in sources.items()
+                   if needle not in (root / name).read_text(encoding="utf-8")]
+        assert not missing, f"these sources never set the elements field: {missing}"
+
+    def test_every_source_says_whether_it_knows_its_evidence(self) -> None:
+        """`evidence=None` is a claim ("unknown"), not an omission, and each source has to
+        make it deliberately — that is what 0116 got wrong when it was inferred."""
+        root = Path(__file__).resolve().parents[1]
+        for name in ("src/chartqa_dt/data/chartqa.py",
+                     "src/chartqa_dt/data/refchartqa.py",
+                     "scripts/build_mixtures.py"):
+            text = (root / name).read_text(encoding="utf-8")
+            assert "evidence=" in text, f"{name} never sets evidence"
 
 
 FIVE = [{"label": n, "value": v, "unit": None,

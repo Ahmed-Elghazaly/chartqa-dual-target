@@ -113,12 +113,15 @@ def row_to_record(row: dict[str, Any], *, split: str, image_path: str | Path,
         table=None,
         boxes=boxes or None,
         plan=None,
+        # RefChartQA marks, per question, which regions a person used to answer it, so
+        # every box it gives is evidence for *this* question. Identity comes later, from
+        # `align_refchartqa.py`; until then an element is a box with no label, which is
+        # still enough to say *what* the evidence is (`DECISIONS.md` 0124).
+        elements=[{"label": None, "value": None, "unit": None, "bbox": b}
+                  for b in (boxes or [])] or None,
+        evidence=list(range(len(boxes))) if boxes else None,
         meta={
             "refchartqa_id": row.get("id"),
-            # RefChartQA marks, per question, which regions a person used to answer it.
-            # Declared so `build_grounding_only_target` need not infer it from the
-            # presence of `refchartqa_id` (`DECISIONS.md` 0116, 0119).
-            "question_specific_boxes": True,
             "image_size": [width, height],
             "n_boxes": len(boxes),
             "boxes_dropped_outside_image": dropped,

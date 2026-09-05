@@ -324,10 +324,10 @@ def _grounded(**kw):
          "image_path": "i.png", "image_sha256": "d", "question": "q?", "answer": "47",
          "question_kind": "human", "boxes": [e["bbox"] for e in els],
          # RefChartQA-shaped: these boxes mark the evidence for THIS question, which is
-         # the precondition `build_grounding_only_target` now enforces (`DECISIONS.md`
-         # 0116). A `meta=` override in a caller replaces this wholesale, so a test that
-         # passes its own meta and still wants a grounding-only target must say so.
-         "meta": {ELEMENTS_KEY: els, "question_specific_boxes": True}}
+         # what `build_grounding_only_target` requires. `evidence` is now a field, so a
+         # caller overriding `meta` no longer silently loses it (`DECISIONS.md` 0124).
+         "elements": els, "evidence": list(range(len(els))),
+         "meta": {ELEMENTS_KEY: els}}
     d.update(kw)
     return ChartRecord(**d)
 
@@ -372,8 +372,7 @@ def test_it_refuses_a_record_with_no_answer():
 def test_it_refuses_a_record_with_no_boxes():
     from chartqa_dt.train.targets import TargetError, build_grounding_only_target
     with pytest.raises(TargetError, match="no evidence boxes"):
-        build_grounding_only_target(
-            _grounded(meta={"question_specific_boxes": True}, boxes=None))
+        build_grounding_only_target(_grounded(boxes=None, elements=None, meta={}))
 
 
 def test_an_unusable_box_is_refused_rather_than_emitted():
@@ -383,7 +382,7 @@ def test_an_unusable_box_is_refused_rather_than_emitted():
     from chartqa_dt.train.targets import TargetError, build_grounding_only_target
     flat = [{"label": "a", "value": 1, "unit": None, "bbox": [10, 10, 10, 50]}]
     with pytest.raises(TargetError, match="no usable box"):
-        build_grounding_only_target(_grounded(meta={ELEMENTS_KEY: flat, "question_specific_boxes": True},
+        build_grounding_only_target(_grounded(meta={ELEMENTS_KEY: flat}, elements=flat,
                                               boxes=[flat[0]["bbox"]]))
 
 

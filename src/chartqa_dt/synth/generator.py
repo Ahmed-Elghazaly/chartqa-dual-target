@@ -332,7 +332,7 @@ class SynthExample:
     question: str
     answer: str
     plan: dict
-    evidence: list[dict]              # label, value, unit, bbox (0-1000)
+    evidence: list[dict]              # label, value, unit, bbox (0-1000) — the operands
     table: dict
     image_path: str
     image_sha256: str
@@ -340,6 +340,10 @@ class SynthExample:
     style_seed: int
     data_seed: int
     holdout: bool
+    #: Every mark on the chart, in chart order. `evidence` is a subset of these, and
+    #: `evidence_index` says which (`DECISIONS.md` 0124).
+    elements: list[dict] = field(default_factory=list)
+    evidence_index: list[int] = field(default_factory=list)
     meta: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -682,18 +686,35 @@ def generate_example(
         width, height = fig.canvas.get_width_height()
         by_label = dict(series)
 
-        evidence: list[dict] = []
-        for label in question.evidence_labels:
+        # **Every mark on the chart**, not only the ones the question needs.
+        #
+        # `box_fns` has always held a function per label; `generate_example` only ever
+        # called the ones in `question.evidence_labels`, so the rest of the chart was
+        # discarded before the record was written. That is the information `ChartRecord`
+        # now has a place for (`DECISIONS.md` 0124), and it is what a distractor-aware
+        # spurious-program check needs: without it, "could another operand pair reach this
+        # answer?" cannot even be asked of a synthetic record (0098).
+        wanted = set(question.evidence_labels)
+        elements: list[dict] = []
+        evidence_index: list[int] = []
+        for label, _value in series:
             box_px = clip_to_canvas(box_fns[label](), width, height)
             if is_degenerate(box_px, MIN_BOX_SIDE_PX):
+                # A mark too small to point at makes the whole chart unusable, not just
+                # that mark: an element list with a hole in it would misstate the chart.
                 return None
-            evidence.append({
+            if label in wanted:
+                evidence_index.append(len(elements))
+            elements.append({
                 "label": label,
                 "value": by_label[label],
                 "unit": unit,
                 "bbox": [round(v, 2) for v in px_to_norm1000(box_px, width, height)],
                 "bbox_px": [round(v, 2) for v in box_px],
             })
+        if len(evidence_index) != len(wanted):
+            return None                    # a plan label that is not a mark on the chart
+        evidence = [elements[i] for i in evidence_index]
 
         if verify:
             # Check the boxes on a recoloured render (see `SENTINELS`), then put the
@@ -703,7 +724,8 @@ def generate_example(
             sentinels = sentinel_colours(len(series))
             recolour(sentinels)
             try:
-                if not _verify_boxes(render_rgb(fig), evidence, series, sentinels, chart_type):
+                if not _verify_boxes(render_rgb(fig), elements, series, sentinels,
+                                     chart_type):
                     return None
             finally:
                 recolour(real)
@@ -726,6 +748,8 @@ def generate_example(
         answer=question.answer,
         plan=question.plan,
         evidence=evidence,
+        elements=elements,
+        evidence_index=evidence_index,
         table={"labels": [lab for lab, _ in series], "values": [v for _, v in series],
                "quantity": quantity, "unit": unit},
         image_path=str(path),

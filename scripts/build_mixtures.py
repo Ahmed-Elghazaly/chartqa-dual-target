@@ -108,13 +108,14 @@ def synthetic_records(manifest: Path) -> list[ChartRecord]:
             # record fell through to the placeholder branch, got evidence labelled
             # `item1, item2, ...`, and was then refused because its plan referenced the
             # real labels. All 12,000 stage-1 records, silently (`DECISIONS.md` 0071).
+            # The generator now emits every mark on the chart and says which of them the
+            # question needs, so the record carries both (`DECISIONS.md` 0124). Older
+            # manifests have no `elements`, and fall back to the operands.
+            elements=e.get("elements") or e["evidence"],
+            evidence=(e.get("evidence_index")
+                      if e.get("elements") else list(range(len(e["evidence"])))),
             meta={"level": e["level"], "chart_type": e["chart_type"],
-                  ELEMENTS_KEY: e["evidence"], "style_seed": e["style_seed"],
-                  "data_seed": e["data_seed"],
-                  # The generator emits only the elements the question needs, so these
-                  # boxes ARE the evidence for it. Declared rather than inferred
-                  # (`DECISIONS.md` 0116, 0119).
-                  "question_specific_boxes": True}))
+                  "style_seed": e["style_seed"], "data_seed": e["data_seed"]}))
     return out
 
 
@@ -171,10 +172,6 @@ def chartqa_records(reader: ArchiveReader, *, limit: int, seed: int) -> list[Cha
                 meta={"chart_type": reader.read_json(ann_name).get("type"),
                       "imgname": row["imgname"], "image_size": [width, height],
                       "n_elements": len(elements),
-                      # ChartQA annotates the CHART, not the question: these are every
-                      # element of the image, identical for every question asked about it.
-                      # Declared so no consumer has to work it out (`DECISIONS.md` 0119).
-                      "question_specific_boxes": False,
                       # The per-element label, value and unit — not just the count.
                       # Dropping them left the elements empty while `boxes` was full, so
                       # every training target fell back to "item1" placeholders and the
@@ -182,7 +179,15 @@ def chartqa_records(reader: ArchiveReader, *, limit: int, seed: int) -> list[Cha
                       # executable target (`DECISIONS.md` 0067). The same defect survived
                       # in `synthetic_records` under a different spelling until 0071,
                       # which is why the key is now a shared constant.
-                      ELEMENTS_KEY: elements}))
+                      ELEMENTS_KEY: elements},
+                elements=elements,
+                # **`None`, and that is the whole point.** ChartQA annotates the CHART:
+                # these elements are every mark on the image, identical for every question
+                # asked about it, so nothing here knows which subset answers this one.
+                # Only a plan can select. `None` means unknown, and a consumer that needs
+                # question-level grounding must refuse rather than assume the whole chart
+                # (`DECISIONS.md` 0124).
+                evidence=None))
     if dropped:
         print(f"  chartqa: {dropped} rows dropped — a train image identical to a "
               f"held-out chart")
@@ -229,6 +234,26 @@ def attach_mined_plans(records: list[ChartRecord], *, cache: Path) -> list[Chart
     return out
 
 
+def _with_evidence(record: ChartRecord) -> ChartRecord:
+    """Give a legacy cached RefChartQA record the `elements`/`evidence` it predates.
+
+    The cache is a JSONL written before those were fields, so its rows carry `boxes` and
+    nothing else. Read back as-is they would have `evidence is None`, which now means
+    *"unknown"* — and a RefChartQA record whose evidence is unknown is indistinguishable
+    from ChartQA's whole-chart annotation, so it would lose its grounding-only target
+    (`DECISIONS.md` 0124).
+
+    Every box RefChartQA gives is evidence for that question, which is what the dataset
+    annotates, so this reconstructs exactly what `row_to_record` now writes. Rebuilding
+    the 55,486-row cache would do the same thing and take twenty-five minutes.
+    """
+    if record.evidence is not None or not record.boxes:
+        return record
+    elements = record.elements or [
+        {"label": None, "value": None, "unit": None, "bbox": b} for b in record.boxes]
+    return replace(record, elements=elements, evidence=list(range(len(elements))))
+
+
 def refchartqa_records(*, cap: int, cache: Path) -> list[ChartRecord]:
     """Streamed RefChartQA training rows, enriched with semantic identity where available.
 
@@ -249,7 +274,7 @@ def refchartqa_records(*, cap: int, cache: Path) -> list[ChartRecord]:
     """
     if not cache.exists():
         return []
-    records = [ChartRecord.from_dict(json.loads(line))
+    records = [_with_evidence(ChartRecord.from_dict(json.loads(line)))
                for line in cache.read_text(encoding="utf-8").splitlines() if line]
 
     aligned_path = cache.with_name("refchartqa_aligned.jsonl")
@@ -266,9 +291,14 @@ def refchartqa_records(*, cap: int, cache: Path) -> list[ChartRecord]:
             if a is None:
                 out.append(r)
                 continue
-            meta = {**r.meta, ELEMENTS_KEY: a[ELEMENTS_KEY], "aligned_to_chartqa": True}
+            aligned = a[ELEMENTS_KEY]
+            meta = {**r.meta, ELEMENTS_KEY: aligned, "aligned_to_chartqa": True}
+            # RefChartQA marks, per question, the regions a person used, and alignment
+            # gives those regions their identity. Every one of them is evidence — that is
+            # what the dataset annotates — so `evidence` lists them all (0124).
             out.append(replace(r, meta=meta, table=r.table or a.get("table"),
-                               plan=r.plan or a.get("plan")))
+                               plan=r.plan or a.get("plan"),
+                               elements=aligned, evidence=list(range(len(aligned)))))
             enriched += 1
         records = out
         print(f"  refchartqa: {enriched:,} of {len(records):,} records enriched with "

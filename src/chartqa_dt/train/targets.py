@@ -169,8 +169,18 @@ def _evidence_from(record: ChartRecord) -> list[dict[str, Any]]:
     An aggregate with empty args folds over whatever evidence is present
     (`DECISIONS.md` 0041), so those keep the leading elements up to the cap.
     """
-    elements = [e for e in (record.meta.get(ELEMENTS_KEY) or [])
-                if isinstance(e, dict)]
+    # The **field**, not the meta key. `meta[ELEMENTS_KEY]` meant the operands on one
+    # source and the whole chart on another, and nothing said which (`DECISIONS.md` 0098,
+    # 0124). The meta fallback is kept only for records cached before the field existed.
+    raw = record.elements if record.elements is not None else record.meta.get(ELEMENTS_KEY)
+    elements = [e for e in (raw or []) if isinstance(e, dict)]
+    # An element with no label is a *box without identity* — which is exactly what an
+    # unaligned RefChartQA record carries, since alignment is what supplies labels
+    # (`DECISIONS.md` 0077). Those cannot name anything a plan could reference, so they
+    # take the same placeholder path they took when they lived only in `boxes`: naming
+    # them `None` would put the string "None" in a training target (0124).
+    if elements and not any(e.get("label") is not None for e in elements):
+        elements = []
     # One name per element, unique within the chart. On a grouped chart "2019" names one bar
     # per series, and the two sides of this contract resolved it differently -- this module
     # kept the FIRST match and `plans.executor` kept the LAST -- so a plan pointed at one bar
@@ -378,40 +388,26 @@ def build_answer_only_target(record: ChartRecord) -> str:
 
 
 def has_question_specific_boxes(record: ChartRecord) -> bool:
-    """Do this record's boxes mark the evidence for **this question**?
+    """Does this record know which of its marks answer **its own question**?
 
-    The distinction a grounding-only target lives or dies on, and it is not obvious from
-    the record: both kinds have `boxes`, and both look like grounding.
+    Now one line, because `ChartRecord` carries the answer (`DECISIONS.md` 0124). It used
+    to infer it: a `question_specific_boxes` meta flag with `refchartqa_id` as a fallback
+    (0119), which was a fact about the boxes stored *beside* the boxes and which a new
+    source could simply forget to set.
 
-    * **RefChartQA** annotates, per question, which regions a person used to answer it.
-      Those boxes *are* the answer to "where should the model point", so a target built
-      from them teaches exactly that.
-    * **ChartQA** annotates the *chart* — every element of it, regardless of the question.
-      Its `boxes` are its `elements`: 12 boxes for a 12-element chart, the same 12 for
-      every question asked about it.
+    The distinction still matters exactly as much:
 
-    Building a grounding-only target from the second kind teaches *"point at the whole
-    chart"*. Measured on real records, that is not a theoretical worry — the target for
-    *"Which year has the most crime?"* (answer: 2014) came out pointing at all six years,
-    which is the behaviour `DECISIONS.md` 0014 exists to prevent and which AP@0.5 scores
-    close to zero. It is the same mistake `_evidence_from` was written to avoid, arriving
-    through a different door (`DECISIONS.md` 0116).
+    * **ChartQA** annotates the *chart* — every mark, the same for every question about
+      that image — so `evidence` is `None` and this is False. A grounding-only target
+      built from those boxes teaches *"point at everything"*: measured, the target for
+      *"Which year has the most crime?"* (answer 2014) pointed at all six years (0116).
+    * **RefChartQA** and **synthetic** know which marks the question needs, so this is
+      True.
 
-    **Every source now declares this at ingestion** — `chartqa.py` sets it False, and
-    `refchartqa.py` and the synthetic reader set it True — so the semantics travel with the
-    record instead of being re-derived by each consumer. That is the narrow version of the
-    change `Prompt.md` Ideas 1 and 2 ask about: 0108 enumerated nine consumers of `boxes`
-    and recorded two assumptions as *"safe by circumstance rather than by contract"*, and
-    this is the one that then fired (`DECISIONS.md` 0119).
-
-    The `refchartqa_id` fallback remains for records cached before the flag existed. A new
-    source that declares nothing is treated as whole-chart, which is the safe direction:
-    it loses grounding-only targets rather than emitting wrong ones.
+    `None` means unknown and fails safe: a record that declares nothing loses
+    grounding-only targets rather than emitting wrong ones.
     """
-    flag = record.meta.get("question_specific_boxes")
-    if flag is not None:
-        return bool(flag)
-    return "refchartqa_id" in record.meta
+    return record.has_question_evidence
 
 
 def build_grounding_only_target(record: ChartRecord, *, verify: bool = True) -> str:
