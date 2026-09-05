@@ -7043,3 +7043,56 @@ Noted while reading: `labels_cover` in the same file already compares labels *"w
 truncation tolerance"*, because ChartQA element labels are stored as drawn. The concept was
 known here and had not reached `targets.py`, which is what 0129 fixed — the same
 observation, one file apart, three weeks apart.
+
+---
+
+## 0131 — Convert conventions into checks, because in this repo only checks have worked
+
+**Context.** Ahmed's assessment: *"u made so many bugs before and there r still probably so
+many bugs."* Fair, so the bugs from this session were sorted rather than apologised for.
+They are not seven mistakes; they are three, each repeated:
+
+| root cause | what it produced |
+|---|---|
+| **changed one end of a pipeline, not all N** | a fallback that was dead code and passed 36 tests (0116); provenance missing the legacy path, 470 elements untagged (0126); a decode fix with no CLI flag, unrunnable (0114); a cache cap that made a ladder *impossible* (0115); preflight diverging from CI, main red for a week |
+| **validated on aggregates, not instances** | ChartQA 5 → 4,944 records looked like a win; one printed target read *"Which year has the most crime?"* → evidence: **all six years** (0116) |
+| **started long jobs before changes settled** | the 90-minute corpus regeneration, begun and killed four times |
+
+**The finding that decides the fix.** In this repository, **executable checks have caught
+things and written conventions have not.** The docs-consistency test has caught every
+forward reference. The numeric-limit test caught an undocumented constant within minutes of
+existing. Building a mixture caught the poisoning. Meanwhile `WORKING_AGREEMENT.md` sat in
+the repo while its rules were broken — and, decisively, **nothing loads it**: there was no
+`CLAUDE.md` and no `AGENTS.md`, so every session began without the rules present.
+
+**Decision.** Three mechanics, each aimed at one root cause.
+
+1. **`CLAUDE.md`, with `AGENTS.md` symlinked to it** (git tracks the symlink, mode 120000,
+   so Claude Code and Codex read the same file). Short on purpose: the one command, the
+   three mistakes with their evidence, the seven non-negotiable rules, where things live.
+2. **`scripts/e2e.py`** — builds real targets, **prints several in full**, and fails when a
+   per-source usable count drifts more than 5% from `data/composition_snapshot.json`. This
+   is the anti-aggregate check: it turns *"5 → 4,944"* from a pleasant surprise into a
+   failure, and it puts whole targets in front of a reader because counting cannot see what
+   is wrong with one.
+3. **Preflight becomes 6/6**, ending with that smoke, so the end-to-end path runs *before*
+   a commit rather than after.
+
+**Consequences.** The smoke found a defect in the first three targets it printed:
+
+> *"What's the percentage of voters choosing most important for tax reform?"* — gold `17` —
+> plan `min()` — evidence `Most important · Tax reform = 17`, `Second most important · Tax
+> reform = 21`.
+
+The question names one item; the plan folds, and reaches 17 only because 17 < 21. A
+spurious program, in the first sample.
+
+**And that exposes something structural.** `distinguish.coincidences` exists precisely to
+catch this — *does another operand choice reach the same answer?* — and it is wired into
+`llm_mining.py` **only**. RefChartQA's plans arrive through alignment and a separate miner,
+so **12,667 mined plans have never passed through the spurious-program gate.** Measured:
+530 of them fold over two or more marked elements, and in 15 the answer equals exactly one
+element's value, so a `lookup` would serve equally well. That is a lower bound — it counts
+only exact numeric coincidences — and it is recorded here rather than fixed, because
+routing those plans through the gate is a change to the mining path and belongs with the
+LLM mining run (`BLOCKED.md` §1).

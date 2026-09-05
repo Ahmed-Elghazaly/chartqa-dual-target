@@ -19,16 +19,16 @@ if [ ! -x "$CIENV/bin/pytest" ]; then
   "$CIENV/bin/pip" -q install -e ".[dev]"
 fi
 
-echo "== 1/5 nothing a source file needs is gitignored =="
+echo "== 1/6 nothing a source file needs is gitignored =="
 "$CIENV/bin/pytest" -q tests/test_repo_completeness.py
 
-echo "== 2/5 lint (CI: ruff check src tests scripts) =="
+echo "== 2/6 lint (CI: ruff check src tests scripts) =="
 "$CIENV/bin/ruff" check src tests scripts
 
-echo "== 3/5 fast CPU tests (CI's exact selection) =="
+echo "== 3/6 fast CPU tests (CI's exact selection) =="
 "$CIENV/bin/pytest" -q -m "not slow and not gpu and not network and not official"
 
-echo "== 4/5 documentation consistency =="
+echo "== 4/6 documentation consistency =="
 "$CIENV/bin/pytest" -q tests/test_docs_consistency.py
 
 # The count STATUS.md quotes. Printed rather than remembered: I have written the wrong
@@ -54,7 +54,7 @@ echo "That is how a red commit reached main once already."
 # rule-7 history scan failed on every push for a week while preflight reported green,
 # because `presentation/figures/*.png` was never added to its allow-list. A preflight that
 # claims to be CI-equivalent has to run the same checks (`DECISIONS.md` 0120).
-echo "== 5/5 guardrails (CI: rule 7 and credentials, over ALL git history) =="
+echo "== 5/6 guardrails (CI: rule 7 and credentials, over ALL git history) =="
 bad=$(git log --all --pretty=format: --name-only --diff-filter=A \
       | sort -u \
       | grep -Ei '\.(png|jpg|jpeg|gif|bmp|webp|tiff|zip|parquet|arrow)$' \
@@ -70,3 +70,17 @@ if [ -n "$bad" ]; then
   echo "credential file found in git history:"; echo "$bad"; exit 1
 fi
 echo "clean: no dataset content or credentials in history"
+
+# The check that counting cannot do. `scripts/e2e.py` builds real targets, prints several
+# in full, and fails if a per-source usable count has drifted beyond tolerance against
+# `data/composition_snapshot.json`. It exists because a change once took ChartQA from 5
+# records to 4,944 and every aggregate said it was working, while one printed target read
+# "Which year has the most crime?" -> evidence: all six years (`DECISIONS.md` 0116).
+#
+# Skipped when the datasets are not cached locally, which is the case in CI.
+echo "== 6/6 end-to-end smoke over real data =="
+if [ -f "$HOME/.cache/chartqa_dt/data/refchartqa_train.jsonl" ]; then
+  ./.venv/bin/python scripts/e2e.py --show 1
+else
+  echo "  datasets not cached locally; skipped"
+fi

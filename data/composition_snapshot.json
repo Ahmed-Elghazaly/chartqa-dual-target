@@ -1,0 +1,14 @@
+{
+  "chartqa": {
+    "plan": 3,
+    "grounding": 0
+  },
+  "refchartqa": {
+    "plan": 846,
+    "grounding": 471
+  },
+  "synthetic": {
+    "plan": 1498,
+    "grounding": 0
+  }
+}
