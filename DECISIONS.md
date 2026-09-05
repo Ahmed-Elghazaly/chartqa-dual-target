@@ -6660,3 +6660,76 @@ kind of change that should be tested by a training run rather than argued.
 down-weighting the rare aggregates removes the phrasings attached to them. That is the
 intended trade — question variety for operation realism — and the test threshold records
 it rather than hiding it.
+
+---
+
+## 0124 — The `ChartRecord` restructure: designed, costed, and put to Ahmed
+
+**Context.** `Prompt.md` Ideas 1 and 2 ask whether `boxes` and `meta["elements"]` should be
+restructured to separate ELEMENTS (every semantic object in the chart) from EVIDENCE (the
+subset that answers *this* question). 0107 answered the *identity* half — qualified labels,
+not opaque ids — and 0108 answered the *container* half with **no change**, on the grounds
+that `_evidence_from` is the most heavily tested function in the repository and four fixed
+defects live in its history.
+
+**The evidence has changed since, and it now points the other way.** The prompt's own test
+is whether the current semantics are *actually harming*. Four defects have traced to this
+one representation:
+
+| | defect | cost |
+|---|---|---|
+| 0067 | ChartQA elements stored as a count, not per-element | 1 of 636 records produced an executable target |
+| 0071 | synthetic wrote `evidence` where the reader expected `elements` | **all 12,000** stage-1 targets, silently |
+| 0098 | `ELEMENTS_KEY` means *the operands* on synthetic and *the chart* on ChartQA | the spurious-program detector read the wrong thing |
+| 0116 | grounding-only targets built from whole-chart boxes | would have shipped **4,939** "point at everything" records |
+
+0108 predicted the fourth in writing — *"safe by circumstance rather than by contract"* —
+and 0119 patched it with a boolean. That patch is the right *fix* and the wrong *shape*: it
+adds a fact about the boxes beside the boxes, rather than making the record say what it
+holds.
+
+### The design
+
+```
+ChartRecord:
+    elements: list[Element] | None   # every semantic object in the chart
+    evidence: list[int] | None       # indices into elements that answer THIS question
+```
+
+with `Element = {label, value, unit, bbox, series, kind, provenance, confidence}` — the
+brief's sketch, minus the opaque `element_id`, because 0107 already settled that the
+model-facing identity is the qualified label and an internal id would buy indirection we do
+not need.
+
+| source | `elements` | `evidence` |
+|---|---|---|
+| ChartQA | every annotated element | **`None`** — unknown; only a plan can select |
+| RefChartQA | the marked regions, aligned | every index — they *are* the evidence |
+| synthetic | **every element of the chart** | the indices the plan uses |
+
+`question_specific_boxes` disappears: `evidence is None` says it, in the type.
+
+**It also recovers information we currently throw away.** Synthetic records store *only the
+operands* as elements, so the rest of the chart is lost by the time anything reads the
+record — which is exactly what confused the spurious-program detector in 0098. Under the
+split, a synthetic record keeps the whole chart *and* marks the evidence. That is a
+capability gain, not tidiness: it is what a distractor-aware detector needs.
+
+### The cost, measured
+
+**35 call sites across 11 files** — 18 reads of `ELEMENTS_KEY` in 6 files, 17 of `.boxes`
+in 9 — plus `from_dict` migration for records already cached, and a rebuild of both caches
+(RefChartQA 55,486 rows, ~25 minutes; synthetic 24,000, ~80 minutes). No GPU.
+
+**Decision.** *Not taken here.* This is a schema change, and the standing agreement is to
+check with Ahmed before one rather than migrate silently. The recommendation is **do it**,
+and the reason is the table above: the same representation has produced four defects, the
+most recent one three weeks after an audit named it, and the current guard is a boolean
+that a new source can simply forget to set. The counter-argument — that `_evidence_from` is
+heavily tested — is an argument for migrating carefully, not for keeping a contract the
+code has repeatedly failed to honour.
+
+**Consequences.** Either way: if it is taken, the natural moment is now: the synthetic
+corpus is being regenerated anyway, so half the cache rebuild is already being paid. If it
+is not, `has_question_specific_boxes` stays the contract, and any new source must declare
+it — a test asserts that an undeclared source is treated as whole-chart, which fails safe.
