@@ -7971,3 +7971,52 @@ open opportunities that need a measured frequency before they justify a schema c
 The sweep's real result is that the annotation is **almost fully consumed** — the only
 unused things left are text-geometry fields, which the project has a standing rule against,
 and the one field that turned out to be redundant.
+
+---
+
+## 0150 — Positional references, and the neighbouring gap that was not one
+
+**Context.** 0147 left *"position/superlative references"* as the largest remaining LANGUAGE
+gap, quoted as a single 5.0%. Splitting the two before building found they need opposite
+treatment, which is the useful part of this entry.
+
+| | real ChartQA | synthetic before |
+|---|---:|---:|
+| **superlative** — *tallest, highest, largest* | **11.0%** | **26.0%** |
+| **positional** — *leftmost, rightmost* | **3.2%** | **0.0%** |
+
+**Superlatives were already over-represented by 2.4×**, not missing. Had the two been
+handled as one item at "5%", the work would have added more of what there is already too
+much of. They are left alone; the excess is a consequence of 0123's L3 operation weighting
+and is tracked there.
+
+**Positional was genuinely absent, and it is the harder of the two** — which is why it
+survived. A superlative *is* `argmax`, an operator the DSL has. *"Rightmost"* has no
+operator, and inventing one would be a DSL change for a phrasing problem.
+
+**Decision.** It needs no operator. The question says *"the rightmost bar"*, the plan says
+`lookup` of whichever label that happens to be, and only the chart connects them — exactly
+the shape of a colour reference (0147), and worth having for the same reason: the answer
+cannot be reached from the data table alone.
+
+Three constraints, each from looking at what a reader would actually say:
+
+* **Only the two ends.** *"Third from the left"* is expressible and is not how ChartQA
+  writes questions; a middle position on a seven-bar chart is a counting task.
+* **The axis decides the words.** A vertical chart runs left to right, a horizontal one top
+  to bottom, so an `hbar` gets *topmost* — saying *leftmost* about it would be wrong rather
+  than merely odd.
+* **Pie is excluded.** No order is visible, so no slice is first.
+
+Position and colour are drawn as alternatives rather than independently: *"the rightmost
+blue bar"* is a third construction, and it has not been measured.
+
+**Result:** positional **3.0%** against 3.2% measured; colour holds at 4.5% against 5.0%.
+
+**Consequences.** The LANGUAGE block of Idea 9 is now closed apart from **distractors**,
+which is the one item with no measurement behind it — and unlike these two, it is a property
+of the *chart* rather than of the question, so it belongs with the generator work rather
+than the phrasing work.
+
+The transferable point: *"position/superlative — 5%"* looked like one gap and was two, one
+of them inverted. Splitting a number before acting on it cost one query.

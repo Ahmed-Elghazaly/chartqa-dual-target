@@ -687,7 +687,8 @@ def generate_example(
     element_colour_list = element_colours(style.palette, len(series))
     question = build_question(level, series, data_rng, unit=unit, quantity=quantity,
                               colours=element_colour_list,
-                              mark=MARK_WORD.get(chart_type, "bar"))
+                              mark=MARK_WORD.get(chart_type, "bar"),
+                              chart_type=chart_type)
     if question is None:
         return None
 

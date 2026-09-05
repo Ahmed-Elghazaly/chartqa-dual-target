@@ -204,6 +204,58 @@ def colour_reference(labels: list[str], colours: list[str] | None,
     return mine
 
 
+#: How often a question names a mark by **where it sits** rather than by its label.
+#:
+#: **Measured** over ChartQA's 28,299 questions: **3.2% are positional** — *"What's the
+#: rightmost value dark brown graph?"* — and synthetic had none. The neighbouring category
+#: needed no work at all: **superlatives** (*tallest*, *highest*) are 11.0% of real
+#: questions and were already **26.0%** of synthetic, over-represented rather than missing
+#: (`DECISIONS.md` 0150).
+#:
+#: Calibrated to the corpus like the colour share: only L1 asks about one named mark,
+#: only the two ends qualify, and pie is excluded for having no visible order, so 0.34
+#: lands at 3.1%% against a measured 3.2%%.
+#:
+#: Positional is the harder of the two and the reason it was still open: a superlative is
+#: `argmax`, which the DSL has, while *"rightmost"* has no operator. It needs none. The
+#: question says *"the rightmost bar"*, the plan says `lookup` of whichever label that is,
+#: and the model has to look at the chart to connect them — the same shape as a colour
+#: reference (0147), and the same reason it is worth having.
+POSITION_REFERENCE_SHARE = 0.34
+
+#: Which end of a chart a reader calls first, by chart type. A vertical chart runs left to
+#: right; a horizontal one runs top to bottom. Saying "leftmost" about an `hbar` would be
+#: wrong rather than merely odd, so a chart type absent from here gets no positional
+#: question at all — pie, where no order is visible.
+POSITION_WORDS: dict[str, tuple[str, str]] = {
+    "vbar": ("leftmost", "rightmost"),
+    "grouped_bar": ("leftmost", "rightmost"),
+    "line": ("leftmost", "rightmost"),
+    "multi_line": ("leftmost", "rightmost"),
+    "area": ("leftmost", "rightmost"),
+    "scatter": ("leftmost", "rightmost"),
+    "hbar": ("topmost", "bottommost"),
+}
+
+
+def position_reference(labels: list[str], index: int,
+                       chart_type: str | None) -> str | None:
+    """A phrase for the mark at `index` by position, or `None`.
+
+    Only the two ends. *"Third from the left"* is expressible but is not how ChartQA's
+    questions are written, and a middle position on a seven-bar chart is a counting task
+    rather than a reading one.
+    """
+    words = POSITION_WORDS.get(chart_type or "")
+    if not words or len(labels) < 2:
+        return None
+    if index == 0:
+        return words[0]
+    if index == len(labels) - 1:
+        return words[1]
+    return None
+
+
 def build_question(
     level: Level,
     series: list[tuple[str, float]],
@@ -213,6 +265,7 @@ def build_question(
     quantity: str = "value",
     colours: list[str] | None = None,
     mark: str = "bar",
+    chart_type: str | None = None,
 ) -> SynthQuestion | None:
     """One question at the requested level, or None if the data cannot support it."""
     if len(series) < 2:
@@ -230,6 +283,21 @@ def build_question(
         # Name it by colour instead of by label, at ChartQA's measured rate. The *plan*
         # still says the label — the model has to read the chart to connect them, which is
         # the entire point of the form (0147).
+        # Position first, then colour: they are alternatives, and drawing both would give
+        # "the rightmost blue bar", which is a third thing and not measured.
+        if rng.random() < POSITION_REFERENCE_SHARE:
+            where = position_reference(labels, labels.index(lab), chart_type)
+            if where:
+                q = rng.choice([
+                    f"What {is_was} the {quantity} of the {where} {mark}{tail}?",
+                    f"What {is_was} the {where} {quantity}{tail}?",
+                    f"How much {is_was} the {where} {mark}{tail}?",
+                ])
+                return SynthQuestion(level=level, question=q,
+                                     answer=format_answer(by_label[lab]), plan=plan,
+                                     evidence_labels=sorted(set(_labels_for(plan))),
+                                     unit=unit,
+                                     meta={"referring_expression": "position"})
         if rng.random() < COLOUR_REFERENCE_SHARE:
             phrase = colour_reference(labels, colours, labels.index(lab))
             if phrase:

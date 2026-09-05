@@ -401,3 +401,106 @@ def test_the_mark_word_matches_the_chart_type():
     assert MARK_WORD["pie"] == "slice"
     assert MARK_WORD["vbar"] == MARK_WORD["hbar"] == "bar"
     assert MARK_WORD["line"] == "line"
+
+
+# --- positional references (`DECISIONS.md` 0150) -----------------------------------------
+
+def test_only_the_two_ends_get_a_positional_phrase():
+    """*"Third from the left"* is expressible but is not how ChartQA writes questions, and a
+    middle position on a seven-bar chart is a counting task rather than a reading one."""
+    from chartqa_dt.synth.curriculum import position_reference
+
+    labels = ["a", "b", "c", "d"]
+    assert position_reference(labels, 0, "vbar") == "leftmost"
+    assert position_reference(labels, 3, "vbar") == "rightmost"
+    assert position_reference(labels, 1, "vbar") is None
+    assert position_reference(labels, 2, "vbar") is None
+
+
+def test_a_horizontal_chart_runs_top_to_bottom():
+    """Saying "leftmost" about an hbar is wrong, not merely odd."""
+    from chartqa_dt.synth.curriculum import position_reference
+
+    assert position_reference(["a", "b"], 0, "hbar") == "topmost"
+    assert position_reference(["a", "b"], 1, "hbar") == "bottommost"
+
+
+def test_a_pie_gets_no_positional_question():
+    """No order is visible on a pie, so no end is 'first'."""
+    from chartqa_dt.synth.curriculum import position_reference
+
+    assert position_reference(["a", "b", "c"], 0, "pie") is None
+    assert position_reference(["a", "b"], 0, None) is None
+
+
+def test_a_single_mark_has_no_position():
+    from chartqa_dt.synth.curriculum import position_reference
+
+    assert position_reference(["only"], 0, "vbar") is None
+
+
+def test_positional_questions_appear_at_chartqa_s_rate():
+    import re
+
+    from chartqa_dt.synth.generator import MARK_WORD, PALETTES, element_colours
+
+    pattern = re.compile(r"\b(leftmost|rightmost|topmost|bottommost)\b", re.I)
+    rng = random.Random(0)
+    questions, types = [], ("vbar", "hbar", "line", "pie")
+    for i in range(1200):
+        chart = types[i % 4]
+        for level in LEVELS:
+            series, _, unit = sample_series(rng, n=sample_density(rng, level),
+                                            chart_type=chart)
+            q = build_question(level, series, rng, unit=unit, quantity="value",
+                               colours=element_colours(list(PALETTES[0]), len(series)),
+                               mark=MARK_WORD.get(chart, "bar"), chart_type=chart)
+            if q is not None:
+                questions.append(q.question)
+    share = sum(bool(pattern.search(q)) for q in questions) / len(questions)
+    assert 0.01 < share < 0.06, f"{share:.1%} positional; ChartQA is 3.2%"
+
+
+def test_a_positional_question_still_carries_a_label_based_plan():
+    from chartqa_dt.plans.executor import EvidenceItem, execute
+    from chartqa_dt.synth.generator import PALETTES, element_colours
+
+    rng = random.Random(0)
+    checked = 0
+    for _ in range(4000):
+        series, _, unit = sample_series(rng, n=5, chart_type="vbar")
+        q = build_question("L1", series, rng, unit=unit, quantity="value",
+                           colours=element_colours(list(PALETTES[0]), len(series)),
+                           mark="bar", chart_type="vbar")
+        if q is None or (q.meta or {}).get("referring_expression") != "position":
+            continue
+        checked += 1
+        assert q.plan["args"][0] in dict(series)
+        by = dict(series)
+        got = execute(q.plan, [EvidenceItem(label=x, value=by[x], unit=unit)
+                               for x in q.evidence_labels])
+        assert format_answer(got) == format_answer(q.answer)
+    assert checked > 20, f"only {checked} positional questions generated"
+
+
+def test_superlatives_were_already_over_represented_and_are_left_alone():
+    """11.0% of real questions, 26.0% of synthetic. The neighbouring gap needed no work,
+    which is why measuring the two separately mattered (0150)."""
+    import re
+
+    from chartqa_dt.synth.generator import PALETTES, element_colours
+
+    pattern = re.compile(r"\b(highest|lowest|largest|smallest|peak|maximum|minimum)\b",
+                         re.I)
+    rng = random.Random(0)
+    questions = []
+    for _ in range(800):
+        for level in LEVELS:
+            series, _, unit = sample_series(rng, n=sample_density(rng, level))
+            q = build_question(level, series, rng, unit=unit, quantity="value",
+                               colours=element_colours(list(PALETTES[0]), len(series)),
+                               mark="bar", chart_type="vbar")
+            if q is not None:
+                questions.append(q.question)
+    share = sum(bool(pattern.search(q)) for q in questions) / len(questions)
+    assert share > 0.10, f"superlatives fell to {share:.1%}; they were 26%"
