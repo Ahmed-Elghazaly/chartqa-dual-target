@@ -7293,3 +7293,43 @@ narrow, typed and counted. The broad `except Exception` handlers all sit in infr
 — `env`, `seeding`, `hub`, `net` — where a broken CUDA install must not be fatal, and each
 carries its reason inline. **That is a good state**, and it is worth saying so rather than
 only reporting what was wrong.
+
+---
+
+## 0136 — A systematic bug scan: what it found, and what it did not
+
+**Context.** Ahmed asked for a file-by-file check for bugs. Rather than re-read, the source
+was scanned for the *classes* of defect this project has actually suffered, plus the classic
+Python ones.
+
+| class | result |
+|---|---|
+| silent `except` in the supervision path | **one found** — 0135 |
+| broad `except Exception` | 8, all in infrastructure (`env`, `seeding`, `hub`, `net`), each with its reason inline — a broken CUDA install must not be fatal. **Correct as they are.** |
+| mutable default arguments | **none** |
+| equality on a division result | **none** |
+| `== 0.0` on a float | 4, all deliberate — detecting an exactly-zero gradient *is* the check, and `scale == 0.0` guards a division. `grad_norm != grad_norm` is a NaN test. **Correct.** |
+| pipeline determinism | **verified** — identical twice, different across seeds |
+| the coordinate contract, composed | **verified** end to end |
+
+**Decision.** Two properties were true and untested, which is a different problem from being
+false. Both are now pinned in `tests/test_pipeline_properties.py`:
+
+* **Reproducibility.** `Prompt.md` lists it among the things no change may damage and
+  `PREREGISTRATION.md` depends on it, yet nothing checked that building records twice gives
+  the same records. Unit tests seeded *functions*; nothing seeded the *pipeline*. Also
+  asserted: a different seed gives a *different* result, or the seed is decorative and every
+  "seeded sample" is the same sample.
+* **The coordinate contract.** A box crosses four representations between annotation and
+  score — pixels, 0–1000 normalised, the clamp to 999 the official evaluator needs, and the
+  emitted target. Every step had a test; the *composition* did not. It now asserts that no
+  emitted box is inverted, out of range, or clamped to zero area, over 1,200 real records.
+
+**Consequences.** The honest headline is that **the code is in better shape than the process
+was**. Seven of eight handlers were already sound, there are no mutable defaults, no float
+comparisons that should be tolerances, and the pipeline is deterministic. The defects this
+audit has found are overwhelmingly in *what the data means* — 0116, 0133, 0135 — rather than
+in how the code is written, and that is worth stating plainly rather than only listing
+faults.
+
+2,211 tests.
