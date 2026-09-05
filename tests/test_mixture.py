@@ -344,3 +344,52 @@ def test_dropping_leaves_the_curriculum_balanced():
     kept, _ = drop_absent_chart_types(records)
     counts = collections.Counter(r.meta["level"] for r in kept)
     assert set(counts.values()) == {10}, counts
+
+
+# --- the realised replay ratio, which a fixed count does not fix ---------------------
+
+def _comp(**by_source):
+    from collections import Counter
+
+    from chartqa_dt.data.mixture import MixtureComposition
+    total = sum(by_source.values())
+    return MixtureComposition(stage="stage2", total=total,
+                              by_source=Counter(by_source))
+
+
+def test_synthetic_share_is_the_realised_ratio_not_the_constant():
+    """`SYNTHETIC_REPLAY` is a count. The share depends on how much real data there was,
+    and the comment used to claim one sixth for a mixture that is actually 46.9%
+    synthetic (`DECISIONS.md` 0117)."""
+    assert _comp(synthetic=2_000, refchartqa=2_259, chartqa=5).synthetic_share == \
+        pytest.approx(2_000 / 4_264, abs=1e-6)
+
+
+def test_synthetic_share_falls_as_real_supply_grows():
+    """The property that makes a fixed count the wrong instrument: same constant, 12x
+    range of realised ratio across plausible supply."""
+    shares = [_comp(synthetic=2_000, refchartqa=real).synthetic_share
+              for real in (2_264, 10_000, 48_000)]
+    assert shares == sorted(shares, reverse=True)
+    assert shares[0] > 0.45 and shares[-1] < 0.05
+
+
+def test_synthetic_share_is_zero_for_an_empty_mixture():
+    assert _comp().synthetic_share == 0.0
+
+
+def test_synthetic_share_is_one_when_everything_is_synthetic():
+    assert _comp(synthetic=100).synthetic_share == 1.0
+
+
+def test_synthetic_share_is_reported_so_it_cannot_drift_silently():
+    assert "synthetic_share" in _comp(synthetic=1, chartqa=1).to_dict()
+
+
+def test_synthetic_share_is_derived_rather_than_stored():
+    """A stored copy is the thing this guards against."""
+    import dataclasses
+
+    from chartqa_dt.data.mixture import MixtureComposition
+    names = {f.name for f in dataclasses.fields(MixtureComposition)}
+    assert "synthetic_share" not in names

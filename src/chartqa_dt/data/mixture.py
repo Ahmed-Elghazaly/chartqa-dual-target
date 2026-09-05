@@ -51,13 +51,27 @@ STAGE1_CAP = 12_000
 #: stages stop being comparable on compute.
 STAGE2_CAP = 12_000
 #: How much synthetic data is replayed into stage 2, to stop the model forgetting the output
-#: format while it learns the task. 2,000 of a 12,000 mixture is one sixth.
+#: format while it learns the task.
 #:
-#: **This ratio is not measured.** It is the one number in this file with no evidence behind
-#: it -- a plausible replay fraction taken from common practice rather than from an
-#: experiment on this model. If format validity collapses in stage 2 it is too low; if
-#: stage-2 accuracy lags the control it may be too high. Both are visible in the Phase 6
-#: numbers, and neither has been looked at yet.
+#: **This ratio is not measured**, and the sentence that used to stand here -- *"2,000 of a
+#: 12,000 mixture is one sixth"* -- was also **wrong in practice**. It assumed stage 2 fills
+#: `STAGE2_CAP`; it does not, because the real supply is smaller than the cap. A fixed count
+#: against a variable pool is a fixed count, not a ratio, and the ratio is what matters:
+#:
+#: | real records in stage 2 | mixture | replay kept | share |
+#: |---:|---:|---:|---:|
+#: | 2,264 *(built today)* | 4,264 | 2,000 | **46.9%** |
+#: | 10,000 *(the documented case)* | 12,000 | 2,000 | 16.7% |
+#: | 48,000 *(if the ladder fills stage 2)* | 12,000 | 480 | 4.0% |
+#:
+#: So nearly half of stage 2 is synthetic today, in the stage whose job is to teach plans on
+#: **real** charts, and the same constant gives 4% once the ladder runs. The share swings 12x
+#: across plausible supply and nothing announced it (`DECISIONS.md` 0117).
+#:
+#: The value is unchanged because changing it needs the experiment nobody has run: if format
+#: validity collapses in stage 2 it is too low; if stage-2 accuracy lags the control it may
+#: be too high. Both are visible in the Phase 6 numbers. What *has* changed is that the
+#: realised share is now printed with every mixture, so it cannot drift silently again.
 SYNTHETIC_REPLAY = 2_000
 TRAIN_ONLY = "train"
 
@@ -129,6 +143,17 @@ class MixtureComposition:
     with_compositional_plan: int = 0
     dedup_summary: str = ""
 
+    @property
+    def synthetic_share(self) -> float:
+        """What fraction of this mixture is synthetic.
+
+        Derived, never stored, because the thing it guards against is precisely a stored
+        number drifting from the mixture it describes. In stage 2 this is the realised
+        replay ratio, which `SYNTHETIC_REPLAY` sets only indirectly: it is a count, and
+        the share depends on how much real data there happened to be (0117).
+        """
+        return self.by_source.get("synthetic", 0) / self.total if self.total else 0.0
+
     def to_dict(self) -> dict[str, Any]:
         return {"stage": self.stage, "total": self.total,
                 "by_source": dict(self.by_source),
@@ -137,6 +162,7 @@ class MixtureComposition:
                 "by_chart_type": dict(self.by_chart_type),
                 "with_boxes": self.with_boxes, "with_plan": self.with_plan,
                 "with_compositional_plan": self.with_compositional_plan,
+                "synthetic_share": round(self.synthetic_share, 4),
                 "dedup": self.dedup_summary}
 
 

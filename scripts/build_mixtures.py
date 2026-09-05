@@ -411,6 +411,9 @@ def main() -> None:
         print(f"  by source        : {dict(comp.by_source)}")
         print(f"  by question kind : {dict(comp.by_question_kind)}")
         print(f"  by level         : {dict(comp.by_level)}")
+        print(f"  synthetic share  : {comp.synthetic_share:.1%}"
+              + ("   <- the realised stage-2 replay ratio; SYNTHETIC_REPLAY sets a "
+                 "count, not this (DECISIONS.md 0117)" if comp.stage == "stage2" else ""))
         print(f"  with boxes       : {comp.with_boxes:,}")
         print(f"  with plan        : {comp.with_plan:,} "
               f"(compositional: {comp.with_compositional_plan:,})")

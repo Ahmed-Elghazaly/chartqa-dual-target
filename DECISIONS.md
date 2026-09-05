@@ -6272,3 +6272,54 @@ the target-yield rate, not the cap. Two other things the build made
 plain: ChartQA contributes **5 records of 22,947** to stage 1, because only 2 carry a
 mined plan and the LLM mining has not been run at volume; and 5,995 synthetic records are
 dropped as area/scatter, chart families the evaluation corpus does not contain (0091).
+
+---
+
+## 0117 — Nearly half of stage 2 is synthetic, and the comment said one sixth
+
+**Context.** `SYNTHETIC_REPLAY = 2_000` was the last constant in `mixture.py` flagged as
+having no evidence behind it. Checking it against a built mixture found something worse
+than "unmeasured": the justification written beside it is **false in practice**.
+
+The comment read *"2,000 of a 12,000 mixture is one sixth"*. That assumes stage 2 fills
+`STAGE2_CAP`. It does not — the real supply is smaller than the cap, so the built stage 2
+holds **4,264 records, of which 2,000 are synthetic replay: 46.9%.**
+
+**A fixed count against a variable pool is a fixed count, not a ratio**, and the ratio is
+what the sentence was reasoning about:
+
+| real records in stage 2 | pool | mixture | replay kept | share |
+|---:|---:|---:|---:|---:|
+| **2,264** *(built today)* | 4,264 | 4,264 | 2,000 | **46.9%** |
+| 3,500 | 5,500 | 5,500 | 2,000 | 36.4% |
+| 5,000 | 7,000 | 7,000 | 2,000 | 28.6% |
+| 10,000 *(the documented case)* | 12,000 | 12,000 | 2,000 | 16.7% |
+| 20,000 | 22,000 | 12,000 | 1,091 | 9.1% |
+| 48,000 *(if the ladder fills stage 2)* | 50,000 | 12,000 | 480 | 4.0% |
+
+The share swings **12×** across plausible supply, the documented value is true at exactly
+one point on that curve, and nothing announced which point we were on. Above the cap the
+shuffle runs before the truncation, so replay is subsampled in proportion rather than
+dropped — which is why the last rows fall smoothly instead of going to zero.
+
+**Why it matters beyond bookkeeping.** Stage 2's job is to teach plans on **real** charts.
+Today 46.9% of it is synthetic, and the same constant will give 4% once the ladder runs.
+Those are different training regimes wearing the same number, and the direction of the
+error is the awkward one: the stage is most diluted exactly now, when real supervision is
+scarcest.
+
+**Decision.** Do not change the value. Which way to move it is the experiment nobody has
+run — if format validity collapses in stage 2 it is too low, if stage-2 accuracy lags the
+control it may be too high, and both are visible in the Phase 6 numbers. Guessing a second
+time is how the first guess got here. Correct the comment to state the realised share
+rather than an arithmetic that assumes a full mixture, and add
+`MixtureComposition.synthetic_share`, printed with every build, so the ratio is a fact
+about the mixture rather than a claim beside a constant.
+
+**Consequences.** The share is derived, never stored — a stored copy is precisely the
+failure being guarded against. Six tests pin it, including that it falls as real supply
+grows and that it is not a dataclass field. This is the same shape as 0112 and 0115: a
+number that was defensible when written, under a premise that changed, with the premise
+recorded as an assertion rather than as a check. Three instances now, all in constants
+whose comments *did* explain themselves — explaining is not the same as verifying, and the
+project has been better at the first than the second.
