@@ -41,8 +41,6 @@ sys.path.insert(0, str(_ROOT))
 from chartqa_dt.config import build_config  # noqa: E402
 from chartqa_dt.data.records import ELEMENTS_KEY, ChartRecord  # noqa: E402
 from chartqa_dt.env import get_env  # noqa: E402
-from chartqa_dt.plans.mining import mine_plan  # noqa: E402
-from chartqa_dt.train.targets import plan_labels  # noqa: E402
 
 #: Deliberately strict. 98.9% of boxes already clear IoU 0.9, so precision costs ~nothing.
 MIN_IOU = 0.90
@@ -129,70 +127,8 @@ def align_record(record: ChartRecord, elements: list[dict]) -> dict | None:
     return {"record_id": record.record_id, ELEMENTS_KEY: matched}
 
 
-def labels_cover(used: set[str], marked: set[str]) -> bool:
-    """Is every operand the miner read one of the regions the annotation marks?
-
-    Compared with truncation tolerance. ChartQA's *element* labels are stored as drawn and
-    are clipped: the table says `'MSCI Global, excluding U.S.'` where the annotation says
-    `'MSCI Global, excluding'`. Measured over 63,069 elements — 93.5% match the table
-    exactly, **3.1% are a prefix of it**, 0.5% the reverse. Comparing on equality alone
-    counted those as the miner reading the wrong rows, which they are not.
-
-    A prefix is accepted only when it is **unambiguous**: if the truncated label prefixes two
-    different marked regions, the pairing is unknown and the record is not certified.
-    """
-    for operand in used:
-        exact = operand in marked
-        if exact:
-            continue
-        prefixes = [m for m in marked
-                    if operand.startswith(m) or m.startswith(operand)]
-        if len(prefixes) != 1:
-            return False
-    return True
 
 
-def mine_grounded_plan(record: ChartRecord, table: dict | None,
-                       marked: list[dict]) -> tuple[dict | None, str]:
-    """Mine a plan, and keep it only if it uses **the regions RefChartQA marked**.
-
-    This is the check the deterministic miner cannot make on its own. `mine_plan` accepts an
-    operation when exactly one reproduces the gold answer — but *numerical agreement is not
-    semantic correctness*, and a plan can hit the right number through the wrong rows
-    (`Prompt.md` Idea 7; `DECISIONS.md` 0045 recorded `difference -> 2096` explaining a gold
-    answer of `2019`).
-
-    RefChartQA independently states which regions a correct answer uses. So when the miner's
-    operands are exactly those regions, two independent sources agree on both the *value*
-    and the *operands*, which is far stronger than either alone. When they disagree, the
-    mined plan reached the right number from the wrong marks and is **rejected** — the
-    grounding is trusted over the arithmetic, because the grounding is gold and the plan is
-    inferred.
-
-    Returns the plan and a status, so the rejection rate is measurable rather than silent.
-    """
-    if not table or record.answer is None:
-        return None, "no_table"
-    rows = [table.get("columns") or [], *(table.get("rows") or [])]
-    if len(rows) < 2:
-        return None, "no_table"
-
-    mined = mine_plan(rows, record.answer)
-    if mined.plan is None:
-        return None, f"miner:{mined.status}"
-
-    wanted = {str(label) for label in plan_labels(mined.plan)}
-    if not wanted:
-        return None, "plan_uses_no_named_operand"
-    marked_labels = {str(e.get("label")) for e in marked}
-    if not labels_cover(wanted, marked_labels):
-        return None, "operands_outside_the_marked_regions"
-    if not labels_cover(marked_labels, wanted):
-        # The question marks regions the plan never reads. That is not necessarily wrong —
-        # a grounding annotation may include context — but it is not the clean agreement
-        # this path exists to certify, so it is recorded rather than accepted.
-        return None, "marked_regions_unused_by_the_plan"
-    return mined.plan, "agreed"
 
 
 #: Operations worth trying when the operands are already known to be right.
@@ -202,48 +138,6 @@ CANDIDATE_OPS = ("sum", "mean", "difference", "ratio", "percent_change",
 LABEL_OPS = ("argmax", "argmin")
 
 
-def operation_over_marked(answer: Any, marked: list[dict]) -> dict | None:
-    """Find the OPERATION, given that RefChartQA already fixed the operands.
-
-    `mine_plan` searches the whole table, so it must find the operation *and* the operands,
-    and 45.7% of the time several combinations reproduce the answer. When the annotation
-    already says which regions matter, only the operation is unknown — a search over about
-    a dozen candidates rather than every subset of the table.
-
-    Accepted only when **exactly one** operation reproduces the answer. Measured on 1,116
-    plan-less grounded records: 17.7% unique, 53.6% still ambiguous, 28.8% no fit. The
-    ambiguous remainder is what question semantics would resolve, and what a deterministic
-    search structurally cannot.
-    """
-    from chartqa_dt.plans.executor import EvidenceItem, execute
-    from chartqa_dt.plans.mining import matches_gold
-
-    evidence = [EvidenceItem(str(e.get("label")), e.get("value"), e.get("unit"))
-                for e in marked]
-    labels = [e.label for e in evidence]
-    if not labels:
-        return None
-    hits: list[dict] = []
-    for op in CANDIDATE_OPS:
-        arg_sets = ([[], labels] if len(evidence) > 1 else [[labels[0]]])
-        for args in arg_sets:
-            plan = {"op": op, "args": list(args)}
-            try:
-                got = execute(plan, evidence)
-            except Exception:                          # noqa: BLE001
-                continue
-            if got is not None and matches_gold(got, answer):
-                hits.append(plan)
-                break
-    for op in LABEL_OPS:
-        plan = {"op": op, "args": []}
-        try:
-            got = execute(plan, evidence)
-        except Exception:                              # noqa: BLE001
-            continue
-        if isinstance(got, str) and got.strip().lower() == str(answer).strip().lower():
-            hits.append(plan)
-    return hits[0] if len(hits) == 1 else None
 
 
 def main() -> int:
@@ -290,16 +184,14 @@ def main() -> int:
             table = table_by_image.get(r.image_sha256)
             aligned["table"] = table
             aligned["n_boxes"] = len(r.boxes or [])
-            plan, plan_status = mine_grounded_plan(r, table, aligned[ELEMENTS_KEY])
-            if plan is None:
-                # The table search could not settle it. The operands are gold, so try to
-                # find only the OPERATION over exactly the marked regions.
-                plan = operation_over_marked(r.answer, aligned[ELEMENTS_KEY])
-                if plan is not None:
-                    plan_status = "operation_over_marked_regions"
-            if plan is not None:
-                aligned["plan"] = plan
-            stats[f"plan:{plan_status}"] += 1
+            # **No plan is mined here.** Ahmed's instruction, twice: all mining is the
+            # LLM's, and the deterministic miner is put aside entirely. It survived in this
+            # file after 0088 removed it from the ChartQA path, and produced 12,667 of the
+            # 13,500 plans in use — which is not what "completely put aside" means
+            # (`DECISIONS.md` 0141).
+            #
+            # Alignment is not mining. It gives a marked box its label, value and unit from
+            # the ChartQA element at the same place, and that stays.
             fh.write(json.dumps(aligned) + "\n")
             written += 1
             stats["aligned"] += 1

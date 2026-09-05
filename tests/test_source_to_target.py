@@ -17,6 +17,7 @@ target comes out the other end.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -313,3 +314,32 @@ class TestDroppedBoxesAreCounted:
         chartqa._norm_or_none("not a box", 400, 400)
         assert set(chartqa.DROPPED_BOXES) == {"degenerate after normalising",
                                               "not normalisable"}
+
+
+def test_nothing_mines_plans_with_the_deterministic_miner() -> None:
+    """`DECISIONS.md` 0141. Ahmed's instruction was recorded verbatim in 0088 and then
+    applied to one of two callers: the miner was removed from `chartqa_records` and left
+    running inside `align_refchartqa.py`, where it produced 12,667 of the 13,500 plans in
+    use. The gap survived because the number it produced looked healthy.
+
+    `matches_gold` is a *comparison* helper from the same module and is still used by the
+    LLM verifier; importing it is not mining. `mine_plan` is the search, and nothing may
+    call it.
+    """
+    root = Path(__file__).resolve().parents[1]
+    offenders = []
+    for path in list((root / "src").rglob("*.py")) + list((root / "scripts").glob("*.py")):
+        if path.name == "mining.py":
+            continue
+        text = path.read_text(encoding="utf-8")
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue
+            # `mine_plan(` the call, or importing that exact name. Not `mine_plans.py`,
+            # which is the LLM entry point and shares a prefix.
+            if re.search(r"\bmine_plan\s*\(|import\s+mine_plan\b", stripped):
+                offenders.append(f"{path.relative_to(root)}: {stripped[:70]}")
+    assert not offenders, (
+        "the deterministic miner is being called again — all mining is the LLM's "
+        "(0141):\n  " + "\n  ".join(offenders))

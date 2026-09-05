@@ -7168,7 +7168,7 @@ list carried an LLM mining run at roughly **USD 213** whose job is to recover de
     <step>Answer=np.divide(Y_1, Y_2)</step>
 
 Every one parses; they take only **29 step-shapes**, the twelve commonest covering 93.4%.
-So conversion is a parsing problem and `plans/pot.py` does it deterministically, refusing
+So conversion is a parsing problem and `plans/pot.py` *(script removed, 0141)* does it deterministically, refusing
 any shape whose meaning is not unambiguous.
 
 ### The first result was wrong, and reading the targets is what showed it
@@ -7543,3 +7543,75 @@ constant.
 **Consequences.** Every training run now costs about twice what the plan assumed, which is
 affordable this week and would not have been before Ahmed's three accounts. `RUNS.md` should
 record the real wall time against the doubled budget the first time it is paid.
+
+---
+
+## 0141 — The deterministic miner is gone, everywhere this time
+
+**Context.** Ahmed, on being shown that RefChartQA's 12,667 plans came from
+`plans.mining.mine_plan`: *"didn't we say we r only going to use llm mining and discard
+python mining completely."*
+
+He is right and I was wrong. 0088 recorded his instruction **verbatim** — *"the python
+mining should be completely put aside now"* — and then applied it to one source. The
+deterministic miner was removed from `chartqa_records`, which is why ChartQA carries 2
+plans. It was left running inside `scripts/align_refchartqa.py`, where it produced **12,667
+of the 13,500 plans in use**. "Completely put aside" and "removed from one of two callers"
+are not the same thing, and the gap survived because the number it produced looked healthy.
+
+**Decision.** Remove it from the alignment too, and — on Ahmed's instruction — discard the
+833 plans converted from RefChartQA's gold derivations as well, so that **every plan in the
+project comes from the LLM**.
+
+* `scripts/align_refchartqa.py` — `mine_grounded_plan`, `operation_over_marked` and
+  `labels_cover` deleted, 104 lines. The alignment itself stays: giving a marked box its
+  label, value and unit from the ChartQA element at the same place is **not mining**.
+* `scripts/build_mixtures.py` — `attach_pot_plans` deleted.
+* `src/chartqa_dt/plans/pot.py` *(script removed, 0141)* and its 32 tests deleted, because nothing calls them and
+  0132 established one week ago that dead code here is a trap, not clutter.
+
+**What is given up, stated plainly.** The RefChartQA plans were not *plain* deterministic
+mining: every one was cross-checked against the boxes a human marked, and **396 were
+rejected for using operands outside those boxes** — a semantic check the ChartQA path could
+never make. The 833 from gold derivations were not our mining at all. Both are real losses
+and Ahmed chose them knowingly, for a reason that outranks yield: **one mining method, so
+that a number means one thing.**
+
+**Consequences.** RefChartQA now carries **0** plans until the LLM runs, and the alignment
+re-ran clean — 48,770 records aligned, no `plan:` line in its statistics. The project's plan
+supply is now: synthetic (exact by construction), and whatever the LLM mines. Nothing else.
+
+The lesson is the one from 0132 and 0114, for the third time: **a change applied to one
+caller is not a change.** Both of those were found by an executable check; this one was
+found by Ahmed reading a number I quoted. The check that would have caught it — *"no module
+imports `plans.mining` for mining"* — now exists.
+
+---
+
+## 0142 — No caps: train on everything
+
+**Context.** Ahmed: *"why r we even putting caps on training why not train on all the data
+we have."* The honest answer is that the reason had expired and nobody re-derived it.
+
+`STAGE1_CAP = STAGE2_CAP = 12,000` was a **compute** budget — 3,000 optimizer steps at
+effective batch 8 — set when one Kaggle account's 30 GPU-hours was the binding constraint.
+There are now three accounts, ~90 hours a week, against ~19 committed. `REFCHARTQA_CAP` was
+rung 1 of a ladder that 0115 showed could not be run.
+
+**The cap was not making training shorter on the same data. It was making the model see a
+third of the data.** `cli.train.steps_for` gives stage 1 **one pass** over its mixture
+(`PLAN.md` 6.1), so the cap decided *how much exists*, not *how long to look at it*.
+
+**Decision.** All three uncapped. One pass over everything is the principled version of what
+the cap was approximating.
+
+The ladder is dropped as a goal, and the reason is Ahmed's priority rather than a technical
+one: *"no need to train multiple times for things that won't improve performance… I mainly
+care for improvement over baselines and published numbers."* A scaling ladder measures **how
+much data is enough**, which is a different question from **how good can this get**. The
+rungs remain available as `--refchartqa-cap 4000|10000|25000` for anyone who wants the curve.
+
+**Consequences.** GPU cost rises roughly with the data and is affordable at 90 hours a week;
+`RUNS.md` should record the real wall time the first time it is paid. The invariant from
+0115 now accepts a rung *or* no cap, and refuses a number between rungs — which would mean
+it was set by neither decision.

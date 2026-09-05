@@ -549,12 +549,18 @@ def test_the_cache_can_supply_every_rung_of_the_ladder_it_is_feeding():
     )
 
 
-def test_the_mixture_cap_is_a_rung_of_the_ladder_and_not_an_arbitrary_number():
-    """`REFCHARTQA_CAP` is allowed to sit at rung 1. It is not allowed to sit *between*
-    rungs, which would mean it was set by something other than the ladder."""
+def test_the_mixture_cap_is_a_ladder_rung_or_no_cap_at_all():
+    """`REFCHARTQA_CAP` may sit on a rung of `PLAN.md` 3.4's ladder, or be effectively
+    absent. What it may not be is a number *between* rungs, which would mean it was set by
+    something other than either decision.
+
+    It is currently uncapped (0142): the ladder measures how much data is enough, which is
+    a different goal from getting the best model, and Ahmed asked not to spend runs on
+    things that do not improve the result."""
     from chartqa_dt.data.mixture import REFCHARTQA_CAP
 
-    assert REFCHARTQA_CAP in _ladder_rungs(), (
-        f"REFCHARTQA_CAP = {REFCHARTQA_CAP:,} is not one of the ladder's rungs "
-        f"{_ladder_rungs()}. Either move it to a rung or amend the ladder in PLAN.md 3.4."
+    uncapped = REFCHARTQA_CAP >= 100_000
+    assert REFCHARTQA_CAP in _ladder_rungs() or uncapped, (
+        f"REFCHARTQA_CAP = {REFCHARTQA_CAP:,} is neither a ladder rung {_ladder_rungs()} "
+        f"nor effectively uncapped. Pick one and say which in DECISIONS.md."
     )

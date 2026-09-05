@@ -44,25 +44,24 @@ from chartqa_dt.splits import assert_no_held_out_images
 #: an uninterrupted run. So this is now a *choice* rather than a ceiling. It has not been
 #: raised, because more supervision is gated on mining and whether more data helps at all is
 #: what the deferred scaling ladder exists to answer (0092).
-#: **Raised from 12,000 on 2026-09-05, with Ahmed's approval.** 12,000 was a *compute*
-#: budget — 3,000 optimizer steps at effective batch 8 — chosen when supply was the
-#: binding constraint. It no longer is: after 0115 filled the RefChartQA cache and
-#: `REFCHARTQA_CAP` rose to rung 3, both stages hit this cap exactly, so it now discards
-#: usable records rather than describing what exists (`DECISIONS.md` 0140).
+#: **No cap.** Ahmed: *"why r we even putting caps on training why not train on all the
+#: data we have"* — and he is right that the reason had expired. 12,000 was a *compute*
+#: budget from when a single Kaggle account's 30 GPU-hours was the binding constraint;
+#: there are now three accounts, ~90 hours a week, against ~19 committed.
 #:
-#: The cost is linear in GPU hours, because `cli.train.steps_for` derives steps from the
-#: mixture size rather than from a separate constant — so doubling the cap doubles the
-#: run. Ahmed has ~90 GPU-hours a week across three accounts against ~19 committed.
+#: `cli.train.steps_for` makes stage 1 **one pass** over its mixture (`PLAN.md` 6.1), so
+#: removing the cap does not mean training longer on the same data — it means seeing all
+#: of the data once instead of a third of it. That is the principled version of what the
+#: cap was approximating (`DECISIONS.md` 0142).
 #:
-#: **Whether more data helps is not established**, and this is the number a scaling ladder
-#: would settle. Raised because the supply exists and the compute exists; lower it if a
-#: run shows no gain.
-STAGE1_CAP = 24_000
+#: Kept as a number rather than `None` so `build_stage1`'s slice needs no special case, and
+#: so a run can still be capped from the command line when someone wants a short one.
+STAGE1_CAP = 1_000_000
 #: The same number as stage 1, and for the same reason: two stages of 12,000 at effective
 #: batch 8 is 3,000 optimizer steps, which is the compute budget (see `STAGE1_CAP`). It is
 #: not independently motivated -- if the ladder raises one, it should raise both, or the two
 #: stages stop being comparable on compute.
-STAGE2_CAP = 24_000
+STAGE2_CAP = 1_000_000
 #: How much synthetic data is replayed into stage 2, to stop the model forgetting the output
 #: format while it learns the task.
 #:
@@ -107,10 +106,17 @@ CHARTQA_DRAW = 30_000        # per question kind; the split has 7,398 human + 20
 #: 4,000 was also chosen when only *single-box* records were usable, which was 52% of
 #: RefChartQA. `build_grounding_only_target` raised that to 98.5% (0104), so the same number
 #: now discards a much larger share of a much larger pool.
-#: **Raised from 4,000 to rung 3 on 2026-09-05, with Ahmed's approval** — the ladder's
-#: rungs are 4,000 / 10,000 / 25,000 and the cache now holds 55,486, so the only cost of
-#: the top rung is GPU hours, which he has (90 h/week across three accounts).
-REFCHARTQA_CAP = 25_000
+#: **No cap**, for the same reason as the stage caps (0142). This began as rung 1 of
+#: `PLAN.md` 3.4's scaling ladder — 4,000 / 10,000 / 25,000, measuring grounding at each and
+#: keeping where the curve flattens — and 0115 found the ladder could not have been run at
+#: all, because the *cache* also held 3,996 rows.
+#:
+#: The ladder is a **measurement**, not an improvement: it establishes how much data is
+#: enough, which is a different goal from getting the best model. Ahmed's priority is
+#: explicit — *"I mainly care for improvement over baselines and published numbers"* — and
+#: he does not want runs that do not improve the result. So the whole cache goes in, and if
+#: someone later wants the curve, the rungs are still `--refchartqa-cap 4000|10000|25000`.
+REFCHARTQA_CAP = 1_000_000
 
 #: Chart families the generator draws that **ChartQA does not contain**. Measured over 3,000
 #: real train charts: bar 83.6%, line 12.8%, pie 3.6%, and area and scatter exactly 0.0%
