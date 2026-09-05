@@ -178,7 +178,8 @@ def stage_probe(args) -> dict[str, Any]:
         loaded = load_model(variant)
         for mode in ("structured", "plain"):
             gens, rep = generate_over(loaded, rows, mode=mode, progress_every=5,
-                                      max_new_tokens=args.max_new_tokens or None)
+                                      max_new_tokens=args.max_new_tokens or None,
+                                      close_evidence=args.close_evidence)
             # Keep the generations. A probe that reports a failure rate without keeping
             # the failures gives a number nobody can act on — which is what the first
             # probe did.
@@ -259,7 +260,8 @@ def stage_variant(args) -> dict[str, Any]:
     for variant in args.variants.split(","):
         variant = variant.strip()
         loaded = load_model(variant)
-        gens, rep = generate_over(loaded, rows, mode="structured")
+        gens, rep = generate_over(loaded, rows, mode="structured",
+                                  close_evidence=args.close_evidence)
         write_generations(gens, out_dir() / f"variant_{variant}.jsonl")
         correct = sum(relaxed_correctness(r["answer"], g.answer)
                       for r, g in zip(rows, gens))
@@ -389,7 +391,8 @@ def stage_chartqa(args) -> dict[str, Any]:
         # arm is sized to what it can resolve.
         rows = all_rows if (mode == "plain" or not args.structured_n) \
             else all_rows[:args.structured_n]
-        gens, rep = generate_over(loaded, rows, mode=mode)
+        gens, rep = generate_over(loaded, rows, mode=mode,
+                                  close_evidence=args.close_evidence)
         write_generations(gens, out_dir() / f"chartqa_val_{mode}{run_tag(args)}.jsonl")
         items = [score_item(r["record_id"], r["answer"], g.answer,
                             subset=r["question_kind"])
@@ -460,7 +463,8 @@ def stage_refchartqa(args) -> dict[str, Any]:
     if args.limit:
         rows = rows[:args.limit]
     loaded = load_model(args.variant, adapter=args.adapter)
-    gens, rep = generate_over(loaded, rows, mode="structured")
+    gens, rep = generate_over(loaded, rows, mode="structured",
+                              close_evidence=args.close_evidence)
     write_generations(gens, out_dir() / f"refchartqa_val{run_tag(args)}.jsonl")
 
     preds: list[tuple[str, float, list[float]]] = []
@@ -552,6 +556,12 @@ def main() -> int:
                     help="trained adapter path or hub id. Omit for the zero-shot "
                          "baseline; supply it at Phase 7 to evaluate the fine-tuned "
                          "system through the identical path")
+    ap.add_argument("--close-evidence", action="store_true",
+                    help="end the evidence array at MAX_EVIDENCE so a repetition loop "
+                         "cannot eat the budget before model_answer (DECISIONS.md 0114). "
+                         "26%% of structured generations were truncated and ALL of them "
+                         "scored zero. Off by default because it changes what the model "
+                         "may emit: a run with it is not comparable with one without.")
     ap.add_argument("--tag", default="",
                     help="suffix for output filenames, e.g. --tag finetuned, so a "
                          "Phase 7 run cannot overwrite the Phase 5 baseline it is "
