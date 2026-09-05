@@ -49,8 +49,8 @@ matches the official one to 0.068 points across 11,690 predictions.
 
 | # | idea | status | what actually happened |
 |---:|---|:---:|---|
-| 1 | reconsider `ChartRecord` | 🟡 | Audited (0098, 0108), and the flagged assumption then **fired** in 0116. Fixed narrowly: every source now *declares* `question_specific_boxes` (0119). **The structural change — separate ELEMENTS from EVIDENCE — is still not done.** |
-| 2 | distinguish elements from evidence | 🟡 | Identity question answered explicitly: qualified labels, not opaque ids, with the trade-off table (0107). EVIDENCE remains *derived* by `_evidence_from`, not stored. |
+| 1 | reconsider `ChartRecord` | ✅ | Audited (0098, 0108), the flagged assumption **fired** in 0116, and the structural change is now **done** (0124): `elements` and `evidence` are first-class fields, `evidence=None` means "unknown". Yields identical — 87.8% at rung 4,000, before and after. |
+| 2 | distinguish elements from evidence | ✅ | Identity: qualified labels, not opaque ids, with the trade-off table (0107). Container: ELEMENTS and EVIDENCE separated (0124). Synthetic now keeps the whole chart instead of only the operands. |
 | 3 | connect RefChartQA grounding to ChartQA elements | ✅ | `scripts/align_refchartqa.py`. 98.9% of boxes match a ChartQA element at IoU ≥ 0.9 (0077). Re-run at full scale today: **3,405 → 48,770 aligned (87.9%)** (0115). |
 | 4 | reconsider the ChartQA ↔ RefChartQA merge | ✅ | Merge separated from deduplication; every consumer enumerated (0108, 0109). |
 | 5 | evidence should have one clear meaning | ✅ | TABLE / ELEMENTS / EVIDENCE / PLAN / ANSWER is what the code does; the one gap (EVIDENCE not first-class) is recorded, not hidden (0108). |
@@ -174,16 +174,16 @@ matches the official one to 0.068 points across 11,690 predictions.
 
 **Not done, and doable without a GPU:**
 
-1. ❌ **ELEMENTS/EVIDENCE structural split** (Ideas 1–2). Patched with a boolean, not restructured.
 2. 🟡 **Question language** (Idea 9). Templates, tense, length and entity nouns done (0122). **Referring expressions and distractors are not** — they need geometry and colour at question-build time.
-3. ❌ **Operation-mix reweighting** (0091). `difference` 13.8× over-represented; selection-only fix.
+3. 🟡 **Operation mix** (0091). L3 weighted toward ChartQA (`argmax`/`argmin` 7.3% → 10.8% corpus-wide) (0123). The rest is a **level-proportion** question — `difference` is 25% because L2 and L4 are half the corpus — and that is a mixture-time selection decision needing your call on what stage 1 is for.
 4. ❌ **Stacked bars**, tiny/overlapping elements, legend-association tasks, clutter and imperfections.
 5. ❌ **Within-chart correlations** and multi-column tables.
-6. ❌ Two ChartQA record constructors still exist (0119) — a merge with no measurement behind it yet.
+6. ❌ Two ChartQA record constructors still exist (0119, 0124) — a merge with no measurement behind it yet.
+7. ❌ **Distractor-aware spurious-program check.** Newly *possible* — synthetic records now keep the whole chart (0124) — and not yet built.
 
 **Blocked:**
 
-7. ⛔ **LLM plan mining at volume.** ChartQA contributes **5 records of 22,947** to stage 1 today. Everything is built and ready to run; it needs the API run.
-8. ⛔ **RefChartQA scaling ladder** (4,000 / 10,000 / 25,000). Unblocked as of 0115 — needs GPU.
-9. ⛔ **Re-run the zero-shot baseline with `close_evidence=True`** (0114), or the reported fine-tuning gain will include a truncation fix.
-10. ⛔ **Three training seeds**, Phase 8–9 verification and reporting.
+8. ⛔ **LLM plan mining at volume.** ChartQA contributes **5 records of 22,947** to stage 1 today. Everything is built and ready to run; it needs the API run.
+9. ⛔ **RefChartQA scaling ladder** (4,000 / 10,000 / 25,000). Unblocked as of 0115 — needs GPU.
+10. ⛔ **Re-run the zero-shot baseline with `close_evidence=True`** (0114), or the reported fine-tuning gain will include a truncation fix.
+11. ⛔ **Three training seeds**, Phase 8–9 verification and reporting.
