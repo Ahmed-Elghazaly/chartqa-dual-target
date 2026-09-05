@@ -7712,3 +7712,53 @@ area and scatter were (0091).
 The sequence is the point: a documented decision looked wrong, its premise *was* wrong, and
 the decision was still right. Checking the premise was worth it; acting on the premise alone
 would not have been.
+
+---
+
+## 0145 — Mine the merged set, not each pool
+
+**Context.** Ahmed: *"mining ll be done after merging or aligning chartqa with refchartqa
+not before because we know they are duplicates."* Correct, and the overlap is far larger
+than the two source sizes suggest.
+
+**Measured** over the full pools:
+
+| | |
+|---|---:|
+| ChartQA records | 22,947 |
+| RefChartQA records | 55,486 |
+| **share an (image, question) key** | **17,920** |
+| — as a share of ChartQA | **78.8%** |
+| ChartQA images also in RefChartQA | 95.9% |
+| prompts if mined separately | 77,737 |
+| prompts if merged first | **59,817** |
+
+**Nearly four fifths of ChartQA is already inside RefChartQA.** Mining the pools separately
+sends 17,920 duplicate prompts — about **23% of the spend** — for questions we would then
+have to reconcile.
+
+**Cost is the smaller half of the problem.** The same question mined twice can return **two
+different plans**, both verified, for one record. Nothing downstream distinguishes them,
+because a mixture stores record ids and the readers rehydrate; the result is a
+reconciliation problem invented for no reason.
+
+**Decision.** `finished_records` deduplicates before batching, on `ChartRecord.key` — the
+same key `data/dedup.py` uses at mixture time, so mining and training agree about what a
+duplicate is. If they disagreed, a record could be mined once and trained twice, or the
+reverse.
+
+**Which copy survives is decided by what a teacher needs**, not by source precedence: the
+prompt carries the question, the chart's data and the gold answer, so the copy with the
+richer table and more elements is the better prompt. Often that is the RefChartQA record,
+because alignment attaches ChartQA's own table to it (0077) — the merge Idea 4 asks for,
+arriving through the aligner rather than through `dedup`.
+
+**Consequences.** This is the third finding in a row where the *order of operations* was
+the defect rather than any single step — 0088 (build records, then mine), 0141 (mining
+removed from one caller of two), and now this. The pipeline's stages are each correct and
+were composed without anyone checking the composition. `scripts/e2e.py` exists for exactly
+that and does not yet cover mining, because mining has never run.
+
+**Not changed:** `data/dedup.py` still runs at mixture time and still merges records across
+sources. That is a different job — dedup stops double-counting in *training*, this stops
+double-paying in *mining* — and 0108 already separated the two deliberately.

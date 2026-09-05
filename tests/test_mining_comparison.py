@@ -100,3 +100,69 @@ def test_every_source_choice_is_accepted(source):
     from scripts.mine_plans import main
 
     assert source in inspect.getsource(main)
+
+
+# --- mining runs on the merged set, not on each pool (`DECISIONS.md` 0145) --------------
+
+def _rec(question, *, cells=1, elements=1, source="chartqa", image="a"):
+    from chartqa_dt.data.records import ELEMENTS_KEY, ChartRecord
+
+    return ChartRecord(
+        record_id=f"{source}:{image}:{question}", source=source, split="train",
+        image_path="i.png", image_sha256=image * 64, question=question, answer="1",
+        question_kind="human", table={"rows": [list(range(cells))]},
+        meta={ELEMENTS_KEY: [{}] * elements})
+
+
+def test_the_same_question_on_the_same_image_is_mined_once():
+    """17,920 records share an (image, question) key — 78.8% of all ChartQA. Mining both
+    pools separately pays for those twice and can return two different plans for one
+    record."""
+    from scripts.mine_plans import deduplicate_for_mining
+
+    out = deduplicate_for_mining([_rec("q?", source="chartqa"),
+                                  _rec("q?", source="refchartqa")])
+    assert len(out) == 1
+
+
+def test_the_richer_record_is_the_one_kept():
+    """The prompt shows the question, the chart's data and the gold answer, so the copy
+    with more table and more elements is the better prompt — regardless of source."""
+    from scripts.mine_plans import deduplicate_for_mining
+
+    thin = _rec("q?", cells=1, elements=1, source="chartqa")
+    rich = _rec("q?", cells=9, elements=5, source="refchartqa")
+    assert deduplicate_for_mining([thin, rich])[0].source == "refchartqa"
+    assert deduplicate_for_mining([rich, thin])[0].source == "refchartqa"
+
+
+def test_different_questions_on_one_image_are_both_kept():
+    from scripts.mine_plans import deduplicate_for_mining
+
+    assert len(deduplicate_for_mining([_rec("a?"), _rec("b?")])) == 2
+
+
+def test_the_same_question_on_different_images_is_kept_twice():
+    from scripts.mine_plans import deduplicate_for_mining
+
+    assert len(deduplicate_for_mining([_rec("q?", image="a"),
+                                       _rec("q?", image="b")])) == 2
+
+
+def test_mining_uses_the_same_duplicate_key_as_training():
+    """If mining and `data/dedup.py` disagreed about what a duplicate is, a record could be
+    mined once and trained twice, or the reverse."""
+    import inspect
+
+    from scripts.mine_plans import deduplicate_for_mining
+
+    assert "record.key" in inspect.getsource(deduplicate_for_mining)
+
+
+def test_deduplication_is_stable_and_order_independent():
+    from scripts.mine_plans import deduplicate_for_mining
+
+    a, b, c = _rec("a?"), _rec("b?", cells=4), _rec("a?", cells=7)
+    first = {r.record_id for r in deduplicate_for_mining([a, b, c])}
+    second = {r.record_id for r in deduplicate_for_mining([c, b, a])}
+    assert first == second

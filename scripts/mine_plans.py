@@ -127,7 +127,42 @@ def finished_records(*, limit: int, seed: int, kind: str,
         records += refchartqa_records(cap=limit, cache=cache)
     if kind != "all":
         records = [r for r in records if r.question_kind == kind]
-    return [r for r in records if r.answer is not None and r.meta.get(ELEMENTS_KEY)]
+    records = [r for r in records if r.answer is not None and r.meta.get(ELEMENTS_KEY)]
+    return deduplicate_for_mining(records)
+
+
+def deduplicate_for_mining(records: list[ChartRecord]) -> list[ChartRecord]:
+    """One prompt per (image, question), never two.
+
+    **Ahmed:** *"mining ll be done after merging or aligning chartqa with refchartqa not
+    before because we know they are duplicates."* He is right, and the overlap is much
+    larger than the sources suggest — **17,920 records share an (image, question) key**,
+    which is **78.8% of all ChartQA**. Mining the two pools separately would send 77,737
+    prompts where the union needs 59,817, paying for 17,920 twice.
+
+    Cost is the smaller half. The real problem is that the same question mined twice can
+    come back with **two different plans**, and nothing downstream would know which record
+    it was looking at — a reconciliation problem created for no reason
+    (`DECISIONS.md` 0145).
+
+    Which copy survives is decided by what a *teacher* needs, not by source: the prompt
+    shows the question, the chart's data and the gold answer, so the record with the richer
+    table and more elements is the better prompt. `ChartRecord.key` is the dedup key
+    already used at mixture time (`data/dedup.py`), so mining and training agree about what
+    a duplicate is.
+    """
+    def richness(record: ChartRecord) -> tuple[int, int]:
+        table = record.table or {}
+        cells = sum(len(row) for row in (table.get("rows") or [])
+                    if isinstance(row, list))
+        return (cells, len(record.meta.get(ELEMENTS_KEY) or []))
+
+    best: dict[str, ChartRecord] = {}
+    for record in records:
+        current = best.get(record.key)
+        if current is None or richness(record) > richness(current):
+            best[record.key] = record
+    return list(best.values())
 
 
 def evidence_of(record: ChartRecord) -> list[dict]:
