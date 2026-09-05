@@ -255,3 +255,74 @@ def test_the_early_levels_stay_uniform():
         if q:
             styles[q.plan["op"]] += 1
     assert len(styles) >= 3 and min(styles.values()) / max(styles.values()) > 0.4
+
+
+# --- tied extrema (`DECISIONS.md` 0127) -----------------------------------------------
+
+def test_no_argmax_target_is_built_on_a_tie():
+    """`Prompt.md` Idea 6 lists "duplicate values" among the things a target builder must
+    handle. A tied maximum has no unique answer, and naming one mark anyway is exactly
+    what 0083 refuses for colliding labels."""
+    rng = random.Random(0)
+    checked = 0
+    for _ in range(8000):
+        series, _, unit = sample_series(rng, n=sample_density(rng, "L3"))
+        q = build_question("L3", series, rng, unit=unit, quantity="value")
+        if q is None or q.plan["op"] not in ("argmax", "argmin"):
+            continue
+        values = [v for _, v in series]
+        target = max(values) if q.plan["op"] == "argmax" else min(values)
+        assert values.count(target) == 1, f"{q.question!r} has a tied extremum"
+        checked += 1
+    assert checked > 500, f"only {checked} argmax/argmin questions seen"
+
+
+def test_only_the_tied_end_is_refused():
+    """`[A:5, B:5, C:1]` has a tied *maximum* and a unique *minimum*, so `argmax` must be
+    refused and `argmin` must not. Refusing both would throw away good supervision."""
+    series = [("A", 5.0), ("B", 5.0), ("C", 1.0)]
+    rng = random.Random(0)
+    seen = set()
+    for _ in range(600):
+        q = build_question("L3", series, rng, unit=None, quantity="value")
+        if q is not None:
+            seen.add(q.plan["op"])
+    assert "argmax" not in seen, "named a category the data does not choose"
+    assert "argmin" in seen, "refused a question whose answer is unique"
+
+
+def test_a_tie_does_not_stop_the_value_questions():
+    """"What is the highest value?" has a unique answer even when two marks share it —
+    only the questions that name a *category* are ambiguous."""
+    series = [("A", 5.0), ("B", 5.0), ("C", 1.0)]
+    rng = random.Random(1)
+    seen = set()
+    for _ in range(600):
+        q = build_question("L3", series, rng, unit=None, quantity="value")
+        if q is not None:
+            seen.add(q.plan["op"])
+    assert {"max", "min", "sum", "mean", "count"} <= seen, seen
+
+
+def test_the_l3_operation_chain_still_answers_each_operation_correctly():
+    """The tie guard was first written outside the if/elif chain, which made every `sum`
+    question fall through to the `argmin` branch and take its answer."""
+    import statistics as st
+
+    series = [("A", 1.0), ("B", 2.0), ("C", 6.0)]
+    rng = random.Random(0)
+    expected = {"sum": 9.0, "mean": st.fmean([1.0, 2.0, 6.0]), "max": 6.0,
+                "min": 1.0, "count": 3.0, "argmax": "C", "argmin": "A"}
+    seen = {}
+    for _ in range(600):
+        q = build_question("L3", series, rng, unit=None, quantity="value")
+        if q is None:
+            continue
+        seen[q.plan["op"]] = q.answer
+    assert set(seen) == set(expected), f"missing operations: {set(expected) - set(seen)}"
+    for op, want in expected.items():
+        got = seen[op]
+        if isinstance(want, float):
+            assert float(got) == pytest.approx(want), f"{op}: {got} != {want}"
+        else:
+            assert str(got) == want, f"{op}: {got} != {want}"

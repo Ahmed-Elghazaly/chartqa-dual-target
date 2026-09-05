@@ -269,20 +269,36 @@ def build_question(
                 f"How many {noun}s appear in the chart{tail}?",
                 f"What {is_was} the number of {noun}s shown{tail}?",
             ]), float(len(values))
-        elif op == "argmax":
-            q, answer = rng.choice([
-                f"Which {noun} {'had' if is_was == 'was' else 'has'} the highest "
-                f"{quantity}{tail}?",
-                f"In which {noun} {is_was} the {quantity} highest{tail}?",
-                f"Which {noun} recorded the largest {quantity}{tail}?",
-            ]), max(series, key=lambda p: p[1])[0]
-        else:
-            q, answer = rng.choice([
-                f"Which {noun} {'had' if is_was == 'was' else 'has'} the lowest "
-                f"{quantity}{tail}?",
-                f"In which {noun} {is_was} the {quantity} lowest{tail}?",
-                f"Which {noun} recorded the smallest {quantity}{tail}?",
-            ]), min(series, key=lambda p: p[1])[0]
+        elif op in ("argmax", "argmin"):
+            # **A tied extremum has no answer, so do not ask the question.**
+            #
+            # `executor.argmax` returns the first match, which is the only deterministic
+            # thing it can do at inference — but a *target* built on a tie names one mark
+            # the data does not choose, which is precisely what 0083 refuses for colliding
+            # labels: *"picking one would point at a mark we did not choose"*.
+            #
+            # Measured: 8.94% of synthetic charts and **11.86% of real ChartQA charts**
+            # have a tied maximum or minimum, and 4.78% of the argmax/argmin questions
+            # generated here landed on one (`DECISIONS.md` 0127).
+            target = max(values) if op == "argmax" else min(values)
+            if values.count(target) > 1:
+                return None
+            if op == "argmax":
+                q, answer = rng.choice([
+                    f"Which {noun} {'had' if is_was == 'was' else 'has'} the highest "
+                    f"{quantity}{tail}?",
+                    f"In which {noun} {is_was} the {quantity} highest{tail}?",
+                    f"Which {noun} recorded the largest {quantity}{tail}?",
+                ]), max(series, key=lambda p: p[1])[0]
+            else:
+                q, answer = rng.choice([
+                    f"Which {noun} {'had' if is_was == 'was' else 'has'} the lowest "
+                    f"{quantity}{tail}?",
+                    f"In which {noun} {is_was} the {quantity} lowest{tail}?",
+                    f"Which {noun} recorded the smallest {quantity}{tail}?",
+                ]), min(series, key=lambda p: p[1])[0]
+        else:                                  # pragma: no cover - weights are a closed set
+            raise ValueError(f"unhandled L3 operation: {op!r}")
 
     elif level == "L4":
         lab = rng.choice(labels)

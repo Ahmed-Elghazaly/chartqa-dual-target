@@ -6852,3 +6852,52 @@ prerequisite for the weighting and filtering Idea 15 asks about, neither of whic
 The first version left **470 of 3,571 elements untagged**: the legacy-cache path
 reconstructs elements from `boxes` alone and did not tag them. A test now asserts no cached
 element reaches a mixture without provenance, which is how that was found.
+
+---
+
+## 0127 — A tied maximum has no answer, so stop asking the question
+
+**Context.** Reading `Prompt.md` Idea 6 line by line rather than by heading: among the
+things a target builder must handle it lists **"duplicate values"**. Nothing in the project
+handled them.
+
+`executor.argmax` returns the first match on a tie. That is the right behaviour *at
+inference* — it is the only deterministic thing it can do — but a **target** built on a tie
+names one mark the data does not choose. That is exactly what 0083 refuses for colliding
+labels: *"picking one would point at a mark we did not choose."* The same principle, never
+applied to values.
+
+**Measured:**
+
+| | charts with a tied max or min |
+|---|---:|
+| synthetic | **8.94%** |
+| **real ChartQA** | **11.86%** |
+
+and of the argmax/argmin questions the curriculum actually generated, **4.78% (418 of
+8,743)** landed on a tied extremum — a target naming a category arbitrarily.
+
+**Decision.** Refuse the *question*, not the operation. `build_question` returns `None`
+when the extremum it would ask about is tied; the executor is unchanged, because breaking
+`argmax` at inference would turn a model's valid prediction into an error.
+
+**Only the tied end is refused.** On `[A:5, B:5, C:1]` the maximum is tied and the minimum
+is not, so `argmax` goes and `argmin` stays. Refusing both would throw away good
+supervision to fix half a problem.
+
+**Result:** 0 ambiguous argmax/argmin targets, from 418; **2.17%** of L3 questions refused;
+the operation mix from 0123 is unchanged.
+
+**Consequences.** The fix broke the L3 operation chain on its first attempt, and the way it
+broke is worth recording: the tie check was written as a new top-level `if` after the
+`if/elif` chain rather than inside it, so every `sum` question fell through to the trailing
+`else` and took `argmin`'s answer. Every operation would have been mislabelled and the
+targets would still have executed, because the plan and the answer were both wrong in the
+same direction. A test now builds one question per operation and checks each answer against
+an independently computed value — `sum` of `[1, 2, 6]` is 9, not `"A"`.
+
+Still not handled, and recorded rather than fixed: **real** ChartQA charts have tied extrema
+at 11.86%, and when LLM mining runs over them the same ambiguity applies to a mined
+`argmax`. `distinguish.coincidences` already asks the general form of this question — *does
+another operand choice reach the same answer?* — so the gate exists; whether it fires on
+ties is a check to run against the mining output (`BLOCKED.md` §1).
