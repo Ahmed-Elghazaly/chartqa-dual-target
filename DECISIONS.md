@@ -7207,3 +7207,46 @@ than about the data.
 recorded at its true size rather than its first size, and the thing that corrected it was
 `scripts/e2e.py` printing whole targets, built one commit earlier for exactly this
 (0131). Counting said 12,203; reading said 833.
+
+---
+
+## 0134 — The closed teacher's contamination, licensing and dependency risk
+
+**Context.** `Prompt.md` Idea 7 ends with a list of things that must be *"explicitly
+addressed"* if a closed teacher is used: reproducibility, model and prompt pinning, cost,
+provenance, caching, **contamination**, **licensing**, dependency risk. Checking the code
+rather than assuming, seven were covered and **contamination and licensing appeared nowhere
+at all** — zero mentions across `teacher.py` and `llm_mining.py`.
+
+**Contamination — low, for a structural reason rather than a hopeful one.** ChartQA is a
+public 2022 benchmark and any frontier model has almost certainly seen it. That would matter
+if we asked the teacher for the *answer*. We do not: the prompt supplies the question, the
+data table **and the gold answer**, and asks only for the program connecting them. Recalling
+the answer cannot inflate yield when the answer is an input, and recalling a *plan* is not
+possible for ChartQA, which publishes none.
+
+It is **not** zero for RefChartQA, whose `pot` subset publishes derivations (0133). The
+mitigation is that no teacher is needed there — those convert deterministically.
+
+**Licensing — a live constraint, and Ahmed's decision.** Researched rather than assumed:
+Anthropic's published policy prohibits using outputs to *"train or develop AI models without
+our written permission"*, while permitting non-competing specialised tools — the examples
+given are extraction and categorisation systems — and prohibiting general-purpose chatbots
+and open-ended text generation. A chart-QA model is a specialised tool, which is the
+permitted category; the general requirement is stated broadly enough that it should be
+settled **before** a mining spend rather than after.
+
+**Decision.** Record all three in `teacher.py` where anyone using it will read them, and put
+the licensing question to Ahmed with a recommendation rather than deciding it here.
+
+**The recommendation is an open-weights teacher**, and the reason is not licensing but
+**reproducibility** — which Idea 7 lists first. `PROVENANCE_KEY` pins the model id and the
+prompt hash, which records what was used and cannot resurrect it: a deprecated model leaves
+a headline number that nobody can reproduce. Open weights pinned by hash remove the
+licensing question *and* satisfy reproducibility in a way no closed model can. The cost of
+the alternative is quality, and that is measurable — the calibration run compares verified
+yield between teachers for a few dollars.
+
+**Consequences.** Idea 7 is now fully answered. The three gaps were found by reading the
+brief line by line rather than by its headings, which is the same method that produced 0113,
+0114 and 0133 — and the fourth time it has paid, which is itself worth recording.

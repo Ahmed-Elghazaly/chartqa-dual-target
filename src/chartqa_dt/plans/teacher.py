@@ -25,6 +25,39 @@ cached proposal is keyed by record, model and prompt hash together, so changing 
 of the prompt invalidates the cache rather than silently mixing two experiments. Every
 accepted plan carries the model name and prompt hash into `meta`, so any target in the
 training set can be traced back to the exact request that produced it.
+
+
+Contamination, licensing and reproducibility
+--------------------------------------------
+
+`Prompt.md` Idea 7 requires that a closed teacher's **contamination, licensing and
+dependency risk** be addressed explicitly rather than assumed away. They were not, until
+`DECISIONS.md` 0134.
+
+**Contamination — low, and for a structural reason.** ChartQA is a public 2022 benchmark, so
+any frontier model has almost certainly seen it. That would matter if we asked the teacher
+for the *answer*; we do not. We supply the question, the data table **and the gold answer**,
+and ask only for the program that connects them. Recall of the answer cannot inflate our
+yield, because the answer is an input. Recall of a *plan* is not possible either for the
+ChartQA half: ChartQA publishes no programs.
+
+It is **not** zero for RefChartQA. Its `pot` subset publishes derivations (0133), so a
+teacher may have seen those. The mitigation is that we do not need a teacher there — the
+derivations are converted deterministically, with no model in the loop.
+
+**Licensing — a live constraint, and Ahmed's call.** Anthropic's published policy prohibits
+using outputs to train or develop AI models *without written permission*, while permitting
+non-competing specialised tools and prohibiting general-purpose chatbots. A chart-QA model
+is a specialised tool rather than a chatbot, which is the permitted category, but the
+requirement is stated broadly enough that this should be settled before any mining spend
+rather than after.
+
+**Reproducibility — the argument for open weights.** A closed model can be deprecated, and
+then a headline number cannot be reproduced at all. `PROVENANCE_KEY` pins the model id and
+the prompt hash, which records *what* was used but cannot resurrect it. An open-weights
+teacher pinned by weight hash removes the licensing question and satisfies reproducibility
+in a way no closed model can. This is recorded as the recommended alternative.
+
 """
 
 from __future__ import annotations
