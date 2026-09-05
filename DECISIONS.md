@@ -7863,3 +7863,52 @@ LANGUAGE item is **distractors**, and **position/superlative** references are no
 larger untouched gap at 5.0%: *"the rightmost value"*, *"the tallest bar"*. `argmax` covers
 the superlative case semantically; the positional case has no operator at all, and inventing
 one is a DSL change rather than a phrasing change.
+
+---
+
+## 0148 — Correction: we do have line and pie grounding, from RefChartQA
+
+**Context.** 0146 concluded that the project has *"no real grounding supervision"* for line
+charts and 39.3% of pie wedges. Ahmed asked why lines and pies cannot be used the way the
+datasets themselves use them. Checking that found the statement was **wrong**, and wrong in
+a way worth recording: it reasoned about **one** of the two datasets.
+
+**RefChartQA supplies its own question-specific boxes for every record it has, whatever the
+chart type**, and does not depend on ChartQA's element annotation at all. Joining the two on
+the decoded-pixel hash:
+
+| chart type | RefChartQA records | aligned to ChartQA elements | plan targets | grounding-only | **usable** |
+|---|---:|---:|---:|---:|---:|
+| v_bar | 30,685 | 99% | 14,785 | 12,926 | 90% |
+| h_bar | 16,888 | 99% | 6,204 | 10,531 | 99% |
+| **line** | **5,091** | **0%** | 3,103 | 1,988 | **100%** |
+| pie | 2,822 | 56% | 1,081 | 1,699 | 99% |
+
+**5,091 line-chart records and 2,822 pie records, all with human-marked boxes, all already
+in the training mixtures.** The claim that lines are ungrounded was false.
+
+**What is actually missing is narrower, and it is about identity rather than location.**
+Line records are **0% aligned**: alignment matches a marked box to a ChartQA *element*, and
+we build no elements for line charts (0144, 0146), so a line record's evidence is named
+`item1, item2, …` with no value. Those records ground fine and their plans can only ever be
+the derived `lookup`. When LLM mining runs it will do poorly on them, because the prompt
+shows the teacher a table it does not have.
+
+**Decision.** 0146's exclusions stand — ChartQA's line and pie *element* boxes really are
+segment and text boxes, and that measurement was sound. What changes is the **stated
+consequence**: the loss is semantic identity for 5,091 line records, not grounding for
+3,691 questions. 0146's "Consequences" section is corrected by this entry rather than
+edited.
+
+**Consequences.** Two lessons, and the second is the one that generalises.
+
+The narrow one: line charts are ~9% of RefChartQA and are supervised for grounding, so
+grounding scores on line-heavy slices should be read as *trained but unlabelled*, not as
+untrained.
+
+The general one: **this project has two datasets over the same images, and a limitation in
+one is not a limitation of the system.** I measured ChartQA's annotation, found a real gap,
+and reported it as a project gap without asking what the other source carried — for a
+question Ahmed had already answered once, when he pointed out that mining should follow the
+merge because the two overlap (0145). The same mistake twice in one session, both times
+solved by joining on the pixel hash.
