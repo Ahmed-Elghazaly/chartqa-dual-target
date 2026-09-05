@@ -72,9 +72,77 @@ each time because another generator bug surfaced after it began.
 5. **Check before changing a schema** (`ChartRecord`, the target format, stored artifacts),
    and handle migration for anything already cached.
 6. **If an experiment cannot run here, do not invent a result.** Document the blocker and
-   the exact command in `BLOCKED.md`.
+   the exact command in `STATUS.md`.
 7. **Measure before deciding.** Every claim in `DECISIONS.md` carries a number. A change
    with no measurement behind it is a guess, and should say so.
+
+---
+
+## How Ahmed wants this done
+
+| | |
+|---|---|
+| **Work in long sessions.** | Do not stop every few minutes to report. When waiting on a long run, work on something that does not depend on it. |
+| **Be right the first time.** | Read the authoritative source — API signature, library source, model config, the plan — *before* writing code against it. Never from memory. |
+| **Verify, don't assume.** | Research anything unclear rather than building on general knowledge. |
+| **Report briefly and plainly.** | What was done, whether anything is wrong, whether anything is needed. Short. |
+| **Test heavily.** | Prove a technique against ground truth known by construction before depending on it. |
+| **Delete what is dead.** | Superseded files are removed, not left to rot. |
+| **The plan may be wrong.** | `PLAN.md` and `IDEA.md` contain errors. When you find one, say so with evidence and propose the change rather than silently working around it. |
+
+### Reporting — the rule most often broken
+
+Every report says, in plain language:
+
+1. **Is this good or bad for us?** Label it. *"AP is 0.68"* means nothing until it is
+   *"worse than we hoped, and here is what it costs"*. **Never leave the judgement
+   implicit** — this is the single most repeated complaint about these reports.
+2. **What was done**, in the fewest words that stay accurate.
+3. **What was decided**, and why it went that way.
+4. **What is needed from Ahmed** — or explicitly *nothing*.
+5. **Anything else worth knowing** — surprises, risks, wasted effort, cost.
+
+The failure to avoid is a technically complete report that leaves the reader unable to tell
+whether the project is going well.
+
+### Work ordering
+
+Compute-heavy work that does **not** improve the final result waits until the end — three
+training seeds and the scaling ladder *measure* the result rather than improving it. Work
+that improves it runs first.
+
+---
+
+## Standing facts about the environment
+
+Each of these cost hours to discover once.
+
+* **Kaggle** — account `nanonanite`. The token is a `KGAT_` **bearer** token in
+  `~/.kaggle/access_token`, **not** the legacy `kaggle.json` username/key pair. In the
+  wrong file it fails every authenticated endpoint.
+* **Quota** — ~30 GPU-hours per week per account, three accounts. Read it live with
+  `python scripts/gpu_budget.py`; never keep a parallel tally.
+* **GPU** — request `machine_shape: "NvidiaTeslaT4"` explicitly, or Kaggle hands out a
+  P100 (`sm_60`) that its own PyTorch build cannot use (0019, 0020).
+* **Hugging Face** — user `NanoPhotonic`, write token in `.env`, artifacts repo
+  `NanoPhotonic/chartqa-dt-artifacts`.
+* **GitHub** — `gh` CLI, account `Ahmed-Elghazaly`, repo `chartqa-dual-target`.
+* **TLS** — the venv Python has no CA store. Import `chartqa_dt.net` in any script that
+  makes network calls, or `urllib` raises what looks like a rejected credential.
+* **Disk** — Ahmed has said space is not a constraint and to download what is needed.
+
+---
+
+## Two shell habits that have each caused a wrong report
+
+1. **Never pipe a check whose exit status you then rely on.**
+   `bash scripts/preflight.sh | tail -3 && git commit …` commits even when preflight
+   fails, because a pipeline's status is the *last* command's. That is how a red commit
+   reached `main`. Run the check bare, read it, then commit as a separate step.
+2. **`git status` is silent about ignored files.** A source file excluded by `.gitignore`
+   shows nothing — not untracked, not modified — so a whole package can be missing from
+   the repo while every local run passes (0050, 0051). `tests/test_repo_completeness.py`
+   runs `git check-ignore` over every source file, and it is step 1 of preflight.
 
 ---
 
@@ -85,7 +153,7 @@ each time because another generator bug surfaced after it began.
 | why any decision was made | `DECISIONS.md` — append-only, numbered, never edit an old entry except to annotate |
 | what was audited and found | `AUDIT.md`, `AUDIT_COVERAGE.md`, `FINDINGS.md`, `VERDICT.md`, `PROMPT_CHECKLIST.md` |
 | where the project stands | `STATUS.md` |
-| what cannot run here, and the command | `BLOCKED.md` |
+| what cannot run here, and the command | `STATUS.md` |
 | how the code is organised | `ARCHITECTURE.md` |
 | what we committed to before seeing results | `PREREGISTRATION.md` — a research artifact; do not edit after the fact |
 

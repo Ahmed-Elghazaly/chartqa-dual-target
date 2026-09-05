@@ -2653,7 +2653,7 @@ test suite was red — the same class of failure as the eight silent CI failures
 reintroduced by the way the check was *called* rather than by the check itself.
 
 **Decision.** `preflight.sh` prints the hazard in its own success output, and
-`WORKING_AGREEMENT.md` records the habit: run a gating check bare, read it, then commit as
+`CLAUDE.md` (was `WORKING_AGREEMENT.md`) records the habit: run a gating check bare, read it, then commit as
 a separate step. Never chain a piped check with `&&`.
 
 **Consequences.** The failing test was `test_the_repository_seal_is_currently_closed` — the
@@ -2942,7 +2942,7 @@ plan-required work rather than an extra experiment. Prompt content is chosen on
 inside the noise floor, and three GPU runs and roughly an hour of quota went to
 distinguishing indistinguishable things.
 
-The generalisable rule, now in `WORKING_AGREEMENT.md`: **before running a comparison,
+The generalisable rule, now in `CLAUDE.md` (was `WORKING_AGREEMENT.md`): **before running a comparison,
 compute what it can resolve.** A probe that cannot detect the effect being sought produces
 numbers that look like evidence and are not, and the resulting decisions feel measured
 while being arbitrary. This sits alongside 0055's lesson — consistency is not truth — as
@@ -6900,7 +6900,7 @@ Still not handled, and recorded rather than fixed: **real** ChartQA charts have 
 at 11.86%, and when LLM mining runs over them the same ambiguity applies to a mined
 `argmax`. `distinguish.coincidences` already asks the general form of this question — *does
 another operand choice reach the same answer?* — so the gate exists; whether it fires on
-ties is a check to run against the mining output (`BLOCKED.md` §1).
+ties is a check to run against the mining output (`STATUS.md`, blocked experiment 1).
 
 ---
 
@@ -7095,4 +7095,4 @@ so **12,667 mined plans have never passed through the spurious-program gate.** M
 element's value, so a `lookup` would serve equally well. That is a lower bound — it counts
 only exact numeric coincidences — and it is recorded here rather than fixed, because
 routing those plans through the gate is a change to the mining path and belongs with the
-LLM mining run (`BLOCKED.md` §1).
+LLM mining run (`STATUS.md`, blocked experiment 1).

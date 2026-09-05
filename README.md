@@ -32,16 +32,16 @@ Nine markdown files at the root is a lot; each answers a different question.
 |---|---|
 | **what this project is** and how to run it | this file, then `SETUP.md` |
 | **how the system works today**, end to end | `ARCHITECTURE.md` |
-| **the audit's verdict** — what was wrong, what changed, what to test next | `VERDICT.md` |
-| **every finding in the brief's 15-field record** | `FINDINGS.md` |
-| **the 99-item audit checklist, item by item** | `AUDIT_COVERAGE.md` |
+| **the audit's verdict** — what was wrong, what changed, what to test next | `AUDIT.md` Part 1 |
+| **every finding in the brief's 15-field record** | `AUDIT.md` Part 3 |
+| **the 99-item audit checklist, item by item** | `AUDIT.md` Part 4 |
 | **why any choice was made** — the permanent record, ~100 entries, newest last | `DECISIONS.md` |
 | **what is currently wrong** and how bad, ranked | `AUDIT.md` |
-| **what the audit still has to do** and what is blocked | `AUDIT_PLAN.md` |
+| **what is not done, and what is blocked** | `AUDIT.md` Part 5, and `STATUS.md` |
 | **where the project stands right now** — measured numbers only | `STATUS.md` |
 | **what was promised before the results existed** | `PREREGISTRATION.md` |
 | **what each training run did** and what it cost | `RUNS.md` |
-| **the rules this repo is built under** — non-negotiables | `WORKING_AGREEMENT.md` |
+| **the rules this repo is built under** — non-negotiables, and how to work here | `CLAUDE.md` (`AGENTS.md` is a symlink to it) |
 
 `DECISIONS.md` is the one to search. Every finding, every reversal and every measurement
 that justified a change is recorded there with its numbers, including the ones that turned
