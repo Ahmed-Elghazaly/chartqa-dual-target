@@ -51,7 +51,12 @@ from chartqa_dt.data.records import (
 from chartqa_dt.env import get_env
 from chartqa_dt.plans.teacher import PROVENANCE_KEY
 from chartqa_dt.splits import sealed_image_hashes
-from chartqa_dt.train.targets import TargetError, build_target
+from chartqa_dt.train.targets import (
+    NoPlanAvailable,
+    TargetError,
+    build_grounding_only_target,
+    build_target,
+)
 
 
 def archive_path() -> Path:
@@ -276,18 +281,58 @@ def usable_only(records: list[ChartRecord], label: str) -> list[ChartRecord]:
     it something. The supply of real records that yield targets is itself the binding
     constraint: 2,420 of 22,947 ChartQA rows and 2,063 of 3,996 cached RefChartQA rows.
     """
-    keep, refused = [], 0
-    for record in records:
-        try:
-            build_target(record)
-        except TargetError:
-            refused += 1
-            continue
-        keep.append(record)
+    keep, _, refused = _partition(records)
     if refused:
         print(f"  {label:<12}dropped {refused:,} of {len(records):,} — no training target "
               f"({100 * len(keep) / max(len(records), 1):.1f}% usable)")
     return keep
+
+
+def _partition(records: list[ChartRecord]
+               ) -> tuple[list[ChartRecord], list[ChartRecord], int]:
+    """Split into plan-usable, grounding-only-usable, and the count of the rest."""
+    plans: list[ChartRecord] = []
+    grounding: list[ChartRecord] = []
+    refused = 0
+    for record in records:
+        try:
+            build_target(record)
+        except NoPlanAvailable:
+            try:
+                build_grounding_only_target(record)
+            except TargetError:
+                refused += 1
+                continue
+            grounding.append(record)
+            continue
+        except TargetError:
+            refused += 1
+            continue
+        plans.append(record)
+    return plans, grounding, refused
+
+
+def split_by_usability(records: list[ChartRecord], label: str
+                       ) -> tuple[list[ChartRecord], list[ChartRecord]]:
+    """The same drop as `usable_only`, but keeping the grounding-only half separately.
+
+    `usable_only` calls `build_target` and drops whatever it refuses, and that filter runs
+    **before** the feed — so a record it drops never reaches the feed's grounding-only
+    fallback at all. Wiring the fallback into the feed and not here would have made
+    `DECISIONS.md` 0116 dead code in every built mixture, which is what the first version
+    of it was: the mixture still reported *"refchartqa dropped 1,735 of 4,000"*.
+
+    The two halves are kept apart rather than merged because they are not
+    interchangeable. Stage 1 is grounding only (`PLAN.md` 6.1) and can use both; stage 2
+    trains the plan, and a grounding-only record there is supervision with the answer
+    taken out.
+    """
+    plans, grounding, refused = _partition(records)
+    if refused or grounding:
+        print(f"  {label:<12}{len(plans):,} plan targets, {len(grounding):,} "
+              f"grounding-only (stage 1 only), {refused:,} dropped of {len(records):,} "
+              f"({100 * (len(plans) + len(grounding)) / max(len(records), 1):.1f}% usable)")
+    return plans, grounding
 
 
 def main() -> None:
@@ -325,10 +370,12 @@ def main() -> None:
     real = chartqa_records(reader, limit=args.chartqa_limit, seed=args.seed)
     ref = refchartqa_records(cap=args.refchartqa_cap, cache=args.refchartqa_cache)
 
+    real_grounding: list[ChartRecord] = []
+    ref_grounding: list[ChartRecord] = []
     if not args.keep_unusable:
         synth_all = usable_only(synth_all, "synthetic")
-        real = usable_only(real, "chartqa")
-        ref = usable_only(ref, "refchartqa")
+        real, real_grounding = split_by_usability(real, "chartqa")
+        ref, ref_grounding = split_by_usability(ref, "refchartqa")
     # Drop the chart families ChartQA does not contain BEFORE balancing, so the per-level
     # sample is drawn from a pool that is already the right shape (`DECISIONS.md` 0091).
     synth_all, absent = drop_absent_chart_types(synth_all)
@@ -338,12 +385,16 @@ def main() -> None:
     synth = balance_by_level(synth_all, args.synthetic_stage1, seed=args.seed)
 
     print(f"\nsources: synthetic={len(synth):,}  chartqa={len(real):,}  "
-          f"refchartqa={len(ref):,}")
+          f"refchartqa={len(ref):,}  "
+          f"(+{len(real_grounding) + len(ref_grounding):,} grounding-only for stage 1)")
     if not ref:
         print("  (RefChartQA cache absent — the audit passed, so its rows belong in the\n"
               "   mixture; run scripts/cache_refchartqa.py to add them.)")
 
-    s1, c1 = build_stage1(synth, [*real, *ref], cap=args.stage1_cap)
+    # Plan-bearing records first: if `--stage1-cap` ever binds, the richer supervision
+    # should be what survives it.
+    s1, c1 = build_stage1(synth, [*real, *ref, *real_grounding, *ref_grounding],
+                          cap=args.stage1_cap)
     write_mixture(s1, c1, f"data/mixture_stage1{args.suffix}.json")
 
     # Real records only here; the synthetic replay is the second argument. Passing synth

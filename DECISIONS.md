@@ -6194,8 +6194,25 @@ prose is a feed that silently stops matching the next time someone edits the wor
 | no plan available, boxes unusable → still dropped | 7 | 0.0% |
 | refused for some other reason → still dropped | 7,351 | 13.2% |
 
-**Stage-1 usable supervision goes from 56.5% to 86.7% — 31,339 to 48,128 records, +53.6%
-relative.** Stage 2 and the control are untouched: stage 2 trains the plan, so a target
+**Usable supervision in the pool goes from 56.5% to 86.7% — 31,339 to 48,128 records,
++53.6% relative.**
+
+**That is the pool, not what stage 1 receives, and the difference is large.**
+`REFCHARTQA_CAP` is still 4,000 (rung 1, 0115), so the mixture only ever sees 4,000 of
+those records. Within the rung the relative gain holds and the absolute one does not:
+
+| rung | usable before | usable after | of the rung |
+|---:|---:|---:|---:|
+| **4,000** *(in use)* | 2,265 | **3,511** | 56.6% → 87.8% |
+| 10,000 | 5,568 | 8,734 | 55.7% → 87.3% |
+| 25,000 | 13,861 | 21,736 | 55.4% → 86.9% |
+
+So today this change is worth **+1,246 records** to stage 1, not +16,789. The larger number
+is the ceiling it unlocks, and it is only collected if the ladder raises the cap — which is
+also the argument for running the ladder, since the recovered records make each rung
+substantially denser than it was when the rungs were chosen.
+
+Stage 2 and the control are untouched: stage 2 trains the plan, so a target
 with the plan removed would be supervision with the answer taken out, and the control must
 train on the same records as the arm it controls for.
 
@@ -6213,6 +6230,45 @@ not. Both now refuse the same way. This is the inverse of the four defects in `f
 own docstring: not a failure quietly caught and counted, but one loudly uncaught in the
 worst possible place.
 
-`STAGE1_CAP = 12_000` now binds much harder — 48,128 eligible records for 12,000 places —
-so which records fill stage 1 is a real question where it used to be nearly moot. That is
-a mixture-composition decision and is **not** made here.
+**The first version of this change did nothing, and building a mixture is what showed
+it.** `scripts/build_mixtures.py` filters with `usable_only`, which calls `build_target`
+and drops whatever it refuses — and that filter runs *before* the feed. So a record it
+drops never reaches the feed's fallback at all, and the rebuilt mixture still printed
+*"refchartqa dropped 1,735 of 4,000 — no training target (56.6% usable)"* with the feed
+change already in place. Wiring one end of a pipeline and not the other produced code that
+passed 36 tests and changed no mixture.
+
+The fix is `split_by_usability`, which returns the two halves separately instead of
+dropping one. They are kept apart rather than merged because they are not
+interchangeable — stage 1 takes both, stage 2 takes only the plan-bearing half — and
+plan-bearing records are ordered first, so if `--stage1-cap` ever binds it is the richer
+supervision that survives.
+
+**The second version was worse than doing nothing, and building the mixture caught that
+too.** With the filter fixed, ChartQA went from **5 records to 4,944** and stage 1 hit its
+cap — which looked like a triumph and was a bug. ChartQA has no per-question grounding: it
+annotates the *chart*, and a record's `boxes` **are** its `elements` — 12 boxes for a
+12-element chart, the same 12 for every question about that image. Reading the targets
+rather than the totals showed what that produces:
+
+> *"Which year has the most crime?"* — answer **2014** — evidence: **all six years.**
+
+That teaches *"point at everything"*: the exact behaviour 0014 exists to prevent, the same
+mistake `_evidence_from` was written to avoid, arriving through a different door, and one
+that AP@0.5 scores near zero. It would have added 4,939 poisoned records to stage 1 and
+raised every count in the composition report while doing it.
+
+So `build_grounding_only_target` now has a precondition — `has_question_specific_boxes` —
+and refuses a record whose boxes describe the chart rather than answering the question. A
+source may declare the property with a `question_specific_boxes` meta flag; otherwise the
+evidence is `refchartqa_id`, present exactly when the boxes came from RefChartQA's
+per-question annotation. With it, ChartQA returns to 5 records, RefChartQA goes from 2,259
+to **3,504** in stage 1 — the +1,246 the rung-1 table predicts — and the 66 answer
+conflicts the poisoned build introduced go back to zero.
+
+**`STAGE1_CAP = 12_000` does not bind**, which was worth checking rather than assuming: the
+built stage 1 holds **9,509** records, so the binding constraints are `REFCHARTQA_CAP` and
+the target-yield rate, not the cap. Two other things the build made
+plain: ChartQA contributes **5 records of 22,947** to stage 1, because only 2 carry a
+mined plan and the LLM mining has not been run at volume; and 5,995 synthetic records are
+dropped as area/scatter, chart families the evaluation corpus does not contain (0091).

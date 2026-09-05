@@ -19,6 +19,7 @@ from chartqa_dt.train.targets import (
     TargetError,
     build_grounding_only_target,
     build_target,
+    has_question_specific_boxes,
 )
 
 
@@ -27,7 +28,19 @@ def rec(i=0, *, answer="1", boxes=None, plan=None, meta=None):
                        image_path="x.png", image_sha256=f"{i:064d}", question=f"q{i}",
                        answer=answer, question_kind="human",
                        boxes=boxes if boxes is not None else [[1, 2, 3, 4], [5, 6, 7, 8]],
-                       plan=plan, meta=meta or {})
+                       plan=plan,
+                       # RefChartQA-shaped: its boxes mark the evidence for THIS question.
+                       # `chartqa_shaped()` below is the other kind, which must be refused.
+                       meta=meta if meta is not None else {"refchartqa_id": f"rc{i}"})
+
+
+def chartqa_shaped(i=0, **kw):
+    """A record whose boxes describe the whole chart, as ChartQA's annotation does.
+
+    `ChartRecord` is frozen, so this builds one rather than mutating a RefChartQA fixture.
+    """
+    kw.setdefault("meta", {"n_elements": 6})
+    return rec(i, **kw)
 
 
 class FakeFeed(MixtureFeed):
@@ -216,3 +229,110 @@ def test_one_bad_box_among_good_ones_still_refuses_the_record():
     r = rec(boxes=[[1, 2, 3, 4], None], answer="7")
     with pytest.raises(TargetError):
         build_target(r)
+
+
+# --- the mixture builder must agree with the feed ----------------------------------
+
+def _split(records):
+    import sys
+    sys.path.insert(0, ".")
+    from scripts.build_mixtures import split_by_usability
+    return split_by_usability(records, "test")
+
+
+def test_the_mixture_builder_keeps_grounding_only_records_separately():
+    """The first version of 0116 wired the feed and not this, and the mixture still
+    reported *"refchartqa dropped 1,735 of 4,000"* — the fallback was dead code, because
+    `usable_only` runs before the feed and the records never reached it."""
+    plans, grounding = _split([rec(1), rec(2, boxes=[[1, 2, 3, 4]], answer="7")])
+    assert len(grounding) == 1, "the no-plan record was dropped rather than kept"
+    assert len(plans) == 1
+
+
+def test_the_two_halves_are_disjoint():
+    records = [rec(i) for i in range(4)] + [
+        rec(90 + i, boxes=[[1, 2, 3, 4]], answer="7") for i in range(3)]
+    plans, grounding = _split(records)
+    assert not ({r.record_id for r in plans} & {r.record_id for r in grounding})
+    assert len(plans) + len(grounding) == len(records)
+
+
+def test_a_record_that_is_neither_is_in_neither_half():
+    plans, grounding = _split([rec(1, boxes=[]), rec(2, answer=None),
+                               rec(3, plan={"op": "lookup", "args": ["nope"]})])
+    assert plans == [] and grounding == []
+
+
+def test_stage_two_never_receives_a_grounding_only_record():
+    """A grounding-only record in stage 2 is supervision with the answer taken out."""
+    from chartqa_dt.data.mixture import build_stage2
+
+    plans, grounding = _split([rec(1), rec(2, boxes=[[1, 2, 3, 4]], answer="7")])
+    # The builder passes only the plan half to stage 2; assert that half is plan-bearing.
+    s2, _ = build_stage2(plans, [], cap=100, replay=0, seed=0)
+    for r in s2:
+        assert r.plan or r.boxes
+    assert all(r.record_id not in {g.record_id for g in grounding} for r in s2)
+
+
+def test_stage_one_receives_both_halves():
+    from chartqa_dt.data.mixture import build_stage1
+
+    plans, grounding = _split([rec(1), rec(2), rec(3, boxes=[[1, 2, 3, 4]], answer="7")])
+    s1, _ = build_stage1([], [*plans, *grounding], cap=100)
+    assert len(s1) == len(plans) + len(grounding) == 3
+
+
+def test_plan_bearing_records_come_first_so_the_cap_keeps_the_richer_ones():
+    from chartqa_dt.data.mixture import build_stage1
+
+    plans, grounding = _split([rec(1), rec(2),
+                               rec(3, boxes=[[1, 2, 3, 4]], answer="7")])
+    s1, _ = build_stage1([], [*plans, *grounding], cap=1)
+    assert s1[0].record_id in {r.record_id for r in plans}
+
+
+# --- boxes that describe the chart rather than answering the question ---------------
+
+def test_a_record_whose_boxes_describe_the_whole_chart_is_refused():
+    """Measured on real data: the ChartQA target for *"Which year has the most crime?"*
+    (answer 2014) came out pointing at all six years. ChartQA annotates the chart, not
+    the question — its `boxes` ARE its `elements`, the same ones for every question asked
+    about that image — so a grounding-only target from it teaches "point at everything".
+    """
+    with pytest.raises(TargetError, match="whole chart"):
+        build_grounding_only_target(chartqa_shaped())
+
+
+def test_the_feed_does_not_recover_a_whole_chart_record():
+    feed = FakeFeed([chartqa_shaped()], shuffle=False, grounding_only_fallback=True)
+    assert drain(feed) == []
+    assert feed.stats.recovered_grounding_only == 0
+
+
+def test_the_mixture_builder_does_not_offer_a_whole_chart_record_to_stage_one():
+    plans, grounding = _split([chartqa_shaped(1), chartqa_shaped(2)])
+    assert plans == [] and grounding == []
+
+
+def test_a_source_may_declare_the_property_directly():
+    """The flag is the contract; `refchartqa_id` is only the fallback evidence for it."""
+    assert has_question_specific_boxes(rec(meta={"question_specific_boxes": True}))
+    assert not has_question_specific_boxes(rec(meta={"question_specific_boxes": False}))
+
+
+def test_the_declared_flag_overrides_the_inferred_one():
+    r = rec(meta={"refchartqa_id": "x", "question_specific_boxes": False})
+    assert not has_question_specific_boxes(r)
+    with pytest.raises(TargetError, match="whole chart"):
+        build_grounding_only_target(r)
+
+
+def test_refchartqa_records_are_recognised_without_a_flag():
+    assert has_question_specific_boxes(rec())
+
+
+def test_the_precondition_does_not_touch_plan_targets():
+    """A ChartQA record with a real plan is unaffected: the plan selects the evidence."""
+    r = chartqa_shaped(boxes=[[1, 2, 3, 4]], answer="7")
+    build_target(r)          # must not raise

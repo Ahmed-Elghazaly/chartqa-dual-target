@@ -323,7 +323,11 @@ def _grounded(**kw):
     d = {"record_id": "g", "source": "refchartqa", "split": "train",
          "image_path": "i.png", "image_sha256": "d", "question": "q?", "answer": "47",
          "question_kind": "human", "boxes": [e["bbox"] for e in els],
-         "meta": {ELEMENTS_KEY: els}}
+         # RefChartQA-shaped: these boxes mark the evidence for THIS question, which is
+         # the precondition `build_grounding_only_target` now enforces (`DECISIONS.md`
+         # 0116). A `meta=` override in a caller replaces this wholesale, so a test that
+         # passes its own meta and still wants a grounding-only target must say so.
+         "meta": {ELEMENTS_KEY: els, "question_specific_boxes": True}}
     d.update(kw)
     return ChartRecord(**d)
 
@@ -368,7 +372,8 @@ def test_it_refuses_a_record_with_no_answer():
 def test_it_refuses_a_record_with_no_boxes():
     from chartqa_dt.train.targets import TargetError, build_grounding_only_target
     with pytest.raises(TargetError, match="no evidence boxes"):
-        build_grounding_only_target(_grounded(meta={}, boxes=None))
+        build_grounding_only_target(
+            _grounded(meta={"question_specific_boxes": True}, boxes=None))
 
 
 def test_an_unusable_box_is_refused_rather_than_emitted():
@@ -378,7 +383,7 @@ def test_an_unusable_box_is_refused_rather_than_emitted():
     from chartqa_dt.train.targets import TargetError, build_grounding_only_target
     flat = [{"label": "a", "value": 1, "unit": None, "bbox": [10, 10, 10, 50]}]
     with pytest.raises(TargetError, match="no usable box"):
-        build_grounding_only_target(_grounded(meta={ELEMENTS_KEY: flat},
+        build_grounding_only_target(_grounded(meta={ELEMENTS_KEY: flat, "question_specific_boxes": True},
                                               boxes=[flat[0]["bbox"]]))
 
 

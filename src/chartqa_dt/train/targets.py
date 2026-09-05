@@ -377,6 +377,36 @@ def build_answer_only_target(record: ChartRecord) -> str:
     return str(record.answer)
 
 
+def has_question_specific_boxes(record: ChartRecord) -> bool:
+    """Do this record's boxes mark the evidence for **this question**?
+
+    The distinction a grounding-only target lives or dies on, and it is not obvious from
+    the record: both kinds have `boxes`, and both look like grounding.
+
+    * **RefChartQA** annotates, per question, which regions a person used to answer it.
+      Those boxes *are* the answer to "where should the model point", so a target built
+      from them teaches exactly that.
+    * **ChartQA** annotates the *chart* — every element of it, regardless of the question.
+      Its `boxes` are its `elements`: 12 boxes for a 12-element chart, the same 12 for
+      every question asked about it.
+
+    Building a grounding-only target from the second kind teaches *"point at the whole
+    chart"*. Measured on real records, that is not a theoretical worry — the target for
+    *"Which year has the most crime?"* (answer: 2014) came out pointing at all six years,
+    which is the behaviour `DECISIONS.md` 0014 exists to prevent and which AP@0.5 scores
+    close to zero. It is the same mistake `_evidence_from` was written to avoid, arriving
+    through a different door (`DECISIONS.md` 0116).
+
+    A source may declare this directly with a `question_specific_boxes` meta flag.
+    Otherwise the evidence is `refchartqa_id`: it is present exactly when the boxes came
+    from RefChartQA's per-question grounding annotation.
+    """
+    flag = record.meta.get("question_specific_boxes")
+    if flag is not None:
+        return bool(flag)
+    return "refchartqa_id" in record.meta
+
+
 def build_grounding_only_target(record: ChartRecord, *, verify: bool = True) -> str:
     """Boxes and the answer, for a record whose plan we do not have.
 
@@ -402,6 +432,11 @@ def build_grounding_only_target(record: ChartRecord, *, verify: bool = True) -> 
     """
     if record.answer is None:
         raise TargetError(f"{record.record_id} has no answer; nothing to supervise")
+    if not has_question_specific_boxes(record):
+        raise TargetError(
+            f"{record.record_id}: its boxes describe the whole chart rather than marking "
+            f"the evidence for this question, so a grounding-only target would teach "
+            f"'point at everything'. Only a plan can select from an annotation like this.")
     evidence = _evidence_from(record)
     if not evidence:
         raise TargetError(f"{record.record_id} has no evidence boxes")
@@ -433,6 +468,13 @@ def build_grounding_only_target(record: ChartRecord, *, verify: bool = True) -> 
     return text
 
 
-__all__ = ["COMPACT", "NoPlanAvailable", "TargetError", "build_answer_only_target",
-           "build_grounding_only_target", "build_record",
-           "build_target"]
+__all__ = [
+    "COMPACT",
+    "NoPlanAvailable",
+    "TargetError",
+    "build_answer_only_target",
+    "build_grounding_only_target",
+    "build_record",
+    "build_target",
+    "has_question_specific_boxes",
+]
