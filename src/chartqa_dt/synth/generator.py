@@ -17,6 +17,7 @@ holdout cannot drift apart.
 
 from __future__ import annotations
 
+import itertools
 import json
 import random
 from dataclasses import asdict, dataclass, field
@@ -50,13 +51,90 @@ PALETTES: list[list[str]] = [
     ["#006d77", "#83c5be", "#ffddd2", "#e29578", "#b5838d"],
 ]
 FONT_SIZES = (8, 9, 10, 11, 12)
+#: Label pools. The five short ones are the originals, kept so that sparse charts look
+#: exactly as they did; the long ones exist because **the pool was a second density
+#: ceiling**. `sample_series` takes `min(n, len(pool))`, and the largest pool held ten
+#: entries, so no chart could carry more than ten marks however the count was drawn —
+#: against a ChartQA median of 10 and a 90th percentile of 24 (`DECISIONS.md` 0118).
 CATEGORY_POOLS: list[list[str]] = [
     [str(y) for y in range(2014, 2024)],
     ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug"],
     ["North", "South", "East", "West", "Central"],
     ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta"],
     ["Q1", "Q2", "Q3", "Q4"],
+    # --- long pools, for the dense half of the distribution ---
+    [str(y) for y in range(1980, 2024)],
+    [f"{q} {y}" for y in range(2012, 2024) for q in ("Q1", "Q2", "Q3", "Q4")],
+    ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    ["Argentina", "Australia", "Austria", "Belgium", "Brazil", "Canada", "Chile",
+     "China", "Colombia", "Czechia", "Denmark", "Egypt", "Finland", "France",
+     "Germany", "Greece", "Hungary", "India", "Indonesia", "Ireland", "Israel",
+     "Italy", "Japan", "Kenya", "Malaysia", "Mexico", "Morocco", "Netherlands",
+     "Nigeria", "Norway", "Pakistan", "Peru", "Philippines", "Poland", "Portugal",
+     "Romania", "Russia", "Saudi Arabia", "Singapore", "South Africa", "South Korea",
+     "Spain", "Sweden", "Switzerland", "Thailand", "Turkey", "Ukraine",
+     "United Kingdom", "United States", "Vietnam"],
+    ["Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
+     "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois",
+     "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland",
+     "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana",
+     "Nebraska", "Nevada", "New Jersey", "New Mexico", "New York", "Ohio",
+     "Oklahoma", "Oregon", "Pennsylvania", "Tennessee", "Texas", "Utah", "Vermont",
+     "Virginia", "Washington", "Wisconsin", "Wyoming"],
+    ["18-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50-54", "55-59",
+     "60-64", "65-69", "70-74", "75-79", "80+"],
 ]
+
+#: ChartQA's mark-count distribution, **measured** over 6,264 real training charts with
+#: annotation elements. Quantiles rather than a fitted curve: the shape is long-tailed and
+#: a two-parameter family would misstate the middle, which is where most charts are.
+#:
+#: | p10 | p25 | p50 | p75 | p90 | p99 | max | mean |
+#: |---:|---:|---:|---:|---:|---:|---:|---:|
+#: | 4 | 6 | 10 | 15 | 24 | 45 | 78 | 12.1 |
+#:
+#: Synthetic before this change: p50 **4**, max **7**, mean 4.6 (`DECISIONS.md` 0098).
+CHARTQA_DENSITY_QUANTILES: tuple[tuple[float, int], ...] = (
+    (0.00, 2), (0.10, 4), (0.25, 6), (0.50, 10),
+    (0.75, 15), (0.90, 24), (0.99, 45), (1.00, 60),
+)
+
+#: The largest mark count the box verifier sustains. Measured across chart types after the
+#: sentinel fix: bars and pie verify 10 of 10 at 40 marks, and **98.8% of real ChartQA
+#: charts have 40 marks or fewer**, so this truncates a 1.2% tail rather than the middle.
+MAX_MARKS = 40
+
+#: Marks per chart by curriculum level. `PLAN.md` 6.1 grades stage 1 easy->hard, and 0101
+#: says what the grade should be: L1-L2 stay deliberately sparse so the format is learnable
+#: in isolation, and **L3-L4 should look like ChartQA** — which is the widest part of the
+#: gap, not the narrowest. So the first two levels keep the old range and the last two draw
+#: from the measured distribution above.
+DENSITY_BY_LEVEL: dict[str, tuple[int, int] | None] = {
+    "L1": (3, 6),
+    "L2": (4, 9),
+    "L3": None,      # None = draw from CHARTQA_DENSITY_QUANTILES
+    "L4": None,
+}
+
+
+def sample_density(rng: random.Random, level: str) -> int:
+    """How many marks this chart should carry.
+
+    For L3-L4, inverse-transform sampling on the measured quantiles with linear
+    interpolation between them, so the synthetic distribution reproduces ChartQA's shape
+    rather than a guess at its parameters.
+    """
+    span = DENSITY_BY_LEVEL.get(level, (3, 7))
+    if span is not None:
+        return rng.randint(*span)
+    u = rng.random()
+    qs = CHARTQA_DENSITY_QUANTILES
+    for (p0, v0), (p1, v1) in itertools.pairwise(qs):
+        if u <= p1:
+            frac = 0.0 if p1 == p0 else (u - p0) / (p1 - p0)
+            return max(2, min(MAX_MARKS, round(v0 + frac * (v1 - v0))))
+    return min(MAX_MARKS, qs[-1][1])
 UNITS = (None, "millions", "%", "thousands", "units", "USD")
 
 # Lightness step applied when a palette wraps; must exceed the verifier's
@@ -80,6 +158,38 @@ SENTINELS: tuple[str, ...] = (
     "#ff00ff", "#00ff00", "#ff0000", "#0000ff", "#ffff00", "#00ffff",
     "#ff8000", "#8000ff", "#00ff80", "#ff0080", "#80ff00", "#0080ff",
 )
+#: Sentinels beyond the fixed twelve. Kept at high saturation, like the twelve, so they
+#: stay unlike anything a chart draws in — text, gridlines and backgrounds are all low
+#: saturation or near-grey.
+_SENTINEL_GRID = tuple((h / 48.0, s, v)
+                       for h in range(48)
+                       for s in (1.0, 0.8)
+                       for v in (1.0, 0.75, 0.5))
+
+
+def sentinel_colours(n: int) -> list[str]:
+    """`n` verification colours, all mutually distinguishable.
+
+    **This was the ceiling on synthetic chart density.** `generate_example` recoloured
+    with `SENTINELS[i % len(SENTINELS)]`, and there are twelve sentinels — so a chart
+    with more than twelve elements gave two of them the same verification colour,
+    `containment` split its pixels between them, and the example was discarded. Measured
+    before the fix: 10 marks verified 10 of 10, **16 verified 3 of 10, 24 verified 0 of
+    10** — the partial rate at 16 being the charts whose evidence labels happened to miss
+    the collision.
+
+    That is why *"no synthetic chart has more than 7 marks"* (`DECISIONS.md` 0098) while
+    ChartQA's median is 10 and its maximum 77, and why 0101 concluded the corpus needed
+    regenerating. The limit was never the renderer or the label pool. It was a twelve-item
+    tuple consumed with a modulo (`DECISIONS.md` 0118).
+
+    The first twelve are unchanged, so every chart that already verified still does.
+    """
+    if n <= len(SENTINELS):
+        return list(SENTINELS[:max(n, 0)])
+    return _extend_by_farthest_point(list(SENTINELS), n, _SENTINEL_GRID)
+
+
 SENTINEL_LINE = "#404040"      # for a line whose markers must stay distinguishable
 #: Largest ratio between the biggest and smallest value in one chart.
 MAX_VALUE_RATIO = 8.0
@@ -92,24 +202,82 @@ MIN_BOX_SIDE_PX = 4.0
 QUANTITIES = ("value", "share", "count", "revenue", "score")
 
 
+#: Minimum RGB distance between any two element colours. The verifier matches a colour
+#: within `tol=12` per channel (`synth/verify.py`), so two colours closer than about
+#: 12*sqrt(3) = 20.8 are the same colour to it. 60 leaves a wide margin and is comfortably
+#: reachable for the densities ChartQA actually contains.
+MIN_COLOUR_DISTANCE = 60.0
+
+#: The HSV box element colours are drawn from. Saturation stays high and value avoids both
+#: ends, so no element blends into a white background or into the dark text and axes.
+_HSV_GRID = tuple((h / 36.0, s, v)
+                  for h in range(36)
+                  for s in (0.55, 0.75, 0.95)
+                  for v in (0.45, 0.65, 0.85))
+
+
+def _rgb(hex_colour: str) -> tuple[int, int, int]:
+    h = hex_colour.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))  # type: ignore[return-value]
+
+
+def _distance(a: tuple[int, int, int], b: tuple[int, int, int]) -> float:
+    return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
+
+
 def element_colours(palette: list[str], n: int) -> list[str]:
     """`n` colours that are distinct *under the verifier's matching tolerance*.
 
-    Palettes hold five colours but a series may have seven categories. Wrapping with
-    ``palette[i % len(palette)]`` gives two elements the same colour, and `containment`
-    — which counts every pixel of that colour in the image — then splits between them
-    and reports ~50% for a perfectly exact box. So on each wrap the base colour is
-    shifted in lightness by well beyond the tolerance (`COLOUR_TOL`) instead.
+    The verifier identifies an element by its colour: `containment` counts every pixel of
+    that colour in the image, so if two elements share one, a perfectly exact box reports
+    ~50% and the example is thrown away.
+
+    **The previous scheme silently ran out of colours.** It wrapped the five-colour
+    palette and shifted lightness by `COLOUR_SHIFT * wrap`, which clamps at 0 and 255 —
+    so after four wraps every colour saturated to the same black or white. Measured:
+    n=24 produced **21 unique colours with a minimum pairwise distance of 0.0**, and n=40
+    also produced 21. That is why box verification collapsed above ten marks — 3 of 10
+    charts verified at 16 elements and **0 of 10 at 24** — and therefore why no synthetic
+    chart has more than 7 marks while ChartQA's median is 10 and its maximum is 77
+    (`DECISIONS.md` 0098, 0118).
+
+    So beyond the palette, colours are chosen by farthest-point sampling over an HSV grid:
+    each new colour is the candidate furthest from everything already chosen. That
+    maximises the minimum separation rather than hoping a fixed shift preserves it, and it
+    degrades gracefully — if the grid is ever exhausted the separation shrinks smoothly
+    instead of collapsing to zero.
+
+    The first `len(palette)` colours are the palette itself, unchanged, so the charts that
+    were already dense enough keep exactly the appearance they had.
     """
-    out: list[str] = []
-    for i in range(n):
-        base = palette[i % len(palette)]
-        wrap = i // len(palette)
-        r, g, b = (int(base.lstrip("#")[j:j + 2], 16) for j in (0, 2, 4))
-        if wrap:
-            shift = COLOUR_SHIFT * wrap * (-1 if (r + g + b) / 3 > 127 else 1)
-            r, g, b = (min(255, max(0, c + shift)) for c in (r, g, b))
-        out.append(f"#{r:02x}{g:02x}{b:02x}")
+    if n <= 0:
+        return []
+    out = [palette[i % len(palette)] for i in range(min(n, len(palette)))]
+    if n <= len(palette):
+        return out
+
+    return _extend_by_farthest_point(out, n, _HSV_GRID)
+
+
+def _extend_by_farthest_point(seed: list[str], n: int,
+                              grid: tuple[tuple[float, float, float], ...]) -> list[str]:
+    """Extend `seed` to `n` colours, each as far as possible from all chosen so far.
+
+    Farthest-point sampling rather than a fixed shift: it maximises the minimum
+    separation instead of hoping a formula preserves it, and when the grid runs low the
+    separation shrinks smoothly rather than collapsing to zero.
+    """
+    import colorsys
+
+    out = list(seed)
+    chosen = [_rgb(c) for c in out]
+    candidates = [tuple(round(255 * v) for v in colorsys.hsv_to_rgb(*hsv)) for hsv in grid]
+    candidates = [c for c in candidates if c not in chosen]
+    while len(out) < n and candidates:
+        best = max(candidates, key=lambda c: min(_distance(c, x) for x in chosen))
+        chosen.append(best)
+        candidates.remove(best)
+        out.append("#{:02x}{:02x}{:02x}".format(*best))
     return out
 
 
@@ -192,9 +360,21 @@ class SynthExample:
         }
 
 
-def sample_series(rng: random.Random, n_min: int = 3, n_max: int = 7) -> tuple[list[tuple[str, float]], str, str | None]:
-    pool = rng.choice(CATEGORY_POOLS)
-    n = min(rng.randint(n_min, n_max), len(pool))
+def sample_series(rng: random.Random, n_min: int = 3, n_max: int = 7,
+                  n: int | None = None) -> tuple[list[tuple[str, float]], str, str | None]:
+    """`n` labelled values, or a count drawn from `[n_min, n_max]` when `n` is not given.
+
+    **The pool is chosen to fit the count, not the other way round.** It used to be picked
+    first and the count clipped with `min(n, len(pool))`, so asking for 24 marks and
+    drawing the four-entry quarters pool silently produced four — a density request that
+    looked satisfied and was not (`DECISIONS.md` 0118).
+    """
+    n = rng.randint(n_min, n_max) if n is None else n
+    eligible = [p for p in CATEGORY_POOLS if len(p) >= n]
+    if not eligible:
+        eligible = [max(CATEGORY_POOLS, key=len)]
+    pool = rng.choice(eligible)
+    n = min(n, len(pool))
     start = rng.randint(0, max(0, len(pool) - n))
     labels = pool[start:start + n]
     decimals = rng.random() < 0.4
@@ -357,7 +537,10 @@ def generate_example(
     """One fully specified example, or None if this combination did not yield one."""
     data_rng = random.Random(data_seed)
     style = Style.sample(style_seed)
-    series, quantity, unit = sample_series(data_rng)
+    # Density is a property of the curriculum level (`DENSITY_BY_LEVEL`), not a fixed
+    # range: L1-L2 stay sparse so the format is learnable, L3-L4 reproduce ChartQA's
+    # measured distribution (`DECISIONS.md` 0118).
+    series, quantity, unit = sample_series(data_rng, n=sample_density(data_rng, level))
 
     question = build_question(level, series, data_rng, unit=unit, quantity=quantity)
     if question is None:
@@ -389,7 +572,7 @@ def generate_example(
             # real colours back before saving. Colour does not move any artist, so the
             # geometry verified here is exactly the geometry shipped.
             real = element_colours(style.palette, len(series))
-            sentinels = [SENTINELS[i % len(SENTINELS)] for i in range(len(series))]
+            sentinels = sentinel_colours(len(series))
             recolour(sentinels)
             try:
                 if not _verify_boxes(render_rgb(fig), evidence, series, sentinels, chart_type):
@@ -509,6 +692,8 @@ __all__ = [
     "generate_batch",
     "generate_example",
     "is_holdout",
+    "sample_density",
     "sample_series",
+    "sentinel_colours",
     "write_manifest",
 ]

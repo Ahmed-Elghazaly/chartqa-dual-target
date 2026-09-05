@@ -6323,3 +6323,75 @@ number that was defensible when written, under a premise that changed, with the 
 recorded as an assertion rather than as a check. Three instances now, all in constants
 whose comments *did* explain themselves — explaining is not the same as verifying, and the
 project has been better at the first than the second.
+
+---
+
+## 0118 — The synthetic density ceiling was three caps, not a compute problem
+
+**Context.** Ahmed asked whether synthetic generation had been improved. It had not.
+`synth/generator.py` was last touched on 2026-08-27, before 0098 measured the mismatch,
+and 0101 specified the fix and deferred it: *"L3–L4 need regenerating"*, *"hours of
+compute"*, with chart density called out as the part **selection cannot fix** because *"no
+synthetic chart has more than 7 marks"*.
+
+That framing was wrong, and it is worth saying why plainly: 0098 and 0101 measured the
+symptom carefully and never asked what produced it. The generator was treated as a fixed
+capability whose output distribution had to be accepted. It was not. **Three independent
+caps held the ceiling down, and any one of them alone would have held it:**
+
+| # | cap | what it did |
+|---|---|---|
+| 1 | `SENTINELS[i % len(SENTINELS)]` | twelve verification colours, cycled — a 13th element silently shared one, `containment` split its pixels, the example was discarded |
+| 2 | `element_colours` lightness shift | `COLOUR_SHIFT * wrap` clamps at 0/255, so past ~20 elements colours were byte-identical: **n=24 gave 21 unique colours, minimum pairwise distance 0.0** |
+| 3 | `CATEGORY_POOLS` | the largest pool held **ten** labels, and `min(n, len(pool))` clipped the count without saying so |
+
+Cap 1 is the one that mattered. Box verification by mark count, before and after:
+
+| marks | 4 | 10 | 16 | 24 | 40 |
+|---|---:|---:|---:|---:|---:|
+| vbar / hbar / pie **before** | 10/10 | 10/10 | **3/10** | **0/10** | 0/10 |
+| vbar / hbar / grouped / pie **after** | 10/10 | 10/10 | 10/10 | **10/10** | **10/10** |
+
+The partial 3/10 at 16 is the tell: a chart survived when its *evidence* labels happened
+to miss the collision. Line and area still fall away past 24 — markers genuinely overlap
+on a dense line — and that is a real geometric limit rather than a bug.
+
+### What changed
+
+* `sentinel_colours(n)` and `element_colours` extend by **farthest-point sampling** over an
+  HSV grid: each new colour is the candidate furthest from all chosen. That maximises the
+  minimum separation instead of hoping a fixed shift preserves it, and it degrades smoothly
+  when the grid thins rather than collapsing to zero. The first twelve sentinels and the
+  palette itself are unchanged, so every chart that already verified still does.
+* Long label pools — years from 1980, quarters across twelve years, months, 50 countries,
+  43 US states, age bands — and `sample_series` now **chooses a pool that fits the count**
+  instead of picking one and clipping.
+* `CHARTQA_DENSITY_QUANTILES`, **measured** over 6,264 real ChartQA training charts:
+  p10 4, p25 6, p50 10, p75 15, p90 24, p99 45, max 78, mean 12.1. L3–L4 draw from it by
+  inverse-transform sampling; L1–L2 keep a deliberately sparse range, because `PLAN.md` 6.1
+  grades stage 1 easy→hard and 0101 says the early levels teach format.
+* `MAX_MARKS = 40`, because that is where verification still holds and **98.8% of real
+  ChartQA charts have 40 marks or fewer** — it truncates a 1.2% tail, not the middle.
+
+**Result, generating end to end with verification on:**
+
+| level | yield | p50 marks | p90 | max |
+|---|---:|---:|---:|---:|
+| L1 | 60/60 | 4 | 6 | 6 |
+| L2 | 60/60 | 6 | 9 | 9 |
+| L3 / L4 | 58/60 | 8 | 21 | 40 |
+
+Against ChartQA's p50 10 / p90 24, and against synthetic's previous p50 4 / max 7.
+
+**Decision.** Fix the generator; regenerate the corpus. The regeneration is the
+straightforward half and runs at ~0.2 s per chart.
+
+**Consequences.** 0098's third mismatch and 0101's deferred job both close, and 0101's
+premise — that density needed compute — is withdrawn: it needed a twelve-item tuple and a
+modulo. The operation-mix mismatch (`difference` 13.8× over) is *not* fixed here; it is a
+selection problem and 0091 already resolved it that way.
+
+This is the fourth finding of one shape (0112, 0115, 0117): a limit that was defensible
+when written, whose consequence was later measured and attributed to something else. The
+distinctive part here is that the symptom was measured *twice*, in detail, and written up
+both times without anyone opening the function that caused it.
