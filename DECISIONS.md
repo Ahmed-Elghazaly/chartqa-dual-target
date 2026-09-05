@@ -7912,3 +7912,62 @@ and reported it as a project gap without asking what the other source carried �
 question Ahmed had already answered once, when he pointed out that mining should follow the
 merge because the two overlap (0145). The same mistake twice in one session, both times
 solved by joining on the pixel hash.
+
+---
+
+## 0149 — Everything ChartQA's annotation carries, and what is still unread
+
+**Context.** Ahmed: *"if color has been carried in annotations then why not use it, and
+generally check if there r useful things anywhere… that we can use and benefit of."* Colour
+is now used (0147). So every key in the annotation was enumerated and checked against the
+source for whether anything reads it.
+
+| field | charts | status |
+|---|---:|---|
+| `models[].bboxes` / `bbox`, `x`, `y`, `name`, `value`, `text_label` | all | **used** — elements |
+| `models[].color` / `colors` | 4,904 | **used** — since 0087, consumed by 0147 |
+| `general_figure_info.x_axis` / `y_axis` | 4,324 | **used** — axis labels |
+| **`general_figure_info.legend`** | **1,658** | **unread** — maps each series to its legend-label box |
+| **`general_figure_info.title`** | **1,781** | **unread** — the title's text and box |
+| **`general_figure_info.figure_info`** | 4,573 | **unread** — the plot area's box |
+| `models[].text_bbox` | 1,801 | unread **on purpose** (0146) — the caption's box, not the mark's |
+| `models[].points` | 858 | unread, and now known to be useless here — see below |
+
+### `points` — checked, and it recovers nothing
+
+`points` gives a wedge's `start`, `end` and `center`, which looked like a way to reconstruct
+the 39.3% of pie wedges that carry no box (0146). **It is not**: every wedge with `points`
+already has a `bbox`, and every wedge without a `bbox` has no `points` either.
+
+| | wedges | share |
+|---|---:|---:|
+| `bbox` **and** `points` | 1,456 | 60.7% |
+| neither | 943 | 39.3% |
+| `points` without `bbox` | **0** | — |
+
+0146's conclusion stands for pie, now for a stronger reason: the geometry is absent from the
+file rather than merely awkward to read.
+
+### `legend` and `title` — available, deliberately not used yet
+
+`legend` is the interesting one, because *legend association* is an open item in
+`Prompt.md` Idea 9 and this is the data it would need:
+
+```
+{"items": [{"model": "Unfavorable",
+            "label": {"bbox": {...}, "text": "Unfavorable"}}, …]}
+```
+
+**Decision.** Record them as available; build nothing yet. A legend label's box is **text
+geometry**, and 0146 established the rule that mixing text boxes with mark boxes gives the
+model two meanings of "evidence" for one metric. Legend association would need to be a
+*distinct question type* with its own target, not an extra evidence item — a schema-level
+change, for a question form whose frequency in ChartQA has not been measured.
+
+**Consequences.** Three unread fields, each now with a reason rather than an oversight:
+`text_bbox` and `points` are ruled out on evidence, `legend`, `title` and `figure_info` are
+open opportunities that need a measured frequency before they justify a schema change.
+
+The sweep's real result is that the annotation is **almost fully consumed** — the only
+unused things left are text-geometry fields, which the project has a standing rule against,
+and the one field that turned out to be redundant.
