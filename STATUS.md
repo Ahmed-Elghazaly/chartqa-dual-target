@@ -1,5 +1,33 @@
 # Status
 
+> ## Where this stops, 2026-09-05
+>
+> Everything is committed and pushed, CI is green, the working tree is clean.
+>
+> **The synthetic corpus is NOT regenerated.** The generator changed substantially
+> (0118 density, 0120 values, 0122 language, 0123 operation mix, 0127 tied extrema, 0124
+> whole-chart elements), and the corpus in `~/.cache/chartqa_dt/data/synthetic/` is still
+> the **old** one — 24,000 examples from the pre-change generator. A regeneration was
+> started three times and stopped three times, each time because another generator bug
+> surfaced after it had begun. It is deliberately left undone: it takes ~90 minutes and
+> should be the **last** step before training, not a step repeated after every change.
+>
+> Nothing is half-written. The partial output was deleted; the active corpus is untouched
+> and still valid for the *old* generator.
+>
+> **Next session begins with a repo cleanup**, agreed with Ahmed: 15 markdown files where
+> six of them (`AUDIT`, `AUDIT_COVERAGE`, `AUDIT_PLAN`, `FINDINGS`, `VERDICT`,
+> `PROMPT_CHECKLIST`) all answer *"what did we check and find"*, and three (`STATUS`,
+> `RUNS`, `BLOCKED`) all answer *"where are we"*. Target is ~7 files with nothing lost.
+>
+> **The process rule that came out of this session**, because most of its bugs were one
+> mistake repeated: *change one end of a pipeline and not the other, discover it only by
+> running the whole thing.* The fallback that was dead code, the provenance that missed the
+> legacy path, the decode fix with no CLI flag — all the same shape. **Run the end-to-end
+> pipeline before committing, not after, and do not start a long job until the changes
+> have settled.**
+
+
 **Phase 5 in progress** (5.1 and 5.2 done, 5.3 running, 5.4 queued). **Phases 6 to 9 are
 built and tested ahead of their gates** — everything that does not need a GPU or a sealed
 split. Phases 0–4 complete. Cost so far: **USD 0**.
