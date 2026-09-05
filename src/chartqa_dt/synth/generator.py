@@ -19,12 +19,14 @@ from __future__ import annotations
 
 import itertools
 import json
+import math
 import random
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
 import matplotlib
+import matplotlib.ticker
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -361,7 +363,8 @@ class SynthExample:
 
 
 def sample_series(rng: random.Random, n_min: int = 3, n_max: int = 7,
-                  n: int | None = None) -> tuple[list[tuple[str, float]], str, str | None]:
+                  n: int | None = None, chart_type: str | None = None
+                  ) -> tuple[list[tuple[str, float]], str, str | None]:
     """`n` labelled values, or a count drawn from `[n_min, n_max]` when `n` is not given.
 
     **The pool is chosen to fit the count, not the other way round.** It used to be picked
@@ -377,15 +380,127 @@ def sample_series(rng: random.Random, n_min: int = 3, n_max: int = 7,
     n = min(n, len(pool))
     start = rng.randint(0, max(0, len(pool) - n))
     labels = pool[start:start + n]
-    decimals = rng.random() < 0.4
-    # Values are drawn within a bounded dynamic range. Spanning 1..100 freely produced
-    # bars roughly one pixel tall whose boxes cannot be verified — and which would be
-    # useless grounding targets regardless. `MAX_VALUE_RATIO` keeps every element large
-    # enough to point at while leaving the charts varied.
-    lo = rng.uniform(4.0, 60.0)
-    hi = lo * rng.uniform(1.5, MAX_VALUE_RATIO)
-    values = [round(rng.uniform(lo, hi), 2 if decimals else 0) for _ in labels]
+    values = sample_values(
+        rng, len(labels),
+        allow_negative=chart_type not in NON_NEGATIVE_CHART_TYPES)
     return list(zip(labels, values)), rng.choice(QUANTITIES), rng.choice(UNITS)
+
+
+#: How often a chart's values are percentages that sum to about 100. **Measured** over
+#: 4,574 real ChartQA charts: 7.4%. Synthetic produced 0.6% by accident, and a percentage
+#: chart is a distinct reasoning setting — the parts are constrained, so "what share does X
+#: represent" has an answer the chart states rather than one the reader computes.
+PERCENTAGE_SHARE = 0.074
+
+#: How often a chart contains a negative value. **Measured** on the same charts: 1.7%.
+#: Synthetic produced none, so the model never saw a minus sign in a value it had to read.
+NEGATIVE_SHARE = 0.017
+
+#: The magnitude model, and the largest gap between real and synthetic data.
+#: **Measured** |value| over 4,574 real ChartQA charts: p10 3, p50 41, p90 4,447,
+#: p99 1.02M, max 272M — and **20.5% of charts carry a value above 1,000**. Synthetic
+#: reached p90 198 and a maximum of 457, so **no training chart ever showed a thousands
+#: separator** even though `executor.parse_numeric` exists to strip them.
+#:
+#: Fitted rather than guessed: `log10` of each chart's smallest positive value is close to
+#: normal with mean 1.45 and standard deviation 1.33 (p05 -0.20, p50 1.20, p95 4.24), so a
+#: chart's scale is drawn from that lognormal. A first attempt used hand-picked decade
+#: weights and overshot every quantile — p50 604 against 41 — which is why this is fitted
+#: to the data instead (`DECISIONS.md` 0120).
+MAGNITUDE_LOG10_MEAN = 1.45
+#: The spread of that same fit. 1.33 decades of standard deviation is what makes 20.5%%
+#: of charts exceed 1,000 while the median stays near 41; a narrower spread reproduces the
+#: median and loses the tail, which is the half that matters here.
+MAGNITUDE_LOG10_SD = 1.33
+#: Below this a chart's numbers stop looking like data, above it they exceed anything in
+#: ChartQA (max 2.7e8). Clamps the tails of the lognormal rather than shaping the middle.
+MAGNITUDE_LOG10_RANGE = (-0.7, 8.4)
+
+
+#: Chart families that cannot draw a value below zero. A pie is a part-to-whole chart, so
+#: matplotlib refuses outright — `ValueError: Wedge sizes 'x' must be non negative values`
+#: — which is the correct behaviour and not something to work around by taking absolutes.
+NON_NEGATIVE_CHART_TYPES = frozenset({"pie"})
+
+
+def sample_values(rng: random.Random, n: int, *,
+                  allow_negative: bool = True) -> list[float]:
+    """`n` chart values whose distribution resembles ChartQA's rather than a fixed band.
+
+    Three properties are drawn from measurement rather than convenience:
+
+    * **magnitude**, from a lognormal fitted to ChartQA's own chart scales, because real
+      chart values span eight orders of magnitude and the old fixed band spanned one;
+    * **percentage charts**, which sum to ~100 and are 7.4% of real charts;
+    * **negatives**, 1.7%.
+
+    `MAX_VALUE_RATIO` still bounds the *within-chart* spread, and that bound is doing real
+    work: it is what keeps the smallest bar tall enough to have a verifiable box. So charts
+    move up and down the ladder as a whole rather than mixing a billion with a three.
+    """
+    if n <= 0:
+        return []
+    if rng.random() < PERCENTAGE_SHARE and n >= 3:
+        raw = [rng.uniform(1.0, 10.0) for _ in range(n)]
+        total = sum(raw)
+        vals = [round(100.0 * v / total, 1) for v in raw]
+        # Put the rounding residue on the largest part, so the chart really sums to 100.
+        vals[vals.index(max(vals))] = round(
+            max(vals) + 100.0 - sum(vals), 1)
+        return vals
+
+    exponent = min(MAGNITUDE_LOG10_RANGE[1],
+                   max(MAGNITUDE_LOG10_RANGE[0],
+                       rng.gauss(MAGNITUDE_LOG10_MEAN, MAGNITUDE_LOG10_SD)))
+    lo = 10.0 ** exponent
+    hi = lo * rng.uniform(1.5, MAX_VALUE_RATIO)
+    # Precision follows magnitude, in both directions.
+    #
+    # Upwards, because nobody writes 4,381,220.57 on a chart. Downwards, because rounding
+    # is destructive: a chart whose values sit between 0.2 and 1.2, rounded to whole
+    # numbers, becomes a chart of zeros — and that is not hypothetical. Widening the
+    # magnitude range let `lo` fall below 1 while the old fixed `4.0` floor had made it
+    # impossible, and the first run produced `[0.0, 0.0, 0.0]`, which renders as no bars
+    # at all and fails verification (`DECISIONS.md` 0120).
+    #
+    # So: enough decimals that the *smallest* value keeps two significant figures, then
+    # optionally one more for variety.
+    places = max(0, 1 - math.floor(math.log10(lo))) if lo > 0 else 2
+    places = min(places, 3)
+    if places == 0 and hi < 1000 and rng.random() < 0.25:
+        places = 1
+    values = [round(rng.uniform(lo, hi), places) for _ in labels_range(n)]
+    if all(v == 0 for v in values):                    # pragma: no cover - guarded above
+        raise ValueError(
+            f"sample_values produced an all-zero chart at lo={lo!r}, places={places}. "
+            f"A chart of zeros renders as no marks and can never be verified.")
+    if allow_negative and rng.random() < NEGATIVE_SHARE:
+        # A real negative chart is usually a change or a balance: some bars below zero.
+        k = rng.randint(1, max(1, n // 2))
+        for i in rng.sample(range(n), k):
+            values[i] = -values[i]
+    return values
+
+
+def labels_range(n: int) -> range:
+    """Trivial, but it keeps `sample_values` readable at the call site."""
+    return range(n)
+
+
+def value_axis_limits(values: list[float]) -> tuple[float, float]:
+    """Axis bounds that contain every mark, including negative ones.
+
+    The old bound was `(0, max(values) * 1.25)`, which is correct only while every value
+    is positive — and every value was, because `sample_values` could not produce a
+    negative one. Adding negatives at ChartQA's measured 1.7% put marks below an axis that
+    still started at zero: the bar was clipped out of the figure and its box could not be
+    verified, so the example was silently discarded (`DECISIONS.md` 0120).
+    """
+    top = max(values) * 1.25 if max(values) > 0 else 0.0
+    bottom = min(values) * 1.25 if min(values) < 0 else 0.0
+    if top == bottom:                                  # a chart of all zeros
+        return 0.0, 1.0
+    return bottom, top
 
 
 def _apply_style(fig, ax, st: Style, title: str | None) -> None:
@@ -400,6 +515,18 @@ def _apply_style(fig, ax, st: Style, title: str | None) -> None:
         ax.tick_params(colors=colour, labelsize=st.font_size)
         for spine in ax.spines.values():
             spine.set_color(colour)
+        # **Thousands separators, not scientific notation.** Once values reach ChartQA's
+        # real magnitudes (p90 4,447 — `sample_values`), matplotlib's default axis
+        # formatter switches to an offset like `1e6`, which no Statista chart uses. That
+        # would hand the model a chart whose numbers it cannot read while the gold table
+        # says 1,234,567. `executor.parse_numeric` exists to strip these separators, and
+        # until now no training chart ever contained one (`DECISIONS.md` 0120).
+        # The value axis is y for vertical charts and x for horizontal ones; whichever it
+        # is, the other is categorical and its formatter must be left alone.
+        for axis in (ax.yaxis, ax.xaxis):
+            if isinstance(axis.get_major_formatter(), matplotlib.ticker.ScalarFormatter):
+                axis.set_major_formatter(
+                    matplotlib.ticker.FuncFormatter(lambda v, _pos: f"{v:,.10g}"))
     if st.title and title:
         fig.suptitle(title, fontsize=st.font_size + 2,
                      color="white" if st.dark else "black")
@@ -466,12 +593,12 @@ def _draw(chart_type: ChartType, series: list[tuple[str, float]], st: Style, rng
 
     if chart_type in ("vbar", "grouped_bar"):
         bars = list(ax.bar(labels, values, color=colours))
-        ax.set_ylim(0, max(values) * 1.25)
+        ax.set_ylim(*value_axis_limits(values))
         boxes = {lab: (lambda b=b: artist_box(fig, b)) for lab, b in zip(labels, bars)}
         recolour = _patch_recolour(bars)
     elif chart_type == "hbar":
         bars = list(ax.barh(labels, values, color=colours))
-        ax.set_xlim(0, max(values) * 1.25)
+        ax.set_xlim(*value_axis_limits(values))
         boxes = {lab: (lambda b=b: artist_box(fig, b)) for lab, b in zip(labels, bars)}
         recolour = _patch_recolour(bars)
     elif chart_type in ("line", "multi_line", "area"):
@@ -491,7 +618,7 @@ def _draw(chart_type: ChartType, series: list[tuple[str, float]], st: Style, rng
                     color=st.palette[1], linestyle="--", zorder=2)
         ax.set_xticks(range(len(labels)))
         ax.set_xticklabels(labels)
-        ax.set_ylim(0, max(values) * 1.25)
+        ax.set_ylim(*value_axis_limits(values))
         boxes = {lab: (lambda i=i, v=v: point_box(fig, ax, i, v, marker_pts, LINEWIDTH))
                  for i, (lab, v) in enumerate(series)}
         recolour = _line_recolour(line)
@@ -501,7 +628,7 @@ def _draw(chart_type: ChartType, series: list[tuple[str, float]], st: Style, rng
         ax.set_xticks(range(len(labels)))
         ax.set_xticklabels(labels)
         ax.set_xlim(-0.6, len(values) - 0.4)
-        ax.set_ylim(0, max(values) * 1.25)
+        ax.set_ylim(*value_axis_limits(values))
         boxes = {lab: (lambda i=i, v=v: scatter_point_box(fig, ax, i, v, s, LINEWIDTH))
                  for i, (lab, v) in enumerate(series)}
         recolour = _collection_recolour(coll)
@@ -540,7 +667,8 @@ def generate_example(
     # Density is a property of the curriculum level (`DENSITY_BY_LEVEL`), not a fixed
     # range: L1-L2 stay sparse so the format is learnable, L3-L4 reproduce ChartQA's
     # measured distribution (`DECISIONS.md` 0118).
-    series, quantity, unit = sample_series(data_rng, n=sample_density(data_rng, level))
+    series, quantity, unit = sample_series(data_rng, n=sample_density(data_rng, level),
+                                           chart_type=chart_type)
 
     question = build_question(level, series, data_rng, unit=unit, quantity=quantity)
     if question is None:
@@ -685,6 +813,7 @@ __all__ = [
     "HOLDOUT_STYLE_SEEDS",
     "MAX_VALUE_RATIO",
     "MIN_BOX_SIDE_PX",
+    "NON_NEGATIVE_CHART_TYPES",
     "ChartType",
     "Style",
     "SynthExample",
@@ -694,6 +823,8 @@ __all__ = [
     "is_holdout",
     "sample_density",
     "sample_series",
+    "sample_values",
     "sentinel_colours",
+    "value_axis_limits",
     "write_manifest",
 ]

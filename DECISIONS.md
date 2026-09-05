@@ -6445,3 +6445,66 @@ the test caught it. Both now declare, but two constructors for one source is how
 `elements`/`evidence` spelling defect in 0067 and 0071 managed to happen twice; it is
 recorded here rather than fixed, because merging them is a refactor with no measurement
 behind it yet.
+
+---
+
+## 0120 — Synthetic values now come from ChartQA's distribution, not from a convenient band
+
+**Context.** `Prompt.md` Idea 9 lists what to re-evaluate in synthetic generation — value
+distributions, extreme values, close values, negatives, percentages, formatting — and ends
+with the instruction that decides between them: *"Do not increase diversity blindly.
+Prioritize diversity that reduces the real/synthetic domain gap."* So the gap was measured
+first, over 4,574 real ChartQA charts and 4,000 synthetic ones.
+
+| property | ChartQA | synthetic (before) | verdict |
+|---|---:|---:|---|
+| `\|value\|` p50 | 41 | 73 | fine |
+| **`\|value\|` p90** | **4,447** | **198** | **22× under** |
+| **`\|value\|` max** | **272,157,779** | **457** | **six orders under** |
+| **charts with a value > 1,000** | **20.5%** | **0%** | **absent** |
+| charts with a negative value | 1.7% | 0% | absent |
+| percentage charts (sum ≈ 100) | 7.4% | 0.6% | absent |
+| top-two within 5% (close values) | 36.8% | 49.5% | **already harder than real** |
+| max/min ratio, median | 3.9 | ≤ 8 | fine |
+
+**Close values needed nothing** — synthetic is already harder than reality there, which is
+worth knowing before "make argmax harder" gets added to a list of improvements.
+
+**Magnitude was the gap, and it reaches further than it looks.** `MAX_VALUE_RATIO` bounds
+the *within-chart* spread and earns its place — it keeps the smallest mark tall enough to
+have a verifiable box — but nothing set the chart's *scale*, which was fixed at
+`uniform(4, 60)`. So no training chart ever carried a number above 457, and therefore **no
+training chart ever showed a thousands separator**, while `executor.parse_numeric` exists
+precisely to strip them. A parser for a case the model never sees.
+
+**Decision.** Fit rather than guess. `log10` of each chart's smallest positive value is
+near-normal in ChartQA (mean 1.45, sd 1.33), so a chart's scale is drawn from that
+lognormal; negatives and percentage charts appear at their measured rates. A first attempt
+used hand-picked decade weights and overshot every quantile — p50 604 against 41 — which is
+why this is fitted to the data.
+
+Also changed, because the numbers alone were not enough: the value axis now uses a
+thousands-separator formatter. matplotlib's default switches to an offset like `1e6` at
+these magnitudes, which no Statista chart uses, and that would have handed the model a
+chart it cannot read while the gold table says 1,234,567.
+
+**Result:** negatives 1.6% (1.7%), percentage charts 7.7% (7.4%), values above 1,000 21.8%
+(20.5%), p50 53 (41), p90 3,396 (4,447). The extreme tail is thinner than real — p99 84k
+against 1.02M — because ChartQA's top percentile is a handful of outlier charts, and that
+is recorded rather than chased.
+
+**Consequences.** Widening a distribution broke three things that a fixed band had been
+hiding, and each is now a test:
+
+* **all-zero charts.** `lo` could fall below 1 while precision was still a coin flip, so
+  `[0.0, 0.0, 0.0]` rendered as no bars at all. Precision now follows magnitude in both
+  directions — enough decimals that the smallest value keeps two significant figures, and
+  none at all above 10,000.
+* **negative bars clipped off the figure.** `ax.set_ylim(0, max * 1.25)` is correct only
+  while every value is positive, which they had always been. `value_axis_limits` now
+  contains every mark.
+* **pie charts.** matplotlib refuses a negative wedge, correctly, so `pie` is in
+  `NON_NEGATIVE_CHART_TYPES` and never receives one.
+
+Every one surfaced as a *failing test* rather than as a silently emptier corpus, which is
+the difference between this and the defects in 0071 through 0073.
