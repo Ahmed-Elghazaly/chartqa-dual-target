@@ -12,6 +12,7 @@ tests below pin each failure that was found by measuring rather than by reading.
 from __future__ import annotations
 
 import json
+from typing import ClassVar
 
 import pytest
 
@@ -395,3 +396,76 @@ def test_it_is_deliberately_not_schema_valid():
     parsed = parse_record(build_grounding_only_target(_grounded()))
     assert not parsed.ok
     assert "plan" in parsed.reason
+
+
+# --- truncated operands (`DECISIONS.md` 0129) ------------------------------------------
+
+class TestTruncatedOperands:
+    """A mined plan's operands come from the gold table, which holds a label in full; the
+    chart draws it clipped to the axis width and the annotation records what was drawn."""
+
+    NAMES: ClassVar[list[str]] = ["Large cap e-commerce (e.g. Alibaba,",
+                                  "Marketplaces (e.g. Delivery Hero,"]
+
+    def test_a_truncated_element_label_resolves(self):
+        from chartqa_dt.train.targets import rename_truncated_operands
+
+        plan = {"op": "lookup",
+                "args": ["Large cap e-commerce (e.g. Alibaba, Amazon, eBay)"]}
+        assert rename_truncated_operands(plan, self.NAMES)["args"] == [self.NAMES[0]]
+
+    def test_the_rewrite_goes_towards_what_the_chart_shows(self):
+        """Idea 6: the target must be self-contained. The model sees the clipped text and
+        can only emit that, so the operand becomes the element's label — never the other
+        way round."""
+        from chartqa_dt.train.targets import rename_truncated_operands
+
+        out = rename_truncated_operands(
+            {"op": "lookup", "args": ["Large cap e-commerce (e.g. Alibaba, Amazon)"]},
+            self.NAMES)
+        assert out["args"][0] in self.NAMES
+
+    def test_an_exact_label_is_untouched(self):
+        from chartqa_dt.train.targets import rename_truncated_operands
+
+        plan = {"op": "lookup", "args": [self.NAMES[0]]}
+        assert rename_truncated_operands(plan, self.NAMES) == plan
+
+    def test_a_short_prefix_is_refused(self):
+        """"Po" prefixes both "Poland" and "Portugal"; a wrong join points the plan at the
+        wrong mark, which is the defect class this module exists to prevent."""
+        from chartqa_dt.train.targets import rename_truncated_operands
+
+        plan = {"op": "lookup", "args": ["Poland"]}
+        assert rename_truncated_operands(plan, ["Po", "Portugal"]) == plan
+
+    def test_an_ambiguous_prefix_is_refused(self):
+        from chartqa_dt.train.targets import rename_truncated_operands
+
+        names = ["Revenue in the", "Revenue in the "]
+        plan = {"op": "lookup", "args": ["Revenue in the second quarter"]}
+        assert rename_truncated_operands(plan, names)["args"] == \
+            ["Revenue in the second quarter"]
+
+    def test_nesting_is_rewritten_throughout(self):
+        from chartqa_dt.train.targets import rename_truncated_operands
+
+        plan = {"op": "difference",
+                "args": [{"op": "lookup",
+                          "args": ["Large cap e-commerce (e.g. Alibaba, Amazon)"]},
+                         "Marketplaces (e.g. Delivery Hero, Just Eat)"]}
+        out = rename_truncated_operands(plan, self.NAMES)
+        assert out["args"][0]["args"] == [self.NAMES[0]]
+        assert out["args"][1] == self.NAMES[1]
+
+    def test_an_unrelated_label_is_left_alone(self):
+        from chartqa_dt.train.targets import rename_truncated_operands
+
+        plan = {"op": "lookup", "args": ["Something else entirely"]}
+        assert rename_truncated_operands(plan, self.NAMES) == plan
+
+    def test_empty_args_survive(self):
+        from chartqa_dt.train.targets import rename_truncated_operands
+
+        assert rename_truncated_operands({"op": "mean", "args": []}, self.NAMES) == \
+            {"op": "mean", "args": []}

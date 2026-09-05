@@ -26,6 +26,7 @@ exists rather than invented here:
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from typing import Any
 
 from chartqa_dt.data.records import (
@@ -156,6 +157,42 @@ def _refuse_on_value_disagreement(record: ChartRecord, label: str,
             f"point at one mark and state another's number.")
 
 
+#: How much of a label must survive truncation before a prefix match is trustworthy.
+#: Short prefixes collide by accident — "Po" prefixes both "Poland" and "Portugal" — and a
+#: wrong join here silently points the plan at the wrong mark, which is the defect class
+#: this whole module exists to prevent.
+MIN_TRUNCATED_PREFIX = 8
+
+
+def rename_truncated_operands(plan: Any, names: Sequence[str]) -> Any:
+    """Rewrite plan operands that a chart renders in truncated form.
+
+    **A join bug, not a mining bug.** A mined plan's operands come from the gold *table*,
+    which holds a label in full; the chart draws it clipped to the axis width, and
+    ChartQA's annotation records what was drawn. So the plan says
+    `"Large cap e-commerce (e.g. Alibaba, Amazon, eBay)"` and the element says
+    `"Large cap e-commerce (e.g. Alibaba,"`, and the target is refused for referencing a
+    label with no box.
+
+    Measured over 20,000 cached RefChartQA records: **240 records** are affected, **216
+    (90%)** resolve to exactly one truncated element, and **zero** are ambiguous.
+
+    **The rewrite goes towards the chart, not away from it.** The model sees the clipped
+    text and can only emit that, so the operand becomes the element's label rather than
+    the evidence being renamed to a string the image never shows — `Prompt.md` Idea 6:
+    *"the model-facing target must remain SELF-CONTAINED"* (`DECISIONS.md` 0129).
+    """
+    if not isinstance(plan, dict):
+        if isinstance(plan, str) and plan not in names:
+            candidates = [n for n in names
+                          if len(n) >= MIN_TRUNCATED_PREFIX and plan.startswith(n)]
+            if len(candidates) == 1:
+                return candidates[0]
+        return plan
+    return {**plan, "args": [rename_truncated_operands(a, names)
+                             for a in (plan.get("args") or [])]}
+
+
 def _evidence_from(record: ChartRecord) -> list[dict[str, Any]]:
     """Evidence entries — **the ones the plan needs**, not the first `MAX_EVIDENCE` boxes.
 
@@ -214,7 +251,8 @@ def _evidence_from(record: ChartRecord) -> list[dict[str, Any]]:
             return table_values.get(bare_of[name], element.get("value"))
         return element.get("value")
     boxes = record.boxes or []
-    wanted = plan_labels(record.plan)
+    plan = rename_truncated_operands(record.plan, names)
+    wanted = plan_labels(plan)
     # The plan was mined and verified against the gold TABLE, so the table is the
     # authority on values. The annotation is the authority on boxes. Reading values from
     # the annotation instead made 35 of 105 planned records disagree with their own

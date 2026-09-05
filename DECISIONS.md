@@ -6942,3 +6942,62 @@ successful execution.
 operands". Targets are unaffected — `qualified_labels` already guarantees unique labels or
 refuses the record (0083) — so this changes inference-time behaviour only, which is where
 the duplicates come from.
+
+---
+
+## 0129 — A stratified semantic audit set, and the join bug it found on its first run
+
+**Context.** `Prompt.md`'s **MANUAL SEMANTIC AUDIT SET** asks for a small, carefully
+selected, manually inspected set of *difficult* cases, to measure the one thing round-trip
+agreement cannot: **semantic correctness**. A plan that executes to the gold answer can
+still be the wrong plan. Only the RefChartQA box-acceptability audit existed — 200 rows,
+one of the sixteen kinds of hard case the brief lists.
+
+**Decision.** `scripts/build_semantic_audit.py`, with the methodology written down because
+the brief asks for exactly that — *"so the audit is reproducible and not cherry-picked"*:
+
+1. Sixteen strata, each a **detector** answering *is this a hard case of this kind?* — not
+   *is this from this source*, which would audit the source rather than the difficulty. A
+   record may match several and is eligible for each.
+2. Candidates sorted by `record_id`, a sha256-derived string, so the order is deterministic
+   and uncorrelated with anything that would predict difficulty or correctness.
+3. `Random(f"{seed}:{stratum}")` draws from each, and the seed is written into the output.
+4. **Short strata stay short and are reported.** `numeric_looking_categories` had 12
+   eligible records of a requested 15 and yielded 12. Padding from an easier stratum is how
+   an audit stops auditing what it claims to.
+
+Nothing is judged by the script: every row carries `verdict: null`. 237 rows over a pool of
+38,264 records.
+
+### What it found immediately
+
+`plan_references_missing_evidence` — a stratum added because a plan naming a label with no
+box is refused, and it was worth seeing *why* — turned out to have **484 operands over 240
+records**, and they were not random:
+
+| shape | share | example |
+|---|---:|---|
+| **plan label is longer** | **96.9%** | plan `"Large cap e-commerce (e.g. Alibaba, Amazon, eBay)"` vs element `"Large cap e-commerce (e.g. Alibaba,"` |
+| value appended | 2.1% | plan `"Police 69"` vs element `"Police"` |
+| plan label is shorter | 1.0% | plan `"Libera"` vs element `"Liberal"` |
+
+**A join bug, not a mining bug.** A mined operand comes from the gold *table*, which holds
+the label in full; the chart draws it **clipped to the axis width**, and ChartQA's
+annotation records what was drawn. The two strings name the same mark.
+
+`rename_truncated_operands` resolves an operand to an element whose label is a unique
+prefix of it, requiring at least `MIN_TRUNCATED_PREFIX = 8` characters — `"Po"` prefixes
+both `"Poland"` and `"Portugal"`, and a wrong join here points the plan at the wrong mark,
+which is the defect class this module exists to prevent. **Measured: 216 of 240 records
+(90%) resolve, and zero are ambiguous.**
+
+**The rewrite goes towards the chart.** The operand becomes the *element's* label, not the
+evidence renamed to the table's full string — the model sees clipped text and can only emit
+that. `Prompt.md` Idea 6: *"the model-facing target must remain SELF-CONTAINED."* Rewriting
+the other way would have produced targets referring to text the image never shows.
+
+**Consequences.** This is not weakening a gate to raise yield, and the distinction matters:
+the gate was rejecting records whose plan and element genuinely name the same mark, so
+fixing the join is a correctness change that happens to recover records. Same class as 0067
+and 0083. The other 10% — appended values, and truncations shorter than eight characters —
+stay refused.
