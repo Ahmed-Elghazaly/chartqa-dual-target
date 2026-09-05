@@ -9,6 +9,7 @@ what non-negotiable rule 6 forbids. So most of what follows checks the door is n
 from __future__ import annotations
 
 import json
+import pathlib
 
 import pytest
 
@@ -336,3 +337,61 @@ def test_the_precondition_does_not_touch_plan_targets():
     """A ChartQA record with a real plan is unaffected: the plan selects the evidence."""
     r = chartqa_shaped(boxes=[[1, 2, 3, 4]], answer="7")
     build_target(r)          # must not raise
+
+
+# --- against the real cache --------------------------------------------------------
+
+CACHE = pathlib.Path.home() / ".cache/chartqa_dt/data/refchartqa_train.jsonl"
+needs_cache = pytest.mark.skipif(not CACHE.exists(), reason="RefChartQA cache not present")
+
+
+def _cached(cap):
+    import sys
+    sys.path.insert(0, ".")
+    from scripts.build_mixtures import refchartqa_records
+    return list(refchartqa_records(cap=cap, cache=CACHE))
+
+
+@needs_cache
+def test_refchartqa_elements_are_the_marked_boxes_and_not_the_whole_chart():
+    """The property that makes a grounding-only target legitimate for this source.
+
+    If alignment had enriched each record with *every* ChartQA element instead of only
+    the marked ones, RefChartQA would carry the same defect ChartQA does and the
+    precondition would not catch it — the boxes would still be per-question by
+    provenance and whole-chart in fact. Measured: 0 of 55,486 records disagree.
+    """
+    from chartqa_dt.data.records import ELEMENTS_KEY
+
+    records = _cached(60_000)
+    assert len(records) > 10_000, "cache too small for this test to mean anything"
+    bad = [r.record_id for r in records
+           if (els := r.meta.get(ELEMENTS_KEY)) and r.boxes and len(els) != len(r.boxes)]
+    assert not bad, (f"{len(bad)} records carry more elements than marked boxes "
+                     f"(first: {bad[0]}) — a grounding-only target from one of these "
+                     f"would point at parts of the chart nobody marked")
+
+
+@needs_cache
+def test_a_grounding_only_target_emits_exactly_the_marked_boxes():
+    """Nothing added, and nothing dropped except by the declared cap."""
+    from chartqa_dt.prompting.prompts import MAX_EVIDENCE
+
+    built = wrong = 0
+    for record in _cached(4_000):
+        try:
+            build_target(record)
+            continue
+        except NoPlanAvailable:
+            pass
+        except TargetError:
+            continue
+        try:
+            obj = json.loads(build_grounding_only_target(record))
+        except TargetError:
+            continue
+        built += 1
+        if len(obj["evidence"]) != min(len(record.boxes or []), MAX_EVIDENCE):
+            wrong += 1
+    assert built > 500, f"only {built} grounding-only targets built; test is too weak"
+    assert wrong == 0, f"{wrong} of {built} targets did not emit exactly the marked boxes"
