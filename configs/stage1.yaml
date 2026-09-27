@@ -1,0 +1,17 @@
+_base_: base.yaml
+run_name: stage1
+
+train:
+  stage: stage1
+  lr: 1.0e-4
+  epochs: 1.0
+  per_device_batch: 4
+  grad_accum: 2
+  optim: adamw_fused
+  lr_scheduler: cosine
+  warmup_ratio: 0.03
+  max_grad_norm: 1.0
+  save_every_steps: 100
+  eval_every_steps: 250
+  metric_every_steps: 1000
+  metric_batch_size: 8

@@ -1,0 +1,25 @@
+seed: 0
+
+model:
+  hf_id: Qwen/Qwen3-VL-2B-Instruct
+  revision: 89644892e4d85e24eaac8bacfd4f463576704203
+  dtype: bfloat16
+  attn_implementation: sdpa
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  lora_target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+  lora_on_vision: true
+  lora_on_language: true
+  max_seq_len: 1024
+  image_max_pixels: null
+  image_min_pixels: null
+  gradient_checkpointing: false
+
+data:
+  mixture_seed: 20250824
+  chartqa_limit_per_kind: 30000
+  synthetic_stage1: 6000
+  stage1_cap: 1000000
+  stage2_cap: 1000000
+  synthetic_replay: 6000

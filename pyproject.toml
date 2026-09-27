@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chartqa-dt"
+version = "1.0.0"
+description = "Chart question answering with grounded facts and executable plans (Qwen3-VL-2B with LoRA)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "Ahmed Tamer" }]
+dependencies = [
+    "numpy",
+    "pillow",
+    "pyyaml",
+    "matplotlib",
+    "jsonschema",
+    "huggingface-hub",
+    "datasets",
+    "torch",
+    "transformers",
+    "peft",
+    "safetensors",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
